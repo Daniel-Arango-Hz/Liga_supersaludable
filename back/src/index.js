@@ -22,7 +22,7 @@ const PORT = process.env.PORT ?? 3002;
 app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-const allowedOrigins = (process.env.CORS_ORIGINS ?? 'https://liga-supersaludable.vercel.app/')
+const allowedOrigins = (process.env.CORS_ORIGINS ?? 'https://liga-supersaludable.vercel.app')
   .split(',')
   .map((o) => o.trim());
 
