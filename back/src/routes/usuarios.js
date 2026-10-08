@@ -40,7 +40,10 @@ router.get('/perfil', requireAuth, async (req, res) => {
     .single();
 
   if (error) return res.status(404).json({ error: 'Usuario no encontrado' });
-  res.json(data);
+  res.json({
+    ...data,
+    avatar_url: data.avatar_url || req.user.user_metadata?.avatar_url || req.user.user_metadata?.picture || null,
+  });
 });
 
 // ─── PATCH /usuarios/perfil ───────────────────────────────────────────────────

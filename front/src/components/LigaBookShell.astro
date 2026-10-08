@@ -180,21 +180,25 @@ const { activeSection } = Astro.props;
         initial.hidden = false;
       }
 
-      if (!avatarImage || !avatarUrl) return;
+      if (!avatarImage || !avatarUrl) {
+        if (avatarImage) avatarImage.hidden = true;
+        return;
+      }
 
       try {
         const url = new URL(avatarUrl);
-        if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+          avatarImage.hidden = true;
+          return;
+        }
         avatarImage.src = url.toString();
         avatarImage.hidden = false;
         if (initial) initial.hidden = true;
       } catch (error) {
+        avatarImage.hidden = true;
         console.error('URL de avatar inválida:', error);
       }
     };
-
-    updateAvatar(usuario.nombre, usuario.avatar_url);
-    if (accountName) accountName.textContent = usuario.nombre?.trim() || 'Mi cuenta';
 
     if (avatarImage) {
       avatarImage.addEventListener('error', () => {
@@ -202,6 +206,9 @@ const { activeSection } = Astro.props;
         if (initial) initial.hidden = false;
       });
     }
+
+    updateAvatar(usuario.nombre, usuario.avatar_url);
+    if (accountName) accountName.textContent = usuario.nombre?.trim() || 'Mi cuenta';
 
     void obtenerPerfil()
       .then((perfil) => {
