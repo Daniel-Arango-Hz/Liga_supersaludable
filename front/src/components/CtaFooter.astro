@@ -48,9 +48,11 @@ const currentYear = new Date().getFullYear();
 
       <nav class="footer-nav" aria-label="Cuenta">
         <h3>CUENTA</h3>
-        <ul>
+        <ul id="footer-guest-links">
           <li><a href="/auth/registro">Registrarse</a></li>
           <li><a href="/auth/login">Ingresar</a></li>
+        </ul>
+        <ul id="footer-user-links" hidden>
           <li><a href="/panel/publicaciones">Mi Panel</a></li>
           <li id="footer-admin-link" hidden><a href="/admin">Administrador</a></li>
         </ul>
@@ -66,16 +68,24 @@ const currentYear = new Date().getFullYear();
 
 <script type="module">
   const ctaParticipacion = document.getElementById('cta-participacion-global');
+  const footerGuestLinks = document.getElementById('footer-guest-links');
+  const footerUserLinks = document.getElementById('footer-user-links');
   const footerAdminLink = document.getElementById('footer-admin-link');
+  const token = localStorage.getItem('token');
   const usuarioRaw = localStorage.getItem('usuario');
-  const hasSession = Boolean(localStorage.getItem('token') || usuarioRaw);
+  const hasSession = Boolean(token);
 
   if (hasSession && ctaParticipacion) {
     ctaParticipacion.style.display = 'none';
   }
 
+  if (footerGuestLinks && footerUserLinks) {
+    footerGuestLinks.hidden = hasSession;
+    footerUserLinks.hidden = !hasSession;
+  }
+
   if (footerAdminLink) {
-    if (usuarioRaw && localStorage.getItem('token')) {
+    if (usuarioRaw && token) {
       try {
         const usuario = JSON.parse(usuarioRaw);
         footerAdminLink.hidden = usuario?.tipo !== 'admin';
@@ -220,6 +230,10 @@ const currentYear = new Date().getFullYear();
     gap: 0.75rem;
     padding: 0;
     margin: 0;
+  }
+
+  .footer-nav [hidden] {
+    display: none;
   }
 
   .footer-nav a {
