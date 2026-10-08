@@ -937,7 +937,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         audioPlayer.play().catch((error) => {
           console.error('No se pudo iniciar la reproducción del audiolibro:', error);
           setAudiobookStatus(audioPlayer.error
-            ? 'No se pudo cargar el MP3 guardado. Verifica que el archivo siga en el bucket de audiolibros.'
+            ? 'No se pudo cargar el MP3 guardado desde el servidor. Revisa el error de reproducción en la consola.'
             : 'No se pudo iniciar la reproducción automáticamente. Pulsa reproducir en el control de audio.');
         });
         return;
@@ -955,7 +955,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     document.getElementById('audiobook-audio')?.addEventListener('error', () => {
       const audioPlayer = document.getElementById('audiobook-audio');
       console.error('Error cargando el MP3 del audiolibro:', audioPlayer.error);
-      setAudiobookStatus('No se pudo cargar el MP3 guardado. Verifica que el archivo siga en el bucket de audiolibros.');
+      setAudiobookStatus('No se pudo cargar el MP3 guardado desde el servidor. Revisa el error de reproducción en la consola.');
     });
     document.getElementById('audiobook-preview')?.addEventListener('click', prepareAudiobookPreview);
     document.getElementById('audiobook-text-preview')?.addEventListener('input', (event) => {

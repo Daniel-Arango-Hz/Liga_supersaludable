@@ -109,51 +109,16 @@ router.get('/:slug/audiolibro', async (req, res) => {
     return res.status(404).json({ error: 'Este libro todavía no tiene audiolibro' });
   }
 
-  const { data: audioFile, error: audioError } = await supabaseAdmin.storage
+  const { data: signedAudio, error: signedAudioError } = await supabaseAdmin.storage
     .from('audiolibros')
-    .download(libro.audiolibro);
+    .createSignedUrl(libro.audiolibro, 60 * 60);
 
-  if (audioError || !audioFile) {
-    console.error('No se pudo descargar el audiolibro de Supabase Storage:', audioError);
-    return res.status(502).json({ error: 'No se pudo cargar el audiolibro.' });
+  if (signedAudioError || !signedAudio?.signedUrl) {
+    console.error('No se pudo crear la URL de reproducción del audiolibro:', signedAudioError);
+    return res.status(502).json({ error: 'No se pudo preparar la reproducción del audiolibro.' });
   }
 
-  const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-  const range = req.get('range');
-  res
-    .type('audio/mpeg')
-    .set({
-      'Accept-Ranges': 'bytes',
-      'Cache-Control': 'public, max-age=3600',
-    });
-
-  if (range) {
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-    if (!match || (!match[1] && !match[2])) {
-      return res.status(416).set('Content-Range', `bytes */${audioBuffer.length}`).end();
-    }
-
-    const start = match[1] ? Number(match[1]) : Math.max(audioBuffer.length - Number(match[2]), 0);
-    const end = match[2] && match[1]
-      ? Math.min(Number(match[2]), audioBuffer.length - 1)
-      : audioBuffer.length - 1;
-    if (start >= audioBuffer.length || end < start) {
-      return res.status(416).set('Content-Range', `bytes */${audioBuffer.length}`).end();
-    }
-
-    const chunk = audioBuffer.subarray(start, end + 1);
-    return res
-      .status(206)
-      .set({
-        'Content-Range': `bytes ${start}-${end}/${audioBuffer.length}`,
-        'Content-Length': String(chunk.length),
-      })
-      .send(chunk);
-  }
-
-  return res
-    .set('Content-Length', String(audioBuffer.length))
-    .send(audioBuffer);
+  return res.redirect(302, signedAudio.signedUrl);
 });
 
 router.post('/:slug/audiolibro/upload-url', requireAuth, async (req, res) => {
