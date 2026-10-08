@@ -6,10 +6,12 @@ import LigaBookShell from '../components/LigaBookShell.astro';
 interface Props {
   title?: string;
   description?: string;
+  minimal?: boolean;
 }
 const {
   title = "Liga Supersaludable",
   description = "Cuentos, juegos, retos y recursos educativos para aprender, divertirse y desarrollar hábitos saludables en familia.",
+  minimal = false,
 } = Astro.props;
 const activeSection = Astro.url.pathname === '/'
   ? 'inicio'
@@ -35,11 +37,17 @@ const activeSection = Astro.url.pathname === '/'
     />
   </head>
   <body>
-    <LoginModal />
-    <LigaBookShell activeSection={activeSection}>
+    {!minimal && <LoginModal />}
+    {minimal ? (
       <slot />
-    </LigaBookShell>
-    <CtaFooter />
+    ) : (
+      <>
+        <LigaBookShell activeSection={activeSection}>
+          <slot />
+        </LigaBookShell>
+        <CtaFooter />
+      </>
+    )}
 
     <script>
       function onReady(callback) {
