@@ -81,6 +81,25 @@ create table if not exists public.libros (
 alter table public.libros
   add column if not exists audiolibro text;
 
+do $$
+begin
+  if (
+    select data_type
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'libros'
+      and column_name = 'audiolibro'
+  ) = 'bytea' then
+    if exists (select 1 from public.libros where audiolibro is not null) then
+      raise exception 'La columna libros.audiolibro contiene datos binarios. Migra esos audios a Storage antes de cambiarla a text.';
+    end if;
+
+    alter table public.libros
+      alter column audiolibro type text using null::text;
+  end if;
+end
+$$;
+
 -- ─── libros_categorias ───────────────────────────────────────────────────────
 create table if not exists public.libros_categorias (
   libro_id     uuid references public.libros(id) on delete cascade,
@@ -160,6 +179,14 @@ create table if not exists public.likes_testimonios (
   primary key (usuario_id, testimonio_id)
 );
 
+-- ─── likes_videos ────────────────────────────────────────────────────────────
+create table if not exists public.likes_videos (
+  usuario_id uuid not null references public.usuarios(id) on delete cascade,
+  video_id   uuid not null references public.videos(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (usuario_id, video_id)
+);
+
 -- ─── seguidores_autor ─────────────────────────────────────────────────────────
 create table if not exists public.seguidores_autor (
   seguidor_id uuid not null references public.usuarios(id) on delete cascade,
@@ -188,28 +215,50 @@ create index if not exists idx_testimonios_pub   on public.testimonios(publicado
 -- ════════════════════════════════════════════════════════════
 
 -- Vista: libros con autor, categorías y rating calculado
-create or replace view public.libros_completos as
-select
-  l.*,
-  u.nombre || ' ' || u.apellido as autor_nombre,
-  a.especialidad              as autor_especialidad,
-  at2.slug                    as autor_slug,
-  coalesce(
-    round(avg(v.puntuacion)::numeric, 1), 0
-  )                           as rating_promedio,
-  count(distinct v.id)        as total_valoraciones,
-  array_remove(array_agg(distinct c.nombre), null) as categorias
-from public.libros l
-left join public.autores a on a.id = l.autor_id
-left join public.usuarios u on u.id = a.usuario_id
-left join (
-  select a2.id, u2.nombre || '-' || u2.apellido as slug
-  from public.autores a2 join public.usuarios u2 on u2.id = a2.usuario_id
-) at2 on at2.id = l.autor_id
-left join public.valoraciones v on v.libro_id = l.id
-left join public.libros_categorias lc on lc.libro_id = l.id
-left join public.categorias c on c.id = lc.categoria_id
-group by l.id, a.id, u.nombre, u.apellido, a.especialidad, at2.slug;
+do $$
+begin
+  if to_regclass('public.libros_completos') is null then
+    execute $view$
+      create view public.libros_completos as
+      select
+        l.id,
+        l.titulo,
+        l.slug,
+        l.descripcion,
+        l.contenido_url,
+        l.autor_id,
+        l.edad_rango,
+        l.paginas,
+        l.anio,
+        l.portada_gradiente,
+        l.portada_icono,
+        l.destacado,
+        l.nuevo,
+        l.publicado,
+        l.descargas_total,
+        l.created_at,
+        l.updated_at,
+        u.nombre || ' ' || u.apellido as autor_nombre,
+        a.especialidad              as autor_especialidad,
+        at2.slug                    as autor_slug,
+        coalesce(round(avg(v.puntuacion)::numeric, 1), 0) as rating_promedio,
+        count(distinct v.id)        as total_valoraciones,
+        array_remove(array_agg(distinct c.nombre), null) as categorias
+      from public.libros l
+      left join public.autores a on a.id = l.autor_id
+      left join public.usuarios u on u.id = a.usuario_id
+      left join (
+        select a2.id, u2.nombre || '-' || u2.apellido as slug
+        from public.autores a2 join public.usuarios u2 on u2.id = a2.usuario_id
+      ) at2 on at2.id = l.autor_id
+      left join public.valoraciones v on v.libro_id = l.id
+      left join public.libros_categorias lc on lc.libro_id = l.id
+      left join public.categorias c on c.id = lc.categoria_id
+      group by l.id, a.id, u.nombre, u.apellido, a.especialidad, at2.slug
+    $view$;
+  end if;
+end
+$$;
 
 -- Vista: autores con stats calculados
 create or replace view public.autores_completos as
@@ -343,64 +392,100 @@ alter table public.guardados     enable row level security;
 alter table public.videos        enable row level security;
 alter table public.testimonios   enable row level security;
 alter table public.likes_testimonios enable row level security;
+alter table public.likes_videos enable row level security;
 alter table public.seguidores_autor  enable row level security;
 
 -- usuarios: cualquiera puede leer, solo el propio usuario puede editar
+drop policy if exists "usuarios_select" on public.usuarios;
 create policy "usuarios_select" on public.usuarios for select using (true);
+drop policy if exists "usuarios_update" on public.usuarios;
 create policy "usuarios_update" on public.usuarios for update using (auth.uid() = id);
 
 -- autores: lectura pública, modificación solo propia
+drop policy if exists "autores_select" on public.autores;
 create policy "autores_select" on public.autores for select using (true);
+drop policy if exists "autores_update" on public.autores;
 create policy "autores_update" on public.autores for update using (auth.uid() = usuario_id);
 
 -- libros: lectura pública, escritura solo admin/autor propietario
+drop policy if exists "libros_select" on public.libros;
 create policy "libros_select" on public.libros for select using (publicado = true);
+drop policy if exists "libros_insert" on public.libros;
 create policy "libros_insert" on public.libros for insert
   with check (
     exists (select 1 from public.autores where usuario_id = auth.uid() and id = autor_id)
     or exists (select 1 from public.usuarios where id = auth.uid() and tipo = 'admin')
   );
+drop policy if exists "libros_update" on public.libros;
 create policy "libros_update" on public.libros for update
   using (
     exists (select 1 from public.autores where usuario_id = auth.uid() and id = autor_id)
     or exists (select 1 from public.usuarios where id = auth.uid() and tipo = 'admin')
   );
+drop policy if exists "libros_delete" on public.libros;
 create policy "libros_delete" on public.libros for delete
   using (exists (select 1 from public.usuarios where id = auth.uid() and tipo = 'admin'));
 
 -- paginas_libro: lectura pública
+drop policy if exists "paginas_select" on public.paginas_libro;
 create policy "paginas_select" on public.paginas_libro for select using (true);
 
 -- valoraciones: cada usuario gestiona las suyas
+drop policy if exists "valoraciones_select" on public.valoraciones;
 create policy "valoraciones_select" on public.valoraciones for select using (true);
+drop policy if exists "valoraciones_insert" on public.valoraciones;
 create policy "valoraciones_insert" on public.valoraciones for insert with check (auth.uid() = usuario_id);
+drop policy if exists "valoraciones_update" on public.valoraciones;
 create policy "valoraciones_update" on public.valoraciones for update using (auth.uid() = usuario_id);
+drop policy if exists "valoraciones_delete" on public.valoraciones;
 create policy "valoraciones_delete" on public.valoraciones for delete using (auth.uid() = usuario_id);
 
 -- descargas: inserción libre, lectura propia
+drop policy if exists "descargas_insert" on public.descargas;
 create policy "descargas_insert" on public.descargas for insert with check (true);
+drop policy if exists "descargas_select" on public.descargas;
 create policy "descargas_select" on public.descargas for select using (auth.uid() = usuario_id);
 
 -- guardados: gestión propia
+drop policy if exists "guardados_select" on public.guardados;
 create policy "guardados_select" on public.guardados for select using (auth.uid() = usuario_id);
+drop policy if exists "guardados_insert" on public.guardados;
 create policy "guardados_insert" on public.guardados for insert with check (auth.uid() = usuario_id);
+drop policy if exists "guardados_delete" on public.guardados;
 create policy "guardados_delete" on public.guardados for delete using (auth.uid() = usuario_id);
 
 -- videos: lectura pública
+drop policy if exists "videos_select" on public.videos;
 create policy "videos_select" on public.videos for select using (publicado = true);
 
 -- testimonios: lectura de publicados, inserción con auth
+drop policy if exists "testimonios_select" on public.testimonios;
 create policy "testimonios_select" on public.testimonios for select using (publicado = true);
+drop policy if exists "testimonios_insert" on public.testimonios;
 create policy "testimonios_insert" on public.testimonios for insert with check (auth.uid() = usuario_id);
 
 -- likes_testimonios: gestión propia
+drop policy if exists "likes_select" on public.likes_testimonios;
 create policy "likes_select" on public.likes_testimonios for select using (true);
+drop policy if exists "likes_insert" on public.likes_testimonios;
 create policy "likes_insert" on public.likes_testimonios for insert with check (auth.uid() = usuario_id);
+drop policy if exists "likes_delete" on public.likes_testimonios;
 create policy "likes_delete" on public.likes_testimonios for delete using (auth.uid() = usuario_id);
 
+-- likes_videos: lectura pública, cada usuario gestiona los suyos
+drop policy if exists "likes_videos_select" on public.likes_videos;
+create policy "likes_videos_select" on public.likes_videos for select using (true);
+drop policy if exists "likes_videos_insert" on public.likes_videos;
+create policy "likes_videos_insert" on public.likes_videos for insert with check (auth.uid() = usuario_id);
+drop policy if exists "likes_videos_delete" on public.likes_videos;
+create policy "likes_videos_delete" on public.likes_videos for delete using (auth.uid() = usuario_id);
+
 -- seguidores_autor: gestión propia
+drop policy if exists "seguidores_select" on public.seguidores_autor;
 create policy "seguidores_select" on public.seguidores_autor for select using (true);
+drop policy if exists "seguidores_insert" on public.seguidores_autor;
 create policy "seguidores_insert" on public.seguidores_autor for insert with check (auth.uid() = seguidor_id);
+drop policy if exists "seguidores_delete" on public.seguidores_autor;
 create policy "seguidores_delete" on public.seguidores_autor for delete using (auth.uid() = seguidor_id);
 
 

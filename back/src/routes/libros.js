@@ -192,7 +192,7 @@ router.post('/:slug/audiolibro', requireAuth, async (req, res) => {
     .from('libros')
     .update({ audiolibro: ruta })
     .eq('id', libro.id)
-    .is('audiolibro', null)
+    .or('audiolibro.is.null,audiolibro.eq.')
     .select('id')
     .maybeSingle();
 
@@ -241,6 +241,7 @@ router.get('/:slug', optionalAuth, async (req, res) => {
       .select('id')
       .eq('id', libro.id)
       .not('audiolibro', 'is', null)
+      .neq('audiolibro', '')
       .maybeSingle(),
   ]);
 
