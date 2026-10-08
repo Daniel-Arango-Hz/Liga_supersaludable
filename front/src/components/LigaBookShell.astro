@@ -84,7 +84,10 @@ const { activeSection } = Astro.props;
         <a class="login-button" id="topbar-login" href="/auth/login">Iniciar sesión</a>
         <div class="account-menu" id="topbar-account" style="display: none;">
           <button class="account-trigger" id="account-trigger" type="button" aria-label="Abrir menú de usuario" aria-expanded="false">
-            <span class="account-avatar" id="account-initial">U</span>
+            <span class="account-avatar">
+              <img id="account-avatar-image" alt="" hidden />
+              <span id="account-initial">U</span>
+            </span>
             <span class="account-greeting">¡Hola, <span class="account-name" id="account-name">Mi cuenta</span>!</span>
             <svg class="account-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -101,7 +104,7 @@ const { activeSection } = Astro.props;
 </div>
 
 <script>
-  import { getUsuario, logout } from '../utils/api';
+  import { getUsuario, logout, obtenerPerfil } from '../utils/api';
 
   const loginLink = document.getElementById('topbar-login');
   const accountMenu = document.getElementById('topbar-account');
@@ -169,9 +172,46 @@ const { activeSection } = Astro.props;
     if (loginLink) loginLink.hidden = true;
     if (accountMenu) accountMenu.style.display = 'block';
     const initial = document.getElementById('account-initial');
+    const avatarImage = document.getElementById('account-avatar-image') as HTMLImageElement | null;
     const accountName = document.getElementById('account-name');
-    if (initial) initial.textContent = usuario.nombre?.trim().charAt(0).toLocaleUpperCase('es') || 'U';
+    const updateAvatar = (nombre?: string, avatarUrl?: string) => {
+      if (initial) {
+        initial.textContent = nombre?.trim().charAt(0).toLocaleUpperCase('es') || 'U';
+        initial.hidden = false;
+      }
+
+      if (!avatarImage || !avatarUrl) return;
+
+      try {
+        const url = new URL(avatarUrl);
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+        avatarImage.src = url.toString();
+        avatarImage.hidden = false;
+        if (initial) initial.hidden = true;
+      } catch (error) {
+        console.error('URL de avatar inválida:', error);
+      }
+    };
+
+    updateAvatar(usuario.nombre, usuario.avatar_url);
     if (accountName) accountName.textContent = usuario.nombre?.trim() || 'Mi cuenta';
+
+    if (avatarImage) {
+      avatarImage.addEventListener('error', () => {
+        avatarImage.hidden = true;
+        if (initial) initial.hidden = false;
+      });
+    }
+
+    void obtenerPerfil()
+      .then((perfil) => {
+        localStorage.setItem('usuario', JSON.stringify(perfil));
+        updateAvatar(perfil.nombre, perfil.avatar_url);
+        if (accountName) accountName.textContent = perfil.nombre?.trim() || 'Mi cuenta';
+      })
+      .catch((error: unknown) => {
+        console.error('No se pudo cargar el avatar del perfil:', error);
+      });
 
     accountTrigger?.addEventListener('click', () => {
       const expanded = accountTrigger.getAttribute('aria-expanded') === 'true';
@@ -241,7 +281,8 @@ const { activeSection } = Astro.props;
   .login-button, .account-trigger { min-height: 44px; border: 1px solid rgba(48,130,125,.2); border-radius: 16px; background: rgba(255,255,255,.78); color: #286b70; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 12px; font: inherit; font-size: .92rem; font-weight: 700; text-decoration: none; cursor: pointer; box-shadow: 0 5px 16px rgba(42,101,102,.07); transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
   .login-button:hover, .account-trigger:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 9px 20px rgba(42,101,102,.12); }
   .login-button[hidden] { display: none; }
-  .account-avatar { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(145deg,#f6b38a,#ed825f); color: #fff; font-size: 1rem; font-weight: 800; }
+  .account-avatar { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; overflow: hidden; background: linear-gradient(145deg,#f6b38a,#ed825f); color: #fff; font-size: 1rem; font-weight: 800; }
+  .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .account-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .account-greeting { white-space: nowrap; }
   .account-chevron { width: 18px; height: 18px; }
