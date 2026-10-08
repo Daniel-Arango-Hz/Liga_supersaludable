@@ -15,7 +15,7 @@ router.get('/google', (req, res) => {
     return res.status(400).json({ error: 'Solicitud de autenticación con Google inválida' });
   }
 
-  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:4321')
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'https://liga-supersaludable.vercel.app,http://localhost:4321')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)
@@ -28,12 +28,28 @@ router.get('/google', (req, res) => {
     requestOrigin = undefined;
   }
 
-  const frontendUrl =
-    process.env.FRONTEND_URL ||
-    (allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0] || 'http://localhost:4321');
+  const isLocalOrigin = (origin) => /^https?:\/\/(localhost|127(?:\.\d{1,3}){3})(:\d+)?$/i.test(origin);
+  const productionDeployment = process.env.VERCEL === '1';
+  const allowedRequestOrigin =
+    allowedOrigins.includes(requestOrigin) && !(productionDeployment && isLocalOrigin(requestOrigin))
+      ? requestOrigin
+      : undefined;
+  let frontendUrl;
   let redirectTo;
 
   try {
+    const configuredFrontendOrigin = process.env.FRONTEND_URL
+      ? new URL(process.env.FRONTEND_URL.trim()).origin
+      : undefined;
+    frontendUrl =
+      allowedRequestOrigin ||
+      (configuredFrontendOrigin && !(productionDeployment && isLocalOrigin(configuredFrontendOrigin))
+        ? configuredFrontendOrigin
+        : undefined) ||
+      (productionDeployment
+        ? allowedOrigins.find((origin) => !isLocalOrigin(origin))
+        : allowedOrigins[0]) ||
+      'https://liga-supersaludable.vercel.app';
     const frontend = new URL(frontendUrl.trim());
     if (!['http:', 'https:'].includes(frontend.protocol)) {
       throw new Error('Protocolo de frontend inválido');
