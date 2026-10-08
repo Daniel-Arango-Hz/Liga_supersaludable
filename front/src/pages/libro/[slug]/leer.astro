@@ -926,6 +926,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     document.getElementById('btn-audiobook')?.addEventListener('click', () => {
       const panel = document.getElementById('audiobook-panel');
       if (!panel) return;
+
+      if (libro?.audiolibro_disponible) {
+        panel.hidden = false;
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const audioPlayer = document.getElementById('audiobook-audio');
+        if (!audioPlayer) return;
+        audioPlayer.hidden = false;
+        audioPlayer.play().catch((error) => {
+          console.error('No se pudo iniciar la reproducción del audiolibro:', error);
+          setAudiobookStatus('No se pudo iniciar la reproducción automáticamente. Pulsa reproducir en el control de audio.');
+        });
+        return;
+      }
+
       panel.hidden = !panel.hidden;
       if (!panel.hidden) {
         panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
