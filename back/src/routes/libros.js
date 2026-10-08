@@ -1,4 +1,5 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { body, query, param } from 'express-validator';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
@@ -104,51 +105,117 @@ router.get('/:slug/audiolibro', async (req, res) => {
     .single();
 
   if (error || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
-  if (typeof libro.audiolibro !== 'string' || !/^\\x(?:[0-9a-f]{2})+$/i.test(libro.audiolibro)) {
+  if (typeof libro.audiolibro !== 'string' || !libro.audiolibro.trim()) {
     return res.status(404).json({ error: 'Este libro todavía no tiene audiolibro' });
   }
 
-  const audioBuffer = Buffer.from(libro.audiolibro.slice(2), 'hex');
+  const { data: audioFile, error: audioError } = await supabaseAdmin.storage
+    .from('audiolibros')
+    .download(libro.audiolibro);
+
+  if (audioError || !audioFile) {
+    console.error('No se pudo descargar el audiolibro de Supabase Storage:', audioError);
+    return res.status(502).json({ error: 'No se pudo cargar el audiolibro.' });
+  }
+
+  const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
   res
     .type('audio/mpeg')
     .set('Cache-Control', 'public, max-age=3600')
     .send(audioBuffer);
 });
 
-router.post(
-  '/:slug/audiolibro',
-  requireAuth,
-  express.raw({ type: 'audio/mpeg', limit: '100mb' }),
-  async (req, res) => {
-    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-      return res.status(400).json({ error: 'El archivo de audiolibro está vacío o no es válido.' });
-    }
+router.post('/:slug/audiolibro/upload-url', requireAuth, async (req, res) => {
+  const { data: libro, error } = await supabase
+    .from('libros')
+    .select('id, audiolibro')
+    .eq('slug', req.params.slug)
+    .eq('publicado', true)
+    .single();
 
-    const { data: libro, error: libroError } = await supabase
+  if (error || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
+  if (libro.audiolibro) return res.json({ ya_existia: true, ruta: libro.audiolibro });
+
+  const storagePath = `${libro.id}/${randomUUID()}.mp3`;
+  const { data: signedUpload, error: signedUploadError } = await supabaseAdmin.storage
+    .from('audiolibros')
+    .createSignedUploadUrl(storagePath);
+
+  if (signedUploadError || !signedUpload) {
+    console.error('No se pudo preparar la carga del audiolibro:', signedUploadError);
+    return res.status(502).json({ error: 'No se pudo preparar la carga del audiolibro.' });
+  }
+
+  res.json({
+    ya_existia: false,
+    ruta: signedUpload.path,
+    signed_url: signedUpload.signedUrl,
+  });
+});
+
+router.post('/:slug/audiolibro', requireAuth, async (req, res) => {
+  const { ruta } = req.body ?? {};
+  const [libroId, filename, ...extraSegments] = typeof ruta === 'string' ? ruta.split('/') : [];
+  if (
+    !libroId ||
+    !/^[0-9a-f-]{36}$/i.test(libroId) ||
+    !/^[0-9a-f-]{36}\.mp3$/i.test(filename || '') ||
+    extraSegments.length > 0
+  ) {
+    return res.status(400).json({ error: 'La ruta del audiolibro no es válida.' });
+  }
+
+  const { data: libro, error: libroError } = await supabase
+    .from('libros')
+    .select('id, audiolibro')
+    .eq('slug', req.params.slug)
+    .eq('publicado', true)
+    .single();
+
+  if (libroError || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
+  if (libro.audiolibro) {
+    return res.json({ guardado: false, ya_existia: true, ruta: libro.audiolibro });
+  }
+  if (libroId !== libro.id) {
+    return res.status(400).json({ error: 'La ruta no corresponde a este libro.' });
+  }
+
+  const { data: uploadedFile, error: fileError } = await supabaseAdmin.storage
+    .from('audiolibros')
+    .info(ruta);
+  if (fileError || !uploadedFile || uploadedFile.size <= 0) {
+    console.error('No se encontró el audiolibro cargado en Supabase Storage:', fileError);
+    return res.status(400).json({ error: 'El audiolibro todavía no se ha cargado en Storage.' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('libros')
+    .update({ audiolibro: ruta })
+    .eq('id', libro.id)
+    .is('audiolibro', null)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('No se pudo guardar la ruta del audiolibro:', error);
+    return res.status(500).json({ error: 'No se pudo guardar la ruta del audiolibro.' });
+  }
+
+  if (!data) {
+    const { data: libroActualizado, error: consultaError } = await supabase
       .from('libros')
-      .select('id')
-      .eq('slug', req.params.slug)
-      .eq('publicado', true)
-      .single();
-
-    if (libroError || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
-
-    const { data, error } = await supabaseAdmin
-      .from('libros')
-      .update({ audiolibro: `\\x${req.body.toString('hex')}` })
+      .select('audiolibro')
       .eq('id', libro.id)
-      .is('audiolibro', null)
-      .select('id')
-      .maybeSingle();
-
-    if (error) {
-      console.error('No se pudo guardar el audiolibro:', error);
-      return res.status(500).json({ error: 'No se pudo guardar el audiolibro.' });
+      .single();
+    if (consultaError || !libroActualizado?.audiolibro) {
+      console.error('No se pudo confirmar la ruta del audiolibro:', consultaError);
+      return res.status(500).json({ error: 'No se pudo confirmar que el audiolibro quedara guardado.' });
     }
+    return res.json({ guardado: false, ya_existia: true, ruta: libroActualizado.audiolibro });
+  }
 
-    res.json({ guardado: Boolean(data), ya_existia: !data });
-  },
-);
+  res.json({ guardado: true, ya_existia: false, ruta });
+});
 
 // ─── GET /libros/:slug ────────────────────────────────────────────────────────
 router.get('/:slug', optionalAuth, async (req, res) => {

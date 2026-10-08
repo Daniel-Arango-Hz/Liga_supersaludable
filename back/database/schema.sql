@@ -63,7 +63,7 @@ create table if not exists public.libros (
   slug               text unique not null,
   descripcion        text,
   contenido_url      text,
-  audiolibro         bytea,
+  audiolibro         text,
   autor_id           uuid references public.autores(id) on delete set null,
   edad_rango         text,
   paginas            integer check (paginas > 0),
@@ -79,7 +79,7 @@ create table if not exists public.libros (
 );
 
 alter table public.libros
-  add column if not exists audiolibro bytea;
+  add column if not exists audiolibro text;
 
 -- ─── libros_categorias ───────────────────────────────────────────────────────
 create table if not exists public.libros_categorias (
