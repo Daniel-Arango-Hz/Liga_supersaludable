@@ -5,7 +5,7 @@ const { slug } = Astro.params;
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 ---
 
-<Layout title={`Leyendo... – FamiliaLee`} description={`Lee en línea gratuitamente.`}>
+<Layout title={`Leyendo... – FamiliaLee`} description={`Lee en línea gratuitamente.`} minimal>
   <!-- Contenedor de carga -->
   <div id="loading-spinner" class="loading-spinner">
     <div class="spinner"></div>
@@ -77,7 +77,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         </select>
         <button class="doc-open-btn" id="audiobook-preview" type="button">Volver a extraer texto (OCR)</button>
         <button class="doc-open-btn" id="audiobook-generate" type="button" disabled hidden>Enviar texto a ElevenLabs</button>
-        <a class="doc-open-btn doc-open-btn-secondary" id="audiobook-download" hidden>Descargar MP3</a>
+        <button class="doc-open-btn doc-open-btn-secondary" id="audiobook-save" type="button" hidden disabled>Guardar audiolibro</button>
       </div>
       <label class="audiobook-preview-label" for="audiobook-text-preview" hidden>Texto que se enviará a ElevenLabs (puedes editarlo)</label>
       <textarea class="audiobook-text-preview" id="audiobook-text-preview" rows="12" spellcheck="true" hidden></textarea>
@@ -112,6 +112,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   let readerControlsInitialized = false;
   let pdfjsLibPromise = null;
   let audiobookUrl = null;
+  let pendingAudiobook = null;
   let ocrWorkerPromise = null;
   const pdfState = {
     doc: null,
@@ -132,7 +133,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       if (libro?.contenido_url) {
         await renderPdfBook();
         setupEventListeners();
-        enableAudiobook(/\.pdf(\?|$)/i.test(libro.contenido_url));
+        enableAudiobook(/\.pdf(\?|$)/i.test(libro.contenido_url) || Boolean(libro.audiolibro_disponible));
         showReader();
         return;
       }
@@ -421,6 +422,41 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   function enableAudiobook(enabled) {
     const button = document.getElementById('btn-audiobook');
     if (button) button.hidden = !enabled;
+    if (enabled && libro?.audiolibro_disponible) {
+      showStoredAudiobook();
+    }
+  }
+
+  function getStoredAudiobookUrl() {
+    return `${API_URL}/libros/${encodeURIComponent(slug)}/audiolibro`;
+  }
+
+  function showStoredAudiobook(audioUrl = getStoredAudiobookUrl()) {
+    const panel = document.getElementById('audiobook-panel');
+    const button = document.getElementById('btn-audiobook');
+    const audioPlayer = document.getElementById('audiobook-audio');
+    const saveButton = document.getElementById('audiobook-save');
+    if (!panel || !audioPlayer || !saveButton) return;
+
+    const heading = panel.querySelector('.audiobook-heading h2');
+    const description = panel.querySelector('.audiobook-heading p');
+    if (heading) heading.textContent = 'Audiolibro disponible';
+    if (description) description.textContent = 'Este libro ya tiene un audiolibro guardado.';
+    if (button) button.textContent = '🎧 Escuchar audiolibro';
+
+    panel.querySelector('label[for="audiobook-voice"]').hidden = true;
+    document.getElementById('audiobook-voice').hidden = true;
+    document.getElementById('audiobook-preview').hidden = true;
+    document.getElementById('audiobook-generate').hidden = true;
+    document.querySelector('.audiobook-preview-label').hidden = true;
+    document.getElementById('audiobook-text-preview').hidden = true;
+    document.getElementById('audiobook-char-count').hidden = true;
+    document.getElementById('audiobook-progress').hidden = true;
+    audioPlayer.src = audioUrl;
+    audioPlayer.hidden = false;
+    saveButton.hidden = true;
+    saveButton.disabled = true;
+    setAudiobookStatus('Audiolibro guardado. Ya puedes escucharlo.');
   }
 
   function setAudiobookStatus(message) {
@@ -626,7 +662,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
     try {
       const response = await fetch('/api/elevenlabs', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: 'Bearer ' + token },
       });
       const data = await response.json();
       if (response.status === 401) {
@@ -676,7 +712,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       audiobookUrl = null;
     }
     document.getElementById('audiobook-audio').hidden = true;
-    document.getElementById('audiobook-download').hidden = true;
+    const saveButton = document.getElementById('audiobook-save');
+    saveButton.hidden = true;
+    saveButton.disabled = true;
+    pendingAudiobook = null;
     setAudiobookStatus('Preparando el texto para revisión…');
 
     try {
@@ -708,17 +747,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     const preview = document.getElementById('audiobook-text-preview');
     const progress = document.getElementById('audiobook-progress');
     const audioPlayer = document.getElementById('audiobook-audio');
-    const downloadLink = document.getElementById('audiobook-download');
     const select = document.getElementById('audiobook-voice');
     const token = localStorage.getItem('token');
-    if (!generateButton || !preview || !progress || !audioPlayer || !downloadLink || !select || !token) return;
+    if (!generateButton || !preview || !progress || !audioPlayer || !select || !token) return;
 
     generateButton.disabled = true;
     preview.disabled = true;
     progress.hidden = false;
     progress.value = 0;
     audioPlayer.hidden = true;
-    downloadLink.hidden = true;
+    const saveButton = document.getElementById('audiobook-save');
+    saveButton.hidden = true;
+    saveButton.disabled = true;
+    pendingAudiobook = null;
     setAudiobookStatus('Enviando el texto revisado a ElevenLabs…');
 
     try {
@@ -738,7 +779,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: 'Bearer ' + token,
           },
           body: JSON.stringify({
             text: chunks[index],
@@ -759,19 +800,95 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
       const audiobook = new Blob(audioChunks, { type: 'audio/mpeg' });
       if (audiobookUrl) URL.revokeObjectURL(audiobookUrl);
+      pendingAudiobook = audiobook;
       audiobookUrl = URL.createObjectURL(audiobook);
       audioPlayer.src = audiobookUrl;
       audioPlayer.hidden = false;
-      downloadLink.href = audiobookUrl;
-      downloadLink.download = `${(libro.titulo || 'audiolibro').replace(/[^\p{L}\p{N}\-_ ]/gu, '').trim() || 'audiolibro'}.mp3`;
-      downloadLink.hidden = false;
-      setAudiobookStatus('Audiolibro listo. Puedes escucharlo o descargar el MP3.');
+      saveButton.hidden = false;
+      saveButton.disabled = false;
+      setAudiobookStatus('Audio generado. Pulsa “Guardar audiolibro” para subirlo a Supabase y registrar su ruta.');
     } catch (error) {
       console.error('No se pudo crear el audiolibro:', error);
       setAudiobookStatus(error instanceof Error ? error.message : 'No se pudo crear el audiolibro.');
     } finally {
       preview.disabled = false;
       generateButton.disabled = !select.value || !preview.value.trim() || preview.value.length > MAX_AUDIOBOOK_CHARACTERS;
+    }
+  }
+
+  async function saveAudiobook() {
+    const saveButton = document.getElementById('audiobook-save');
+    const token = localStorage.getItem('token');
+    if (!saveButton || !pendingAudiobook || !token) {
+      setAudiobookStatus('Genera el audiolibro e inicia sesión antes de guardarlo.');
+      return;
+    }
+
+    saveButton.disabled = true;
+    const progress = document.getElementById('audiobook-progress');
+    progress.hidden = false;
+    progress.value = 0;
+
+    try {
+      setAudiobookStatus('Solicitando destino de almacenamiento…');
+      const uploadUrlResponse = await fetch(`${getStoredAudiobookUrl()}/upload-url`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const uploadInfo = await uploadUrlResponse.json();
+      if (!uploadUrlResponse.ok) {
+        throw new Error(uploadInfo.error || 'No se pudo preparar la carga del audiolibro.');
+      }
+
+      if (uploadInfo.ya_existia) {
+        libro.audiolibro_disponible = true;
+        if (audiobookUrl) URL.revokeObjectURL(audiobookUrl);
+        audiobookUrl = null;
+        pendingAudiobook = null;
+        showStoredAudiobook();
+        return;
+      }
+
+      setAudiobookStatus('Subiendo el MP3 a Supabase Storage…');
+      const storageResponse = await fetch(uploadInfo.signed_url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'cache-control': 'max-age=3600',
+          'x-upsert': 'false',
+        },
+        body: pendingAudiobook,
+      });
+      if (!storageResponse.ok) {
+        const detail = await storageResponse.text();
+        throw new Error(`Supabase Storage rechazó la carga (${storageResponse.status}): ${detail.slice(0, 200)}`);
+      }
+      progress.value = 80;
+
+      setAudiobookStatus('Registrando la ruta del MP3 en la tabla libros…');
+      const saveResponse = await fetch(getStoredAudiobookUrl(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: JSON.stringify({ ruta: uploadInfo.ruta }),
+      });
+      const saveResult = await saveResponse.json();
+      if (!saveResponse.ok) {
+        throw new Error(saveResult.error || 'No se pudo guardar la ruta del audiolibro en libros.');
+      }
+
+      progress.value = 100;
+      libro.audiolibro_disponible = true;
+      pendingAudiobook = null;
+      if (audiobookUrl) URL.revokeObjectURL(audiobookUrl);
+      audiobookUrl = null;
+      showStoredAudiobook();
+    } catch (error) {
+      console.error('No se pudo guardar el audiolibro:', error);
+      setAudiobookStatus(error instanceof Error ? error.message : 'No se pudo guardar el audiolibro.');
+      saveButton.disabled = false;
     }
   }
 
@@ -832,6 +949,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       }
     });
     document.getElementById('audiobook-generate')?.addEventListener('click', createAudiobook);
+    document.getElementById('audiobook-save')?.addEventListener('click', saveAudiobook);
 
     // Leer página desde URL
     const params = new URLSearchParams(window.location.search);
@@ -1129,6 +1247,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   .audiobook-preview-label[hidden],
   .audiobook-text-preview[hidden],
   .audiobook-char-count[hidden],
+  .audiobook-options [hidden],
   #audiobook-generate[hidden] {
     display: none;
   }
