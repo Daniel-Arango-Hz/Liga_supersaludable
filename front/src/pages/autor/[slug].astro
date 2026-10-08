@@ -1,6 +1,5 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Header from '../../components/Header.astro';
 import AuthorActions from '../../components/AuthorActions.astro';
 import BookCard from '../../components/BookCard.astro';
 import { obtenerAutor, obtenerLibros, obtenerAutores } from '../../utils/api';
@@ -76,7 +75,6 @@ try {
 ---
 
 <Layout title={!error && autor ? `${autor.nombre} – Autor – FamiliaLee` : 'Autor no encontrado'} description={!error && autor ? autor.especialidad : 'Conoce a los autores de FamiliaLee'}>
-  <Header />
   <main>
     {!error && autor ? (
       <>

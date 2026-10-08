@@ -6,6 +6,166 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
+// ─── GET /auth/google ────────────────────────────────────────────────────────
+router.get('/google', (req, res) => {
+  const page = req.query.page;
+  const tipo = req.query.tipo;
+
+  if (!['login', 'registro'].includes(page) || !['familia', 'autor'].includes(tipo)) {
+    return res.status(400).json({ error: 'Solicitud de autenticación con Google inválida' });
+  }
+
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:4321')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map((origin) => new URL(origin).origin);
+  let requestOrigin;
+
+  try {
+    requestOrigin = req.get('referer') ? new URL(req.get('referer')).origin : undefined;
+  } catch {
+    requestOrigin = undefined;
+  }
+
+  const frontendUrl =
+    process.env.FRONTEND_URL ||
+    (allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0] || 'http://localhost:4321');
+  let redirectTo;
+
+  try {
+    const frontend = new URL(frontendUrl.trim());
+    if (!['http:', 'https:'].includes(frontend.protocol)) {
+      throw new Error('Protocolo de frontend inválido');
+    }
+
+    redirectTo = new URL(`/auth/${page}`, frontend.origin);
+  } catch (error) {
+    console.error('URL de frontend inválida para OAuth:', error);
+    return res.status(500).json({ error: 'No se pudo configurar el inicio con Google' });
+  }
+
+  redirectTo.searchParams.set('google', page);
+  if (page === 'registro') redirectTo.searchParams.set('tipo', tipo);
+
+  const authorizationUrl = new URL('/auth/v1/authorize', process.env.SUPABASE_URL);
+  authorizationUrl.searchParams.set('provider', 'google');
+  authorizationUrl.searchParams.set('redirect_to', redirectTo.toString());
+
+  return res.redirect(authorizationUrl.toString());
+});
+
+// ─── POST /auth/google/session ───────────────────────────────────────────────
+router.post(
+  '/google/session',
+  [
+    body('access_token').isString().notEmpty().withMessage('Token de Google requerido'),
+    body('page').isIn(['login', 'registro']).withMessage('Flujo de autenticación inválido'),
+    body('tipo').isIn(['familia', 'autor']).withMessage('Tipo de cuenta inválido'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { access_token: accessToken, page, tipo } = req.body;
+      const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+
+      if (authError || !authData.user?.email) {
+        return res.status(401).json({ error: 'La sesión de Google no es válida. Intenta de nuevo.' });
+      }
+
+      const authUser = authData.user;
+      const metadata = authUser.user_metadata || {};
+      const fullName = metadata.full_name || metadata.name || '';
+      const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+      const inferredNombre = nameParts.shift() || '';
+      const nombre = metadata.given_name || metadata.nombre || inferredNombre;
+      const apellido = metadata.family_name || metadata.apellido || nameParts.join(' ');
+      const avatarUrl = metadata.avatar_url || metadata.picture || null;
+      const isNewRegistration =
+        page === 'registro' &&
+        Date.now() - new Date(authUser.created_at).getTime() < 5 * 60 * 1000;
+
+      let { data: perfil, error: perfilError } = await supabaseAdmin
+        .from('usuarios')
+        .select('id, email, nombre, apellido, tipo, avatar_url')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (perfilError) {
+        console.error('Error al consultar perfil de Google:', perfilError);
+        return res.status(500).json({ error: 'No se pudo cargar el perfil de usuario' });
+      }
+
+      if (!perfil) {
+        const { error: insertError } = await supabaseAdmin.from('usuarios').insert({
+          id: authUser.id,
+          email: authUser.email,
+          nombre,
+          apellido,
+          tipo: isNewRegistration ? tipo : 'familia',
+          avatar_url: avatarUrl,
+        });
+
+        if (insertError) {
+          console.error('Error al crear perfil de Google:', insertError);
+          return res.status(500).json({ error: 'No se pudo crear el perfil de usuario' });
+        }
+      } else {
+        const updates = {};
+        if (!perfil.nombre && nombre) updates.nombre = nombre;
+        if (!perfil.apellido && apellido) updates.apellido = apellido;
+        if (!perfil.avatar_url && avatarUrl) updates.avatar_url = avatarUrl;
+        if (isNewRegistration) updates.tipo = tipo;
+
+        if (Object.keys(updates).length > 0) {
+          const { error: updateError } = await supabaseAdmin
+            .from('usuarios')
+            .update(updates)
+            .eq('id', authUser.id);
+
+          if (updateError) {
+            console.error('Error al actualizar perfil de Google:', updateError);
+            return res.status(500).json({ error: 'No se pudo actualizar el perfil de usuario' });
+          }
+        }
+      }
+
+      const { data: finalProfile, error: finalProfileError } = await supabaseAdmin
+        .from('usuarios')
+        .select('id, email, nombre, apellido, tipo, avatar_url')
+        .eq('id', authUser.id)
+        .single();
+
+      if (finalProfileError || !finalProfile) {
+        console.error('Error al recuperar perfil de Google:', finalProfileError);
+        return res.status(500).json({ error: 'No se pudo cargar el perfil de usuario' });
+      }
+
+      if (finalProfile.tipo === 'autor') {
+        const { error: autorError } = await supabaseAdmin
+          .from('autores')
+          .upsert(
+            { usuario_id: authUser.id, bio: '', bio_corta: '', especialidad: '' },
+            { onConflict: 'usuario_id', ignoreDuplicates: true }
+          );
+
+        if (autorError) {
+          console.error('Error al crear perfil de autor de Google:', autorError);
+          return res.status(500).json({ error: 'No se pudo completar el perfil de autor' });
+        }
+      }
+
+      return res.json({
+        token: accessToken,
+        usuario: finalProfile,
+      });
+    } catch (error) {
+      console.error('Error al iniciar sesión con Google:', error);
+      return res.status(500).json({ error: 'Error interno al iniciar sesión con Google' });
+    }
+  }
+);
+
 // ─── DEBUG: POST /auth/debug (revisar qué datos se reciben) ──────────────────
 router.post('/debug', (req, res) => {
   console.log('Body recibido:', req.body);

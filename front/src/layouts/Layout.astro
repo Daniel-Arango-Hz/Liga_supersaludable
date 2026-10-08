@@ -1,6 +1,7 @@
 ---
 import LoginModal from '../components/LoginModal.astro';
 import CtaFooter from '../components/CtaFooter.astro';
+import LigaBookShell from '../components/LigaBookShell.astro';
 
 interface Props {
   title?: string;
@@ -10,6 +11,11 @@ const {
   title = "Liga Supersaludable",
   description = "Cuentos, juegos, retos y recursos educativos para aprender, divertirse y desarrollar hábitos saludables en familia.",
 } = Astro.props;
+const activeSection = Astro.url.pathname === '/'
+  ? 'inicio'
+  : Astro.url.pathname === '/biblioteca'
+    ? 'cuentos'
+    : undefined;
 ---
 
 <!doctype html>
@@ -30,7 +36,9 @@ const {
   </head>
   <body>
     <LoginModal />
-    <slot />
+    <LigaBookShell activeSection={activeSection}>
+      <slot />
+    </LigaBookShell>
     <CtaFooter />
 
     <script>

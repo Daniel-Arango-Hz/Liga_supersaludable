@@ -1,6 +1,5 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import LigaBookShell from '../../components/LigaBookShell.astro';
 import BookActions from '../../components/BookActions.astro';
 import BookRating from '../../components/BookRating.astro';
 import { obtenerLibro, obtenerLibros } from '../../utils/api';
@@ -53,7 +52,6 @@ try {
 ---
 
 <Layout title={!error && libro ? `${libro.titulo} – FamiliaLee` : 'Libro no encontrado'} description={!error && libro ? libro.descripcion : 'Explora libros y recursos para familias'}>
-  <LigaBookShell>
   <main>
     {!error && libro ? (
       <>
@@ -155,7 +153,6 @@ try {
       </section>
     )}
   </main>
-  </LigaBookShell>
 </Layout>
 
 <script define:vars={{ slug, apiUrl }}>

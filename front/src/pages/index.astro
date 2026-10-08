@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import LigaBookShell from '../components/LigaBookShell.astro';
 const actividades = [
   {
     titulo: 'Cuentos',
@@ -70,7 +69,6 @@ const actividades = [
 ---
 
 <Layout>
-  <LigaBookShell activeSection="inicio">
     <main class="home-content">
       <section class="hero-card" aria-label="Bienvenido a Liga Supersaludables">
         <img class="hero-image" src="/img/image.png" alt="Bienvenido a Liga Supersaludables, con dos superhéroes infantiles" fetchpriority="high" />
@@ -120,7 +118,6 @@ const actividades = [
         </div>
       </section>
     </main>
-  </LigaBookShell>
 </Layout>
 
 <style>

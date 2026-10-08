@@ -4,60 +4,7 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Subir Libro – FamiliaLee" description="Sube tu libro en PDF o DOCX.">
-  <div class="liga-shell">
-    <aside class="app-sidebar" id="app-sidebar">
-      <a class="brand" href="/" aria-label="Liga Supersaludables, inicio">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><path d="M18 18c0-6.6 5.4-12 12-12h4c6.6 0 12 5.4 12 12v4c0 6.6-5.4 12-12 12h-4c-6.6 0-12-5.4-12-12v-4Z" fill="none" stroke="currentColor" stroke-width="3.5"/><path d="M26 30c0-3.3 2.7-6 6-6s6 2.7 6 6M20 46c5.4-6.5 13.9-10 24-10 4 0 8 .7 12 2" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>
-        </span>
-        <span class="brand-text"><strong>Liga</strong><small>SUPER SALUDABLES</small></span>
-      </a>
-      <button class="drawer-close" id="drawer-close" type="button" aria-label="Cerrar menú">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-      <nav class="app-menu" id="primary-menu" aria-label="Navegación principal">
-        <a class="app-menu-item" href="/"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1v-8.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span>Inicio</span></a>
-        <a class="app-menu-item" href="/biblioteca"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v11.5H7.5A2.5 2.5 0 0 1 5 16V4.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h7M8 12h7M8 16h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span>Cuentos</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.5 5 5.5.7-4 3.9 1 5.4-5-2.7-5 2.7 1-5.4-4-3.9 5.5-.7L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span>Niños felices</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 12 18 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="2.25" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Super Capibara</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 14.5A4.5 4.5 0 0 1 12.5 10h2A4.5 4.5 0 1 1 19 14.5V17a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 6.5a3 3 0 1 1 6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span>Kiwi</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Jabonoso</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Super Z</span></a>
-        <a class="app-menu-item" href="/recursos"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8 8 8M8 16l8-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Retos</span></a>
-        <a class="app-menu-item" href="/panel"><span class="app-menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18V9.5M12 18V5M17 18v-8M4 18h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span>Progreso</span></a>
-        <div class="sidebar-note"><span aria-hidden="true">✦</span> Pequeños pasos, grandes superpoderes.</div>
-      </nav>
-    </aside>
-    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Cerrar menú" hidden></button>
-
-    <main class="app-content">
-      <header class="topbar">
-        <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="primary-menu">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-        <div class="topbar-actions">
-          <div class="notification-wrap">
-            <button class="notification-button" id="notification-trigger" type="button" aria-label="Notificaciones" aria-expanded="false" aria-controls="notification-popover">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="notification-popover" id="notification-popover" role="status" hidden>No tienes notificaciones nuevas.</div>
-          </div>
-          <a class="login-button" id="topbar-login" href="/auth/login">Iniciar sesión</a>
-          <div class="account-menu" id="topbar-account" style="display: none;">
-            <button class="account-trigger" id="account-trigger" type="button" aria-label="Abrir menú de usuario" aria-expanded="false">
-              <span class="account-avatar" id="account-initial">U</span>
-              <span class="account-greeting">¡Hola, <span class="account-name" id="account-name">Mi cuenta</span>!</span>
-              <svg class="account-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="account-dropdown" id="account-dropdown" hidden>
-              <a class="account-menu-link" href="/perfil">Mi perfil</a>
-              <a class="account-menu-link" href="/panel">Mi panel</a>
-              <button class="account-menu-link account-logout" id="account-logout" type="button">Cerrar sesión</button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+  <main class="app-content">
       <div class="upload-container">
     <section class="upload-hero">
       <div class="container">
@@ -176,7 +123,6 @@ import Layout from '../layouts/Layout.astro';
     </section>
       </div>
     </main>
-  </div>
 
   <script>
     // @ts-nocheck
@@ -694,88 +640,9 @@ import Layout from '../layouts/Layout.astro';
     }
   </script>
 
-  <script>
-    import { getUsuario, logout } from '../utils/api';
 
-    const loginLink = document.getElementById('topbar-login');
-    const accountMenu = document.getElementById('topbar-account');
-    const accountTrigger = document.getElementById('account-trigger') as HTMLButtonElement | null;
-    const accountDropdown = document.getElementById('account-dropdown');
-    const accountInitial = document.getElementById('account-initial');
-    const accountName = document.getElementById('account-name');
-    const logoutButton = document.getElementById('account-logout');
-    const notificationTrigger = document.getElementById('notification-trigger') as HTMLButtonElement | null;
-    const notificationPopover = document.getElementById('notification-popover');
-    const sidebar = document.getElementById('app-sidebar');
-    const sidebarToggle = document.getElementById('sidebar-toggle') as HTMLButtonElement | null;
-    const sidebarBackdrop = document.getElementById('sidebar-backdrop') as HTMLButtonElement | null;
-    const drawerClose = document.getElementById('drawer-close');
-    const usuario = getUsuario();
 
-    function closeSidebar() {
-      sidebar?.classList.remove('is-open');
-      if (sidebarBackdrop) sidebarBackdrop.hidden = true;
-      sidebarToggle?.setAttribute('aria-expanded', 'false');
-      sidebarToggle?.setAttribute('aria-label', 'Abrir menú');
-      document.body.style.overflow = '';
-    }
-
-    sidebarToggle?.addEventListener('click', () => {
-      const isOpen = sidebar?.classList.toggle('is-open') ?? false;
-      if (sidebarBackdrop) sidebarBackdrop.hidden = !isOpen;
-      sidebarToggle.setAttribute('aria-expanded', String(isOpen));
-      sidebarToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
-      document.body.style.overflow = isOpen ? 'hidden' : '';
-    });
-
-    sidebarBackdrop?.addEventListener('click', closeSidebar);
-    drawerClose?.addEventListener('click', closeSidebar);
-    sidebar?.querySelectorAll('.app-menu-item').forEach((item) => item.addEventListener('click', closeSidebar));
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeSidebar();
-    });
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 680) closeSidebar();
-    });
-
-    notificationTrigger?.addEventListener('click', () => {
-      const expanded = notificationTrigger.getAttribute('aria-expanded') === 'true';
-      notificationTrigger.setAttribute('aria-expanded', String(!expanded));
-      if (notificationPopover) notificationPopover.hidden = expanded;
-    });
-
-    document.addEventListener('click', (event) => {
-      const target = event.target;
-      if (target instanceof Element && !target.closest('.notification-wrap')) {
-        notificationTrigger?.setAttribute('aria-expanded', 'false');
-        if (notificationPopover) notificationPopover.hidden = true;
-      }
-      if (target instanceof Node && !accountMenu?.contains(target)) {
-        accountTrigger?.setAttribute('aria-expanded', 'false');
-        if (accountDropdown) accountDropdown.hidden = true;
-      }
-    });
-
-    if (usuario && localStorage.getItem('token')) {
-      if (loginLink) loginLink.hidden = true;
-      if (accountMenu) accountMenu.style.display = 'block';
-      if (accountInitial) accountInitial.textContent = usuario.nombre?.trim().charAt(0).toLocaleUpperCase('es') || 'U';
-      if (accountName) accountName.textContent = usuario.nombre?.trim() || 'Mi cuenta';
-
-      accountTrigger?.addEventListener('click', () => {
-        const expanded = accountTrigger.getAttribute('aria-expanded') === 'true';
-        accountTrigger.setAttribute('aria-expanded', String(!expanded));
-        if (accountDropdown) accountDropdown.hidden = expanded;
-      });
-
-      logoutButton?.addEventListener('click', () => {
-        logout();
-        window.location.href = '/';
-      });
-    }
-  </script>
-
-  <style is:global>
+  <style>
     .liga-shell {
       display: flex;
       min-height: 100vh;
@@ -1173,7 +1040,7 @@ import Layout from '../layouts/Layout.astro';
       margin-top: 1rem;
     }
 
-    .status-error {
+    :global(.status-error) {
       background: #fee;
       color: #c33;
       padding: 1rem;
@@ -1181,7 +1048,7 @@ import Layout from '../layouts/Layout.astro';
       border-left: 4px solid #c33;
     }
 
-    .status-success {
+    :global(.status-success) {
       background: #efe;
       color: #3c3;
       padding: 1rem;

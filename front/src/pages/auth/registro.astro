@@ -2,16 +2,16 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Registrarse – FamiliaLee" description="Crea tu cuenta en FamiliaLee gratuitamente.">
+<Layout title="Registrarse – liga-supersaludable" description="Crea tu cuenta en liga-supersaludable gratuitamente.">
   <main class="auth-main">
     <div class="auth-card">
       <div class="auth-brand">
         <a href="/" class="auth-logo" aria-label="Ir al inicio">
           <span class="auth-logo-emoji">📚</span>
-          <span>FamiliaLee</span>
+          <span>liga-supersaludable</span>
         </a>
         <h1 class="auth-title">✨ ¡Bienvenido! ✨</h1>
-        <p class="auth-subtitle">Únete a miles de familias que ya son parte de FamiliaLee y descubre historias increíbles.</p>
+        <p class="auth-subtitle">Únete a miles de familias que ya son parte de liga-supersaludable y descubre historias increíbles.</p>
       </div>
 
       <!-- Tipos de cuenta -->
@@ -123,7 +123,7 @@ import Layout from '../../layouts/Layout.astro';
       <div class="divider"><span>o</span></div>
 
       <div class="social-auth">
-        <button class="btn-social" aria-label="Registrarse con Google">
+        <button class="btn-social" id="google-auth-btn" type="button" aria-label="Registrarse con Google">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -460,10 +460,187 @@ import Layout from '../../layouts/Layout.astro';
       margin-top: 0.5rem;
     }
   }
+
+  .auth-main {
+    min-height: calc(100svh - 64px);
+    padding: 3rem 1.25rem;
+    background:
+      radial-gradient(circle at 8% 12%, rgba(140, 224, 211, 0.35), transparent 28rem),
+      radial-gradient(circle at 92% 88%, rgba(255, 195, 103, 0.24), transparent 25rem),
+      #f5fbfa;
+  }
+
+  .auth-card {
+    max-width: 500px;
+    padding: 2.5rem;
+    gap: 1.5rem;
+    border: 1px solid #d8ece9;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 20px 48px rgba(42, 101, 102, 0.12);
+  }
+
+  .auth-brand { gap: 0.55rem; }
+
+  .auth-logo span {
+    background: linear-gradient(135deg, #168f83, #e57650);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .auth-title {
+    color: #2e405e;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    font-size: 1.65rem;
+    letter-spacing: -0.035em;
+  }
+
+  .auth-subtitle {
+    color: #607889;
+    font-weight: 400;
+    line-height: 1.6;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+  }
+
+  .form-label { color: #2c465c; }
+
+  .form-input {
+    border: 1px solid #d5e7e4;
+    border-radius: 12px;
+    background: #fcfefd;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .form-input::placeholder { color: #91a3ad; }
+
+  .form-input:focus {
+    border-color: #46b9ae;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(70, 185, 174, 0.15);
+    transform: none;
+  }
+
+  .form-hint {
+    color: #718995;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .type-options { gap: 0.8rem; }
+
+  .type-option { position: relative; }
+
+  .type-radio {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .type-box {
+    border: 1px solid #d8ece9;
+    border-radius: 15px;
+    background: #fcfefd;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .type-radio:checked + .type-box {
+    border-color: #46b9ae;
+    background: #effaf7;
+    color: #087d72;
+    box-shadow: inset 0 0 0 1px rgba(70, 185, 174, 0.18);
+    transform: none;
+  }
+
+  .type-option:hover .type-box {
+    border-color: #46b9ae;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(42, 101, 102, 0.1);
+  }
+
+  .type-radio:focus-visible + .type-box {
+    outline: 3px solid rgba(70, 185, 174, 0.45);
+    outline-offset: 3px;
+  }
+
+  .toggle-pw:hover { color: #168f83; }
+
+  .check-input { accent-color: #168f83; }
+
+  .form-link {
+    color: #168f83;
+    font-weight: 700;
+  }
+
+  .form-link:hover { color: #e57650; opacity: 1; }
+
+  .btn-submit {
+    border-radius: 13px;
+    background: linear-gradient(135deg, #46b9ae, #168f83);
+    box-shadow: 0 9px 18px rgba(42, 147, 137, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .btn-submit:hover {
+    background: linear-gradient(135deg, #39aa9f, #087d72);
+    transform: translateY(-2px);
+    box-shadow: 0 13px 22px rgba(42, 147, 137, 0.24);
+  }
+
+  .btn-submit:focus-visible,
+  .btn-social:focus-visible,
+  .form-link:focus-visible,
+  .toggle-pw:focus-visible {
+    outline: 3px solid rgba(70, 185, 174, 0.45);
+    outline-offset: 3px;
+  }
+
+  .auth-footer-text { color: #607889; }
+
+  .divider::before,
+  .divider::after { background: #d8ece9; }
+
+  .btn-social {
+    border-color: #d8ece9;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .btn-social:hover {
+    border-color: #46b9ae;
+    background: #f1faf8;
+  }
+
+  .success-message {
+    border-color: #bcecdf;
+    background: #effaf6;
+    color: #087d72;
+  }
+
+  @media (max-width: 768px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .auth-main { padding: 1.5rem 1rem; }
+    .auth-card { padding: 1.75rem 1.25rem; }
+  }
 </style>
 
 <script>
-  import { registro, setAuth } from '../../utils/api';
+  import { completeGoogleAuth, registro, setAuth, startGoogleAuth } from '../../utils/api';
 
   const form = document.getElementById('registro-form') as HTMLFormElement;
   const nombreInput = document.getElementById('nombre') as HTMLInputElement;
@@ -476,6 +653,27 @@ import Layout from '../../layouts/Layout.astro';
   const errorDiv = document.getElementById('error-message') as HTMLDivElement;
   const successDiv = document.getElementById('success-message') as HTMLDivElement;
   const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const googleBtn = document.getElementById('google-auth-btn') as HTMLButtonElement;
+
+  googleBtn?.addEventListener('click', () => {
+    if (!terminosCheckbox.checked) {
+      errorDiv.textContent = 'Debes aceptar los términos y la política de privacidad';
+      errorDiv.style.display = 'block';
+      terminosCheckbox.focus();
+      return;
+    }
+
+    const tipo = Array.from(tipoRadios).find((radio) => radio.checked)?.value;
+    errorDiv.style.display = 'none';
+    googleBtn.disabled = true;
+    googleBtn.textContent = 'Conectando con Google...';
+    startGoogleAuth('registro', tipo === 'autor' ? 'autor' : 'familia');
+  });
+
+  void completeGoogleAuth().catch((error: unknown) => {
+    errorDiv.textContent = error instanceof Error ? error.message : 'No se pudo crear la cuenta con Google.';
+    errorDiv.style.display = 'block';
+  });
 
   // Toggle password visibility
   togglePwBtn?.addEventListener('click', (e) => {

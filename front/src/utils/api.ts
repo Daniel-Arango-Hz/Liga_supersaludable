@@ -2,7 +2,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
 interface AuthResponse {
   token: string;
-  refresh_token: string;
+  refresh_token?: string;
   usuario: {
     id: string;
     email: string;
@@ -11,6 +11,9 @@ interface AuthResponse {
     tipo: string;
   };
 }
+
+type GoogleAuthPage = 'login' | 'registro';
+type AccountType = 'familia' | 'autor';
 
 interface Usuario {
   id: string;
@@ -60,6 +63,64 @@ export async function login(email: string, password: string): Promise<AuthRespon
   }
 
   return res.json();
+}
+
+export function startGoogleAuth(page: GoogleAuthPage, tipo: AccountType = 'familia'): void {
+  const params = new URLSearchParams({ page, tipo });
+  window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
+}
+
+export async function completeGoogleAuth(): Promise<boolean> {
+  const callbackUrl = new URL(window.location.href);
+  const hash = new URLSearchParams(callbackUrl.hash.slice(1));
+  const accessToken = hash.get('access_token');
+  const providerError =
+    hash.get('error_description') ||
+    hash.get('error') ||
+    callbackUrl.searchParams.get('error_description') ||
+    callbackUrl.searchParams.get('error');
+  const page = callbackUrl.searchParams.get('google');
+  const tipoParam = callbackUrl.searchParams.get('tipo');
+
+  if (!accessToken && !providerError && !callbackUrl.searchParams.has('google')) {
+    return false;
+  }
+
+  callbackUrl.hash = '';
+  callbackUrl.searchParams.delete('google');
+  callbackUrl.searchParams.delete('tipo');
+  callbackUrl.searchParams.delete('error');
+  callbackUrl.searchParams.delete('error_description');
+  window.history.replaceState(null, '', `${callbackUrl.pathname}${callbackUrl.search}`);
+
+  if (providerError) {
+    throw new Error(providerError);
+  }
+
+  if (!accessToken) {
+    throw new Error('Google no devolvió un token de acceso. Intenta de nuevo.');
+  }
+
+  const tipo: AccountType = tipoParam === 'autor' ? 'autor' : 'familia';
+  const res = await fetch(`${API_URL}/auth/google/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      access_token: accessToken,
+      page: page === 'registro' ? 'registro' : 'login',
+      tipo,
+    }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || 'No se pudo iniciar sesión con Google.');
+  }
+
+  const response: AuthResponse = await res.json();
+  setAuth(response.token, response.usuario);
+  window.location.replace('/');
+  return true;
 }
 
 export function logout(): void {
