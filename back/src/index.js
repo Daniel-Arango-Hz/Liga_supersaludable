@@ -62,6 +62,9 @@ app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 // ─── Error handler ────────────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
   console.error(err);
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'El archivo supera el tamaño máximo permitido.' });
+  }
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 

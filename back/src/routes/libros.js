@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { body, query, param } from 'express-validator';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
@@ -95,6 +95,61 @@ router.get('/:slug/pdf', async (req, res) => {
   res.redirect(libro.contenido_url);
 });
 
+router.get('/:slug/audiolibro', async (req, res) => {
+  const { data: libro, error } = await supabase
+    .from('libros')
+    .select('audiolibro')
+    .eq('slug', req.params.slug)
+    .eq('publicado', true)
+    .single();
+
+  if (error || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
+  if (typeof libro.audiolibro !== 'string' || !/^\\x(?:[0-9a-f]{2})+$/i.test(libro.audiolibro)) {
+    return res.status(404).json({ error: 'Este libro todavía no tiene audiolibro' });
+  }
+
+  const audioBuffer = Buffer.from(libro.audiolibro.slice(2), 'hex');
+  res
+    .type('audio/mpeg')
+    .set('Cache-Control', 'public, max-age=3600')
+    .send(audioBuffer);
+});
+
+router.post(
+  '/:slug/audiolibro',
+  requireAuth,
+  express.raw({ type: 'audio/mpeg', limit: '100mb' }),
+  async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ error: 'El archivo de audiolibro está vacío o no es válido.' });
+    }
+
+    const { data: libro, error: libroError } = await supabase
+      .from('libros')
+      .select('id')
+      .eq('slug', req.params.slug)
+      .eq('publicado', true)
+      .single();
+
+    if (libroError || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+    const { data, error } = await supabaseAdmin
+      .from('libros')
+      .update({ audiolibro: `\\x${req.body.toString('hex')}` })
+      .eq('id', libro.id)
+      .is('audiolibro', null)
+      .select('id')
+      .maybeSingle();
+
+    if (error) {
+      console.error('No se pudo guardar el audiolibro:', error);
+      return res.status(500).json({ error: 'No se pudo guardar el audiolibro.' });
+    }
+
+    res.json({ guardado: Boolean(data), ya_existia: !data });
+  },
+);
+
 // ─── GET /libros/:slug ────────────────────────────────────────────────────────
 router.get('/:slug', optionalAuth, async (req, res) => {
   const { data: libro, error } = await supabase
@@ -108,11 +163,24 @@ router.get('/:slug', optionalAuth, async (req, res) => {
 
   // La vista libros_completos puede no incluir columnas agregadas después de su creación.
   // Por eso completamos contenido_url/paginas desde la tabla base libros.
-  const { data: libroBase } = await supabase
-    .from('libros')
-    .select('contenido_url, paginas, portada_icono')
-    .eq('id', libro.id)
-    .maybeSingle();
+  const [{ data: libroBase }, { data: audiolibroExistente, error: audiolibroError }] = await Promise.all([
+    supabase
+      .from('libros')
+      .select('contenido_url, paginas, portada_icono')
+      .eq('id', libro.id)
+      .maybeSingle(),
+    supabase
+      .from('libros')
+      .select('id')
+      .eq('id', libro.id)
+      .not('audiolibro', 'is', null)
+      .maybeSingle(),
+  ]);
+
+  if (audiolibroError) {
+    console.error('No se pudo consultar si el libro tiene audiolibro:', audiolibroError);
+    return res.status(500).json({ error: 'No se pudo consultar el audiolibro del libro.' });
+  }
 
   const contenidoUrl  = libroBase?.contenido_url ?? libro.contenido_url ?? null;
   const paginasTotal  = libroBase?.paginas       ?? libro.paginas       ?? null;
@@ -150,6 +218,7 @@ router.get('/:slug', optionalAuth, async (req, res) => {
     autor_slug: autorSlugClean,
     paginas: paginas ?? [],
     guardado,
+    audiolibro_disponible: Boolean(audiolibroExistente),
   });
 });
 
