@@ -119,9 +119,40 @@ router.get('/:slug/audiolibro', async (req, res) => {
   }
 
   const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+  const range = req.get('range');
   res
     .type('audio/mpeg')
-    .set('Cache-Control', 'public, max-age=3600')
+    .set({
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'public, max-age=3600',
+    });
+
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match || (!match[1] && !match[2])) {
+      return res.status(416).set('Content-Range', `bytes */${audioBuffer.length}`).end();
+    }
+
+    const start = match[1] ? Number(match[1]) : Math.max(audioBuffer.length - Number(match[2]), 0);
+    const end = match[2] && match[1]
+      ? Math.min(Number(match[2]), audioBuffer.length - 1)
+      : audioBuffer.length - 1;
+    if (start >= audioBuffer.length || end < start) {
+      return res.status(416).set('Content-Range', `bytes */${audioBuffer.length}`).end();
+    }
+
+    const chunk = audioBuffer.subarray(start, end + 1);
+    return res
+      .status(206)
+      .set({
+        'Content-Range': `bytes ${start}-${end}/${audioBuffer.length}`,
+        'Content-Length': String(chunk.length),
+      })
+      .send(chunk);
+  }
+
+  return res
+    .set('Content-Length', String(audioBuffer.length))
     .send(audioBuffer);
 });
 
