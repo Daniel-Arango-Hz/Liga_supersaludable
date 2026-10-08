@@ -302,11 +302,6 @@ const { activeSection } = Astro.props;
     .menu-icon img { animation: none !important; transition: none !important; }
   }
   @media (max-width: 1024px) {
-    .liga-shell { flex-direction: column; }
-    .sidebar { position: static; width: 100%; height: auto; flex-basis: auto; overflow: visible; border-right: 0; border-bottom: 1px solid #d8ece9; }
-    .menu { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
-  }
-  @media (max-width: 680px) {
     .sidebar-toggle { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border: 1px solid rgba(48,130,125,.2); border-radius: 14px; background: rgba(255,255,255,.82); color: #286b70; cursor: pointer; z-index: 12; }
     .sidebar-toggle svg { width: 22px; height: 22px; }
     .drawer-close { position: absolute; top: 20px; right: 18px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgba(48,130,125,.18); border-radius: 12px; background: #fff; color: #286b70; cursor: pointer; }
@@ -314,9 +309,12 @@ const { activeSection } = Astro.props;
     .sidebar-backdrop:not([hidden]) { position: fixed; z-index: 19; inset: 0; display: block; border: 0; background: rgba(30,52,62,.38); }
     .sidebar { position: fixed; z-index: 20; inset: 0 auto 0 0; width: min(300px,calc(100vw - 56px)); height: 100vh; height: 100svh; flex: none; overflow-y: auto; background: #f3fbf9; border-right: 1px solid #d8ece9; border-bottom: 0; box-shadow: 16px 0 36px rgba(31,64,68,.14); transform: translateX(-105%); transition: transform .24s ease; will-change: transform; }
     .sidebar.is-open { transform: translateX(0); }
-    .content { padding: 16px 18px 24px; }
+    .content { padding: 16px 24px 24px; }
     .menu { display: flex; }
     .brand-name { font-size: 1.7rem; }
+  }
+  @media (max-width: 680px) {
+    .content { padding: 16px 18px 24px; }
     .account-greeting { display: none; }
   }
 </style>

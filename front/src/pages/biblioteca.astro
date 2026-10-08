@@ -191,7 +191,7 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
                   anio: libro.anio || new Date().getFullYear(),
                   paginasContenido: Array.isArray(libro.paginas) ? libro.paginas : [],
                 };
-                return <BookCard libro={libroAdaptado} />;
+                return <BookCard libro={libroAdaptado} variante="catalogo" />;
               })}
             </div>
           ) : (
@@ -534,22 +534,9 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
 
   .books-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 300px));
+    justify-content: start;
     gap: 1.5rem;
-  }
-
-  @media (max-width: 1200px) {
-    .books-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1.5rem;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    .books-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1.25rem;
-    }
   }
 
   @media (max-width: 760px) {
@@ -662,7 +649,7 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     }
 
     .books-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 1rem;
     }
 

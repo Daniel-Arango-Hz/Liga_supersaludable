@@ -3,14 +3,49 @@ import type { Libro } from '../data/libros';
 
 interface Props {
   libro: Libro;
-  variante?: 'vertical' | 'horizontal';
+  variante?: 'vertical' | 'horizontal' | 'catalogo';
 }
 
 const { libro, variante = 'vertical' } = Astro.props;
 const isImageCover = typeof libro.portadaIcono === 'string' && /^https?:\/\//i.test(libro.portadaIcono);
+const rating = typeof libro.rating === 'number' ? libro.rating : 0;
 ---
 
-{variante === 'vertical' ? (
+{variante === 'catalogo' ? (
+  <article class="adventure-card" data-libro-slug={libro.slug}>
+    <a href={`/libro/${libro.slug}`} class="adventure-card-link" aria-label={`Comenzar ${libro.titulo}`}>
+      <div class="adventure-cover" style={`background: ${libro.portadaGradiente}`}>
+        {isImageCover ? (
+          <img class="adventure-cover-image" src={libro.portadaIcono} alt={`Portada de ${libro.titulo}`} loading="lazy" />
+        ) : (
+          <span class="adventure-cover-icon" aria-hidden="true">{libro.portadaIcono}</span>
+        )}
+        {libro.destacado && <span class="adventure-badge">Destacado</span>}
+        <h3 class="adventure-title">{libro.titulo}</h3>
+      </div>
+
+      <div class="adventure-info">
+        <div class="adventure-stats">
+          <div class="adventure-stat adventure-downloads" aria-label={`${(libro.descargas ?? 0).toLocaleString('es')} descargas`}>
+            <div class="adventure-stat-value">
+              <strong>{(libro.descargas ?? 0).toLocaleString('es')}</strong>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span>Descargas</span>
+          </div>
+          <span class="adventure-divider" aria-hidden="true"></span>
+          <div class="adventure-stat adventure-rating" aria-label={`${rating.toFixed(1)} de 5, valoración`}>
+            <span class="adventure-stars" style={`--rating: ${Math.min(5, Math.max(0, rating)) / 5 * 100}%`} aria-hidden="true">★★★★★</span>
+            <span><strong>{rating.toFixed(1)}</strong> Valoración</span>
+          </div>
+        </div>
+        <span class="adventure-cta">Comenzar</span>
+      </div>
+    </a>
+  </article>
+) : variante === 'vertical' ? (
   <article class="book-card" data-libro-slug={libro.slug}>
     <a href={`/libro/${libro.slug}`} class="book-card-link" aria-label={`Ver ${libro.titulo}`}>
       <div class="book-cover" style={`background: ${libro.portadaGradiente}`}>
@@ -87,6 +122,182 @@ const isImageCover = typeof libro.portadaIcono === 'string' && /^https?:\/\//i.t
 )}
 
 <style>
+  .adventure-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid rgba(41, 54, 66, 0.1);
+    border-radius: 30px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(28, 45, 56, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    container-type: inline-size;
+  }
+
+  .adventure-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 38px rgba(28, 45, 56, 0.17);
+  }
+
+  .adventure-card-link {
+    display: block;
+    padding: clamp(0.6rem, 2.8cqi, 1.1rem);
+    color: inherit;
+  }
+
+  .adventure-cover {
+    position: relative;
+    display: grid;
+    aspect-ratio: 1.18 / 1;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 24px;
+    background-color: #eaf3f1;
+    background-position: center;
+    background-size: cover;
+  }
+
+  .adventure-cover::after {
+    position: absolute;
+    inset: 35% 0 0;
+    background: linear-gradient(180deg, transparent, rgba(12, 24, 30, 0.68));
+    content: '';
+    pointer-events: none;
+  }
+
+  .adventure-cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .adventure-cover-icon {
+    font-size: clamp(4rem, 8vw, 6.5rem);
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.16));
+  }
+
+  .adventure-badge {
+    position: absolute;
+    z-index: 1;
+    top: 0.75rem;
+    left: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: #fff;
+    color: #315d49;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .adventure-title {
+    position: absolute;
+    z-index: 1;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: clamp(1.2rem, 5.5cqi, 2.25rem);
+    font-weight: 900;
+    line-height: 1.08;
+    text-align: center;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+  }
+
+  .adventure-info {
+    display: grid;
+    gap: clamp(0.6rem, 2.4cqi, 1rem);
+    padding: clamp(0.75rem, 2.8cqi, 1.25rem) 0.35rem 0.25rem;
+  }
+
+  .adventure-stats {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(0.3rem, 1.5cqi, 0.75rem);
+    min-height: clamp(76px, 16cqi, 112px);
+  }
+
+  .adventure-stat {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    color: #1b1b1b;
+    font-size: clamp(0.78rem, 3.5cqi, 1.4rem);
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .adventure-stat-value {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.25rem, 1.5cqi, 0.65rem);
+    font-size: clamp(1.35rem, 7cqi, 2.8rem);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .adventure-stat-value svg {
+    width: 1.05em;
+    height: 1.05em;
+    flex: 0 0 auto;
+  }
+
+  .adventure-divider {
+    width: 1px;
+    height: 80%;
+    background: #d7d7d7;
+  }
+
+  .adventure-stars {
+    display: block;
+    max-width: 100%;
+    color: transparent;
+    background: linear-gradient(90deg, #f5aa24 var(--rating), #d0d0d0 var(--rating));
+    background-clip: text;
+    -webkit-background-clip: text;
+    font-size: clamp(1rem, 5.4cqi, 2.1rem);
+    letter-spacing: 0;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .adventure-rating strong {
+    font-weight: 900;
+  }
+
+  .adventure-rating > span:last-child {
+    white-space: nowrap;
+  }
+
+  .adventure-cta {
+    display: grid;
+    width: 90%;
+    min-height: clamp(56px, 19cqi, 132px);
+    margin: 0 auto;
+    place-items: center;
+    border: 2px solid #20528d;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #4d91d1, #3477bd);
+    box-shadow: inset 0 -4px 0 rgba(20, 59, 105, 0.22);
+    color: #fff;
+    font-size: clamp(1.35rem, 8cqi, 3rem);
+    font-weight: 900;
+    text-shadow: 0 2px 2px rgba(21, 51, 82, 0.35);
+    transition: filter 0.2s ease, transform 0.2s ease;
+  }
+
+  .adventure-card:hover .adventure-cta {
+    filter: brightness(1.06);
+  }
+
   .book-card {
     background: rgba(255, 255, 255, 0.9);
     border-radius: 26px;
