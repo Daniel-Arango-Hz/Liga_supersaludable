@@ -1,0 +1,204 @@
+---
+// Componente modal reutilizable para mostrar mensajes de autenticación
+// sin redirigir al login
+---
+
+<div class="login-modal-overlay" id="loginModalOverlay">
+  <div class="login-modal" id="loginModal">
+    <button class="modal-close" id="modalCloseBtn" aria-label="Cerrar modal">✕</button>
+    
+    <div class="modal-header">
+      <h2 id="modalTitle">Autenticación requerida</h2>
+    </div>
+    
+    <div class="modal-content">
+      <p id="modalMessage">Por favor, inicia sesión para continuar.</p>
+    </div>
+    
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modalCloseButton">Cancelar</button>
+      <a href="/auth/login" class="btn-primary">Iniciar sesión</a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .login-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .login-modal-overlay.active {
+    display: flex;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .login-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 450px;
+    width: 90%;
+    padding: 32px;
+    position: relative;
+    animation: slideUp 0.3s ease-in-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .modal-close:hover {
+    background: #f0f0f0;
+    color: #000;
+  }
+
+  .modal-header {
+    margin-bottom: 16px;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #333;
+    font-weight: 600;
+  }
+
+  .modal-content {
+    margin-bottom: 24px;
+  }
+
+  .modal-content p {
+    margin: 0;
+    color: #666;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-primary {
+    background: #b82db5;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #a01da3;
+    transform: translateY(-2px);
+  }
+
+  .btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+  }
+
+  .btn-secondary:hover {
+    background: #e0e0e0;
+  }
+</style>
+
+<script>
+  export function showLoginModal(message: string, title?: string) {
+    const overlay = document.getElementById('loginModalOverlay');
+    const messageEl = document.getElementById('modalMessage');
+    const titleEl = document.getElementById('modalTitle');
+    
+    if (overlay && messageEl) {
+      if (title) titleEl!.textContent = title;
+      messageEl.textContent = message;
+      overlay.classList.add('active');
+    }
+  }
+
+  export function closeLoginModal() {
+    const overlay = document.getElementById('loginModalOverlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+    }
+  }
+
+  // Event listeners para cerrar el modal
+  if (typeof window !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+      const closeBtn = document.getElementById('modalCloseBtn');
+      const closeButton = document.getElementById('modalCloseButton');
+      const overlay = document.getElementById('loginModalOverlay');
+
+      closeBtn?.addEventListener('click', () => {
+        overlay?.classList.remove('active');
+      });
+
+      closeButton?.addEventListener('click', () => {
+        overlay?.classList.remove('active');
+      });
+
+      // Cerrar modal al hacer click fuera de él
+      overlay?.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.classList.remove('active');
+        }
+      });
+    });
+  }
+</script>

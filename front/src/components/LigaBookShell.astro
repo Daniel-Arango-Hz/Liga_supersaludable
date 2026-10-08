@@ -1,0 +1,268 @@
+---
+interface Props {
+  activeSection?: 'inicio' | 'cuentos';
+}
+
+const { activeSection = 'cuentos' } = Astro.props;
+---
+
+<div class="liga-shell">
+  <aside class="sidebar" id="app-sidebar">
+    <a class="brand" href="/" aria-label="Liga Supersaludables, inicio">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <path d="M18 18c0-6.6 5.4-12 12-12h4c6.6 0 12 5.4 12 12v4c0 6.6-5.4 12-12 12h-4c-6.6 0-12-5.4-12-12v-4Z" fill="none" stroke="currentColor" stroke-width="3.5"/>
+          <path d="M26 30c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M20 46c5.4-6.5 13.9-10 24-10 4 0 8 .7 12 2" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Liga</span>
+        <span class="brand-sub">SUPER SALUDABLES</span>
+      </span>
+    </a>
+
+    <button class="drawer-close" id="drawer-close" type="button" aria-label="Cerrar menú">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+
+    <nav class="menu" id="primary-menu" aria-label="Navegación">
+      <a class:list={['menu-item', { active: activeSection === 'inicio' }]} href="/" aria-current={activeSection === 'inicio' ? 'page' : undefined}>
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-7H9v7H5a1 1 0 0 1-1-1v-8.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
+        <span>Inicio</span>
+      </a>
+      <a class:list={['menu-item', { active: activeSection === 'cuentos' }]} href="/biblioteca" aria-current={activeSection === 'cuentos' ? 'page' : undefined}>
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9.5A2.5 2.5 0 0 1 17 7v11.5H7.5A2.5 2.5 0 0 1 5 16V4.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h7M8 12h7M8 16h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <span>Cuentos</span>
+        <span class="menu-dot"></span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.5 5 5.5.7-4 3.9 1 5.4-5-2.7-5 2.7 1-5.4-4-3.9 5.5-.7L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
+        <span>Niños felices</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 12 18 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="2.25" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+        <span>Super Capibara</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 14.5A4.5 4.5 0 0 1 12.5 10h2A4.5 4.5 0 1 1 19 14.5V17a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2.5Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 6.5a3 3 0 1 1 6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <span>Kiwi</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+        <span>Jabonoso</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v17M3.5 12h17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+        <span>Super Z</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8 8 8M8 16l8-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></span>
+        <span>Retos</span>
+      </a>
+      <a class="menu-item" href="/#todas-actividades">
+        <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18V9.5M12 18V5M17 18v-8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4 18h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <span>Progreso</span>
+      </a>
+    
+    </nav>
+  </aside>
+  <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Cerrar menú" hidden></button>
+
+  <div class="content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="primary-menu">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="topbar-actions">
+        <div class="notification-wrap">
+          <button class="notification-button" id="notification-trigger" type="button" aria-label="Notificaciones" aria-expanded="false" aria-controls="notification-popover">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="notification-popover" id="notification-popover" role="status" hidden>No tienes notificaciones nuevas.</div>
+        </div>
+        <a class="login-button" id="topbar-login" href="/auth/login">Iniciar sesión</a>
+        <div class="account-menu" id="topbar-account" style="display: none;">
+          <button class="account-trigger" id="account-trigger" type="button" aria-label="Abrir menú de usuario" aria-expanded="false">
+            <span class="account-avatar" id="account-initial">U</span>
+            <span class="account-greeting">¡Hola, <span class="account-name" id="account-name">Mi cuenta</span>!</span>
+            <svg class="account-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="account-dropdown" id="account-dropdown" hidden>
+            <a class="account-menu-link" href="/perfil">Mi perfil</a>
+            <a class="account-menu-link" href="/panel">Mi panel</a>
+            <button class="account-menu-link account-logout" id="account-logout" type="button">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <slot />
+  </div>
+</div>
+
+<script>
+  import { getUsuario, logout } from '../utils/api';
+
+  const loginLink = document.getElementById('topbar-login');
+  const accountMenu = document.getElementById('topbar-account');
+  const accountTrigger = document.getElementById('account-trigger') as HTMLButtonElement | null;
+  const accountDropdown = document.getElementById('account-dropdown');
+  const notificationTrigger = document.getElementById('notification-trigger') as HTMLButtonElement | null;
+  const notificationPopover = document.getElementById('notification-popover');
+  const sidebar = document.getElementById('app-sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle') as HTMLButtonElement | null;
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop') as HTMLButtonElement | null;
+  const drawerClose = document.getElementById('drawer-close');
+  const usuario = getUsuario();
+
+  function closeSidebar() {
+    sidebar?.classList.remove('is-open');
+    if (sidebarBackdrop) sidebarBackdrop.hidden = true;
+    sidebarToggle?.setAttribute('aria-expanded', 'false');
+    sidebarToggle?.setAttribute('aria-label', 'Abrir menú');
+    document.body.style.overflow = '';
+  }
+
+  sidebarToggle?.addEventListener('click', () => {
+    const isOpen = sidebar?.classList.toggle('is-open') ?? false;
+    if (sidebarBackdrop) sidebarBackdrop.hidden = !isOpen;
+    sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+    sidebarToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+
+  sidebarBackdrop?.addEventListener('click', closeSidebar);
+  drawerClose?.addEventListener('click', closeSidebar);
+  sidebar?.querySelectorAll('.menu-item').forEach((item) => item.addEventListener('click', closeSidebar));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeSidebar();
+      if (notificationPopover) notificationPopover.hidden = true;
+      notificationTrigger?.setAttribute('aria-expanded', 'false');
+      if (accountDropdown) accountDropdown.hidden = true;
+      accountTrigger?.setAttribute('aria-expanded', 'false');
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 680) closeSidebar();
+  });
+
+  notificationTrigger?.addEventListener('click', () => {
+    const expanded = notificationTrigger.getAttribute('aria-expanded') === 'true';
+    notificationTrigger.setAttribute('aria-expanded', String(!expanded));
+    if (notificationPopover) notificationPopover.hidden = expanded;
+  });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as Element | null;
+    if (target && !target.closest('.notification-wrap')) {
+      notificationTrigger?.setAttribute('aria-expanded', 'false');
+      if (notificationPopover) notificationPopover.hidden = true;
+    }
+    if (target && !accountMenu?.contains(target)) {
+      accountTrigger?.setAttribute('aria-expanded', 'false');
+      if (accountDropdown) accountDropdown.hidden = true;
+    }
+  });
+
+  if (usuario && localStorage.getItem('token')) {
+    if (loginLink) loginLink.hidden = true;
+    if (accountMenu) accountMenu.style.display = 'block';
+    const initial = document.getElementById('account-initial');
+    const accountName = document.getElementById('account-name');
+    if (initial) initial.textContent = usuario.nombre?.trim().charAt(0).toLocaleUpperCase('es') || 'U';
+    if (accountName) accountName.textContent = usuario.nombre?.trim() || 'Mi cuenta';
+
+    accountTrigger?.addEventListener('click', () => {
+      const expanded = accountTrigger.getAttribute('aria-expanded') === 'true';
+      accountTrigger.setAttribute('aria-expanded', String(!expanded));
+      if (accountDropdown) accountDropdown.hidden = expanded;
+    });
+
+    document.getElementById('account-logout')?.addEventListener('click', () => {
+      logout();
+      window.location.href = '/';
+    });
+  }
+</script>
+
+<style>
+  :global(html, body) {
+    background: #edf7f5;
+    color: #2c465c;
+    min-height: 100%;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+  }
+
+  .liga-shell { display: flex; min-height: 100vh; background: linear-gradient(180deg, #f5fbfa 0%, #eef7f3 100%); }
+  .sidebar { position: sticky; top: 0; width: 260px; height: 100vh; height: 100svh; flex: 0 0 260px; overflow-y: auto; background: rgba(255,255,255,.2); border-right: 1px solid #d8ece9; padding: 18px 18px 30px; display: flex; flex-direction: column; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 10px; min-height: 64px; text-decoration: none; }
+  .brand-mark { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 14px; background: linear-gradient(135deg, #8ce0d3, #46b9ae); display: grid; place-items: center; color: #fff; box-shadow: 0 10px 18px rgba(74,188,184,.28); }
+  .brand-mark svg { width: 24px; height: 24px; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .brand-name { font-size: 2.1rem; font-weight: 700; letter-spacing: -.08em; color: #1aa7a0; font-family: Georgia, 'Times New Roman', serif; }
+  .brand-sub { font-size: .72rem; font-weight: 800; letter-spacing: .12em; color: #1a9c98; margin-top: 2px; }
+  .menu { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; flex: 1; }
+  .menu-item { display: flex; align-items: center; gap: 12px; width: 100%; background: transparent; border: 0; border-radius: 14px; padding: 12px 12px 12px 14px; color: #2c465c; font-size: 1.02rem; font-weight: 600; text-align: left; text-decoration: none; transition: all .2s ease; cursor: pointer; position: relative; }
+  .menu-item:hover { background: rgba(133,215,198,.12); }
+  .menu-item.active { background: rgba(133,215,198,.34); box-shadow: inset 0 0 0 1px rgba(26,159,150,.12); }
+  .menu-icon { width: 34px; height: 34px; flex: 0 0 34px; display: inline-flex; align-items: center; justify-content: center; color: #168f83; background: #d7f4eb; border-radius: 12px; transition: transform .22s cubic-bezier(.2,.8,.2,1), background .2s ease, color .2s ease; }
+  .menu-item:nth-child(2) .menu-icon { color: #e57650; background: #ffeadf; }
+  .menu-item:nth-child(3) .menu-icon { color: #b58216; background: #fff2c9; }
+  .menu-item:nth-child(4) .menu-icon { color: #4c8cbd; background: #dff2ff; }
+  .menu-item:nth-child(5) .menu-icon { color: #6f9e45; background: #e9f5d9; }
+  .menu-item:nth-child(6) .menu-icon { color: #db7693; background: #ffe5ec; }
+  .menu-item:nth-child(7) .menu-icon { color: #9473c2; background: #eee6ff; }
+  .menu-item:nth-child(8) .menu-icon { color: #d48b3f; background: #fff0dc; }
+  .menu-item:nth-child(9) .menu-icon { color: #328f9a; background: #dcf4f4; }
+  .menu-item.active .menu-icon { background: #bcecdf; color: #087d72; }
+  .menu-icon svg { width: 21px; height: 21px; overflow: visible; }
+  .menu-item:hover .menu-icon, .menu-item:focus-visible .menu-icon { transform: translateY(-2px) rotate(-6deg) scale(1.08); }
+  .menu-dot { width: 7px; height: 7px; border-radius: 50%; background: #1a8f86; margin-left: auto; opacity: .9; }
+  .footer-link { margin-top: 20px; font-size: .96rem; color: #4d6678; line-height: 1.4; padding-top: 20px; border-top: 1px solid rgba(29,72,82,.08); }
+  .sidebar-toggle, .drawer-close { display: none; }
+  .sidebar-backdrop[hidden] { display: none; }
+
+  .content { flex: 1; min-width: 0; padding: 20px 32px 24px 28px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; margin-bottom: 12px; }
+  .topbar-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+  .notification-wrap, .account-menu { position: relative; }
+  .notification-button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(48,130,125,.2); border-radius: 15px; background: rgba(255,255,255,.78); color: #286b70; cursor: pointer; transition: transform .18s ease, background .18s ease; }
+  .notification-button:hover, .notification-button[aria-expanded="true"] { transform: translateY(-2px); background: #fff; }
+  .notification-button svg { width: 21px; height: 21px; }
+  .notification-popover, .account-dropdown { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; border: 1px solid rgba(48,130,125,.16); border-radius: 13px; background: #fff; box-shadow: 0 16px 36px rgba(34,70,76,.16); }
+  .notification-popover { width: max-content; max-width: min(280px, calc(100vw - 40px)); padding: 13px 15px; font-size: .88rem; }
+  .notification-popover[hidden], .account-dropdown[hidden] { display: none; }
+  .login-button, .account-trigger { min-height: 44px; border: 1px solid rgba(48,130,125,.2); border-radius: 16px; background: rgba(255,255,255,.78); color: #286b70; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 12px; font: inherit; font-size: .92rem; font-weight: 700; text-decoration: none; cursor: pointer; box-shadow: 0 5px 16px rgba(42,101,102,.07); transition: transform .18s ease, background .18s ease, box-shadow .18s ease; }
+  .login-button:hover, .account-trigger:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 9px 20px rgba(42,101,102,.12); }
+  .login-button[hidden] { display: none; }
+  .account-avatar { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(145deg,#f6b38a,#ed825f); color: #fff; font-size: 1rem; font-weight: 800; }
+  .account-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-greeting { white-space: nowrap; }
+  .account-chevron { width: 18px; height: 18px; }
+  .account-menu-link { display: block; width: 100%; padding: 11px 14px; border: 0; background: transparent; color: #2c465c; font: inherit; font-size: .9rem; text-align: left; text-decoration: none; cursor: pointer; }
+  .account-menu-link:hover { background: #eefaf7; }
+  .account-logout { border-top: 1px solid #e5efed; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-icon, .menu-item, .notification-button, .login-button, .account-trigger { transition: none; }
+  }
+  @media (max-width: 1024px) {
+    .liga-shell { flex-direction: column; }
+    .sidebar { position: static; width: 100%; height: auto; flex-basis: auto; overflow: visible; border-right: 0; border-bottom: 1px solid #d8ece9; }
+    .menu { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 680px) {
+    .sidebar-toggle { width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border: 1px solid rgba(48,130,125,.2); border-radius: 14px; background: rgba(255,255,255,.82); color: #286b70; cursor: pointer; z-index: 12; }
+    .sidebar-toggle svg { width: 22px; height: 22px; }
+    .drawer-close { position: absolute; top: 20px; right: 18px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgba(48,130,125,.18); border-radius: 12px; background: #fff; color: #286b70; cursor: pointer; }
+    .drawer-close svg { width: 20px; height: 20px; }
+    .sidebar-backdrop:not([hidden]) { position: fixed; z-index: 19; inset: 0; display: block; border: 0; background: rgba(30,52,62,.38); }
+    .sidebar { position: fixed; z-index: 20; inset: 0 auto 0 0; width: min(300px,calc(100vw - 56px)); height: 100vh; height: 100svh; flex: none; overflow-y: auto; background: #f3fbf9; border-right: 1px solid #d8ece9; border-bottom: 0; box-shadow: 16px 0 36px rgba(31,64,68,.14); transform: translateX(-105%); transition: transform .24s ease; will-change: transform; }
+    .sidebar.is-open { transform: translateX(0); }
+    .content { padding: 16px 18px 24px; }
+    .menu { display: flex; }
+    .brand-name { font-size: 1.7rem; }
+    .account-greeting { display: none; }
+  }
+</style>

@@ -1,0 +1,514 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+
+const apiCandidates = [
+  import.meta.env.PUBLIC_API_URL,
+  import.meta.env.API_URL,
+  'http://localhost:3000/api',
+]
+  .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+  .map((value) => value.replace(/\/$/, ''))
+  .filter((value, index, arr) => arr.indexOf(value) === index);
+
+let API_URL = apiCandidates[0] || 'http://localhost:3000/api';
+const filtros = ['Videos', 'Imágenes', 'Testimonios'];
+const filtro = Astro.url.searchParams.get('filtro') || 'Videos';
+
+let videos: any[] = [];
+let items: any[] = [];
+let errorMessage = '';
+let videoErrorMessage = '';
+
+function prepararVideo(video: any) {
+  return {
+    id: video.id,
+    titulo: video.titulo,
+    autor: video.autor_nombre || 'Anónimo',
+    duracion: video.duracion || '00:00',
+    vistas: Number(video.vistas || 0),
+    likes: Number(video.total_likes || video.likes || 0),
+    user_liked: Boolean(video.user_liked),
+    slug: video.slug,
+    categoria: video.categoria || 'Comunidad',
+    gradiente: video.gradiente || 'linear-gradient(135deg,#1565C0,#42A5F5)',
+    emoji: video.emoji || '🎬',
+    url: video.url || '#',
+  };
+}
+
+function prepararItem(item: any) {
+  return {
+    id: item.id,
+    familia: item.nombre_familia || item.usuario_nombre || 'Familia participante',
+    texto: typeof item.texto === 'string' ? item.texto.trim() : '',
+    tipo: item.tipo === 'foto' ? 'Imagen' : 'Testimonio',
+    imagenUrl: item.imagen_url || null,
+    likes: Number(item.total_likes || 0),
+    user_liked: Boolean(item.user_liked),
+  };
+}
+
+async function fetchConFallback(path: string) {
+  let lastError: unknown = null;
+
+  for (const baseUrl of apiCandidates) {
+    try {
+      const res = await fetch(`${baseUrl}${path}`);
+      if (!res.ok) {
+        lastError = new Error(`HTTP ${res.status} en ${baseUrl}${path}`);
+        continue;
+      }
+
+      API_URL = baseUrl;
+      return await res.json();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('No se pudo conectar con el backend.');
+}
+
+try {
+  if (filtro === 'Videos') {
+    const payload = await fetchConFallback('/videos?limit=12');
+    const data = Array.isArray(payload) ? payload : payload.data || [];
+    videos = data.map(prepararVideo);
+  } else if (filtro === 'Imágenes') {
+    const payload = await fetchConFallback('/galeria?tipo=foto&limit=12');
+    const data = Array.isArray(payload) ? payload : payload.data || [];
+    items = data.map(prepararItem);
+  } else {
+    const payload = await fetchConFallback('/galeria?tipo=testimonio&limit=12');
+    const data = Array.isArray(payload) ? payload : payload.data || [];
+    items = data.map(prepararItem);
+  }
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  if (filtro === 'Videos') {
+    console.warn(`Videos error: ${detail}`);
+    videoErrorMessage = 'No se pudieron cargar los videos en este momento.';
+  } else {
+    console.warn(`Galería error: ${detail}`);
+    errorMessage = 'No se pudo cargar la galería en este momento.';
+  }
+}
+
+function formatFecha(raw: string) {
+  if (!raw) return 'Sin fecha';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return 'Sin fecha';
+  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+---
+
+<Layout title="Galería Familiar – FamiliaLee" description="Galería comunitaria de videos, imágenes y testimonios de familia.">
+  <Header />
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <h1 class="page-title">Galería Familiar</h1>
+        <p class="page-desc">Explora videos, imágenes y testimonios compartidos por nuestra comunidad.</p>
+      </div>
+    </section>
+
+    <section class="section" id="galeriaPage" data-api={API_URL}>
+      <div class="container">
+        <div class="cat-filter" role="tablist" aria-label="Filtrar por tipo de galería">
+          {filtros.map((cat) => (
+            <a
+              href={`/galeria?filtro=${encodeURIComponent(cat)}`}
+              class={`cat-btn ${cat === filtro ? 'active' : ''}`}
+              role="tab"
+            >
+              {cat}
+            </a>
+          ))}
+        </div>
+
+        {errorMessage ? (
+          <div class="error-box">
+            <p>{errorMessage}</p>
+          </div>
+        ) : filtro === 'Videos' ? (
+          videos.length > 0 ? (
+            <div class="videos-grid">
+              {videos.map((video) => (
+                <article
+                  class="video-card"
+                  role="button"
+                  tabindex="0"
+                  data-video-url={video.url}
+                  data-video-titulo={video.titulo}
+                  data-video-autor={video.autor}
+                  data-video-slug={video.slug}
+                >
+                  <div class="video-card-link">
+                    <div class="video-thumb" style={`background: ${video.gradiente}`} aria-hidden="true">
+                      <span class="video-emoji">{video.emoji}</span>
+                      <span class="video-duration">{video.duracion}</span>
+                      <div class="video-play">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="video-info">
+                      <span class="video-cat-badge">{video.categoria}</span>
+                      <h2 class="video-titulo">{video.titulo}</h2>
+                      <div class="video-meta">
+                        <span>{video.autor}</span>
+                        <div class="video-meta-right">
+                          <div class="video-vistas">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <span class="video-vistas-count">{video.vistas.toLocaleString('es')} vistas</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div class="empty-state">
+              <p>{videoErrorMessage || 'No hay videos disponibles en este momento.'}</p>
+            </div>
+          )
+        ) : items.length > 0 ? (
+          <div class="galeria-grid">
+            {items.map((item) => (
+              <article class="galeria-card">
+                {item.imagenUrl ? (
+                  <img class="galeria-img" src={item.imagenUrl} alt={`Imagen de ${item.familia}`} loading="lazy" />
+                ) : null}
+                <div class="galeria-body">
+                  <div class="galeria-meta">
+                    <span class="galeria-label">{item.tipo}</span>
+                    <span class="galeria-author">{item.familia}</span>
+                    <button
+                      type="button"
+                      class="galeria-like-btn"
+                      data-id={item.id}
+                      data-liked={item.user_liked ? 'true' : 'false'}
+                      aria-pressed={item.user_liked ? 'true' : 'false'}
+                      aria-label={item.user_liked ? `Quitar me gusta a ${item.tipo} de ${item.familia}` : `Dar me gusta a ${item.tipo} de ${item.familia}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={item.user_liked ? 'currentColor' : 'none'} stroke="currentColor" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                      <span class="galeria-likes-count">{item.likes.toLocaleString('es')}</span>
+                    </button>
+                  </div>
+                  {item.texto ? <p class="galeria-text">{item.texto}</p> : <p class="galeria-text">{item.tipo} compartido por la comunidad.</p>}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div class="empty-state">
+            <p>No hay contenido disponible para este filtro.</p>
+          </div>
+        )}
+      </div>
+    </section>
+
+    <div id="videoPlayerModal" class="vplayer-overlay" aria-hidden="true" style="display:none;">
+      <div class="vplayer-backdrop"></div>
+      <div class="vplayer-card" role="dialog" aria-modal="true" aria-label="Reproductor de video">
+        <div class="vplayer-header">
+          <div>
+            <p class="vplayer-titulo" id="vplayerTitulo"></p>
+            <p class="vplayer-autor" id="vplayerAutor"></p>
+          </div>
+          <button type="button" class="vplayer-close" id="vplayerClose" aria-label="Cerrar">×</button>
+        </div>
+        <video id="vplayerVideo" class="vplayer-video" controls playsinline preload="metadata">
+          Tu navegador no soporta la reproducción de video.
+        </video>
+      </div>
+    </div>
+
+    <script>
+      // @ts-nocheck
+      (() => {
+        const modal = document.getElementById('videoPlayerModal');
+        const backdrop = modal?.querySelector('.vplayer-backdrop');
+        const closeBtn = document.getElementById('vplayerClose');
+        const videoEl = document.getElementById('vplayerVideo');
+        const titleEl = document.getElementById('vplayerTitulo');
+        const authorEl = document.getElementById('vplayerAutor');
+        const apiUrl = document.getElementById('galeriaPage')?.dataset.api || '/api';
+
+        function openPlayer(url, titulo, autor, slug) {
+          if (!modal || !videoEl) return;
+          videoEl.src = url;
+          if (titleEl) titleEl.textContent = titulo || '';
+          if (authorEl) authorEl.textContent = autor || '';
+          modal.style.display = 'grid';
+          modal.setAttribute('aria-hidden', 'false');
+          document.body.style.overflow = 'hidden';
+          videoEl.play().catch(() => {});
+          if (slug) {
+            fetch(`${apiUrl}/videos/${encodeURIComponent(slug)}`)
+              .then(() => window.dispatchEvent(new CustomEvent('video:updated', { detail: { slug } })))
+              .catch(() => {});
+          }
+        }
+
+        function closePlayer() {
+          if (!modal || !videoEl) return;
+          videoEl.pause();
+          videoEl.src = '';
+          modal.style.display = 'none';
+          modal.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
+
+        function parseNumber(text) {
+          return Number(String(text || '').replace(/[^0-9]/g, '')) || 0;
+        }
+
+        function updateButtonState(button, liked) {
+          button.setAttribute('data-liked', String(liked));
+          button.setAttribute('aria-pressed', String(liked));
+          const svg = button.querySelector('svg');
+          if (svg) svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+        }
+
+        async function toggleLike(button, endpoint) {
+          if (!button) return;
+          const token = window.localStorage.getItem('token');
+          if (!token) {
+            window.location.href = '/auth/login';
+            return;
+          }
+
+          const wasLiked = button.getAttribute('data-liked') === 'true';
+          const countEl = button.querySelector('.galeria-likes-count');
+          const currentCount = parseNumber(countEl?.textContent);
+          const optimisticCount = currentCount + (wasLiked ? -1 : 1);
+
+          updateButtonState(button, !wasLiked);
+          if (countEl) countEl.textContent = String(optimisticCount.toLocaleString('es'));
+
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (!res.ok) throw new Error('No autorizado');
+            const data = await res.json();
+            const serverCount = typeof data.total_likes === 'number' ? data.total_likes : null;
+            if (serverCount !== null && countEl) {
+              countEl.textContent = String(serverCount.toLocaleString('es'));
+            }
+            if (typeof data.liked === 'boolean') {
+              updateButtonState(button, data.liked);
+            }
+          } catch (error) {
+            updateButtonState(button, wasLiked);
+            if (countEl) countEl.textContent = String(currentCount.toLocaleString('es'));
+          }
+        }
+
+        function refreshGaleriaLikes() {
+          const token = window.localStorage.getItem('token');
+          if (!token) return;
+
+          const params = new URLSearchParams();
+          const filtro = new URLSearchParams(window.location.search).get('filtro');
+          if (filtro === 'Imágenes') params.set('tipo', 'foto');
+          if (filtro === 'Testimonios') params.set('tipo', 'testimonio');
+          params.set('limit', '12');
+
+          fetch(`${apiUrl}/galeria?${params.toString()}`, {
+            cache: 'no-store',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+            .then((res) => res.ok ? res.json() : null)
+            .then((payload) => {
+              if (!payload) return;
+              const data = Array.isArray(payload) ? payload : payload.data || [];
+              data.forEach((item) => {
+                const button = document.querySelector(`.galeria-like-btn[data-id="${item.id}"]`);
+                if (!button) return;
+                const countEl = button.querySelector('.galeria-likes-count');
+                const liked = Boolean(item.user_liked);
+                updateButtonState(button, liked);
+                if (countEl) countEl.textContent = String(Number(item.total_likes || 0).toLocaleString('es'));
+              });
+            })
+            .catch(() => {});
+        }
+
+        // Al cargar la página, si el usuario está autenticado, sincronizamos qué items tiene likeados
+        document.addEventListener('DOMContentLoaded', () => {
+          try { refreshGaleriaLikes(); } catch (e) { /* noop */ }
+        });
+
+        document.addEventListener('click', (event) => {
+          const likeButton = event.target instanceof Element ? event.target.closest('.galeria-like-btn') : null;
+          if (likeButton) {
+            event.stopPropagation();
+            const id = likeButton.getAttribute('data-id');
+            if (id) {
+              toggleLike(likeButton, `${apiUrl}/galeria/${encodeURIComponent(id)}/like`).then(() => {
+                // después de toggle, sincronizar con servidor para asegurar conteos y estado
+                try { refreshGaleriaLikes(); } catch (e) { /* noop */ }
+              });
+            }
+            return;
+          }
+
+          const button = event.target instanceof Element ? event.target.closest('[data-video-url]') : null;
+          if (button) {
+            const url = button.getAttribute('data-video-url') || '';
+            const titulo = button.getAttribute('data-video-titulo') || '';
+            const autor = button.getAttribute('data-video-autor') || '';
+            const slug = button.getAttribute('data-video-slug') || '';
+            if (url) openPlayer(url, titulo, autor, slug);
+            return;
+          }
+
+          if (event.target === backdrop || event.target === closeBtn) {
+            closePlayer();
+          }
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && modal?.style.display !== 'none') {
+            closePlayer();
+            return;
+          }
+
+          if (event.key === 'Enter' || event.key === ' ') {
+            const target = event.target instanceof Element ? event.target.closest('[data-video-url]') : null;
+            if (target && !event.target.closest('.galeria-like-btn')) {
+              event.preventDefault();
+              const url = target.getAttribute('data-video-url') || '';
+              const titulo = target.getAttribute('data-video-titulo') || '';
+              const autor = target.getAttribute('data-video-autor') || '';
+              const slug = target.getAttribute('data-video-slug') || '';
+              if (url) openPlayer(url, titulo, autor, slug);
+            }
+          }
+        });
+
+        function refreshVideos() {
+          fetch(`${apiUrl}/videos?limit=12`, { cache: 'no-store' })
+            .then((res) => res.ok ? res.json() : null)
+            .then((payload) => {
+              if (!payload) return;
+              const data = Array.isArray(payload) ? payload : payload.data || [];
+              const grid = document.querySelector('.videos-grid');
+              if (!grid) return;
+              data.forEach((video) => {
+                const card = grid.querySelector(`[data-video-slug="${video.slug}"]`);
+                if (!card) return;
+                const vistasCount = card.querySelector('.video-vistas-count');
+                const likesCount = card.querySelector('.video-likes-count');
+                const likeButton = card.querySelector('.video-like-btn');
+                if (vistasCount) vistasCount.textContent = `${Number(video.vistas || 0).toLocaleString('es')} vistas`;
+                if (likesCount) likesCount.textContent = `${Number(video.total_likes || video.likes || 0).toLocaleString('es')}`;
+              if (likeButton) {
+                const liked = Boolean(video.user_liked);
+                updateButtonState(likeButton, liked);
+              }
+              });
+            })
+            .catch(() => {});
+        }
+
+        window.addEventListener('video:updated', refreshVideos);
+      })();
+    </script>
+  </main>
+</Layout>
+
+<style>
+  .page-hero { background: var(--color-navy); color: var(--color-white); padding: 3.5rem 0; }
+  .page-title { font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 700; margin-bottom: 0.5rem; }
+  .page-desc { color: rgba(255,255,255,0.75); font-size: 1rem; max-width: 620px; }
+  .cat-filter { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; }
+  .cat-btn { padding: 0.6rem 1.1rem; border: 1.5px solid var(--color-border); border-radius: 100px; font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted); transition: all 0.2s; }
+  .cat-btn:hover { border-color: var(--color-navy); color: var(--color-navy); }
+  .cat-btn.active { background: var(--color-navy); border-color: var(--color-navy); color: var(--color-white); }
+  .videos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .galeria-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  .video-card, .galeria-card { background: var(--color-white); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); transition: box-shadow 0.25s, transform 0.25s; }
+  .video-card:hover, .galeria-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+  .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
+  .video-thumb { position: relative; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+  .video-emoji { font-size: 2.5rem; opacity: 0.5; pointer-events: none; }
+  .video-duration { position: absolute; bottom: 0.6rem; right: 0.6rem; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.78rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; }
+  .video-play { width: 48px; height: 48px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+  .video-card:hover .video-play { opacity: 1; }
+  .video-info { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .video-cat-badge { font-size: 0.75rem; color: var(--color-gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .video-titulo { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--color-navy); line-height: 1.3; margin: 0; }
+  .video-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--color-text-muted); }
+  .video-vistas { display: flex; align-items: center; gap: 0.35rem; }
+  .galeria-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+  .galeria-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .galeria-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+  .galeria-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-navy); }
+  .galeria-author { font-size: 0.9rem; color: var(--color-text-muted); }
+  .galeria-likes { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--color-text-muted); }
+  .galeria-likes svg { width: 14px; height: 14px; }
+  .video-meta-right { display: inline-flex; align-items: center; gap: 1rem; }
+  .video-likes { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; color: var(--color-text-muted); }
+  .video-likes svg { width: 14px; height: 14px; }
+  .vplayer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(0,0,0,0.45);
+  }
+  .vplayer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+  }
+  .vplayer-card {
+    position: relative;
+    width: min(100%, 780px);
+    max-height: min(95vh, 680px);
+    background: var(--color-white);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .vplayer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .vplayer-titulo { font-size: 1rem; font-weight: 700; margin: 0; color: var(--color-navy); }
+  .vplayer-autor { font-size: 0.9rem; color: var(--color-text-muted); margin: 0.25rem 0 0; }
+  .vplayer-close { border: none; background: transparent; font-size: 1.4rem; cursor: pointer; color: var(--color-text); }
+  .vplayer-video { width: 100%; height: clamp(320px, 45vh, 520px); background: #000; }
+  .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
+  .video-card-link:hover .video-play { opacity: 1; }
+  .empty-state, .error-box { padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); text-align: center; }
+  @media (max-width: 900px) { .videos-grid, .galeria-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 680px) { .videos-grid, .galeria-grid { grid-template-columns: 1fr; } .page-hero { padding: 2.5rem 0; } }
+</style>

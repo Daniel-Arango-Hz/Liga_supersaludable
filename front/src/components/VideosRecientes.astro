@@ -1,0 +1,796 @@
+---
+const apiCandidates = [
+  import.meta.env.PUBLIC_API_URL,
+  import.meta.env.API_URL,
+  'http://localhost:3000/api',
+  'http://localhost:3002/api',
+]
+  .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+  .map((value) => value.replace(/\/$/, ''))
+  .filter((value, index, arr) => arr.indexOf(value) === index);
+
+let API_URL = apiCandidates[0] || 'http://localhost:3002/api';
+
+async function fetchVideosWithFallback(limit = 3) {
+  let lastError: unknown = null;
+
+  for (const baseUrl of apiCandidates) {
+    try {
+      const res = await fetch(`${baseUrl}/videos?limit=${limit}`);
+      if (!res.ok) {
+        lastError = new Error(`HTTP ${res.status} en ${baseUrl}/videos?limit=${limit}`);
+        continue;
+      }
+
+      API_URL = baseUrl;
+      const payload = await res.json();
+      return Array.isArray(payload) ? payload : (payload.data || []);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('No se pudieron cargar los videos.');
+}
+
+let videos: any[] = [];
+
+function formatShortDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
+try {
+  const data = await fetchVideosWithFallback(3);
+  videos = data.map((video: any) => ({
+    titulo: video.titulo,
+    autor: video.autor_nombre || 'Anónimo',
+    duracion: video.duracion || '00:00',
+    vistas: Number(video.vistas || 0),
+    slug: video.slug,
+    gradiente: video.gradiente || 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
+    emoji: video.emoji || '🎬',
+    url: video.url || '',
+    fecha: formatShortDate(video.created_at || video.published_at || video.fecha),
+  }));
+} catch (error) {
+  const detail = error instanceof Error ? error.message : String(error);
+  console.warn(`Videos recientes no disponibles: ${detail}`);
+}
+---
+
+<section class="section" id="videos" data-api={API_URL} data-api-candidates={apiCandidates.join(',')}>
+  <div class="container">
+    <div class="section-header section-header-row">
+      <div>
+        <p class="eyebrow">GALERÍA</p>
+        <h2>Videos compartidos</h2>
+        <p>Momentos únicos e irrepetibles capturados por nuestras familias durante las actividades del CBI.</p>
+      </div>
+      <div class="section-actions">
+        <a href="/galeria" class="ver-mas">Ver galería →</a>
+        <div class="upload-actions" aria-label="Acciones para publicar en comunidad">
+          <button type="button" class="upload-btn js-open-upload" data-upload-type="video">Subir video</button>
+          <button type="button" class="upload-btn js-open-upload" data-upload-type="foto">Subir foto</button>
+          <button type="button" class="upload-btn js-open-upload" data-upload-type="comentario">Compartir comentario</button>
+        </div>
+      </div>
+    </div>
+
+    {videos.length > 0 ? (
+    <div class="videos-grid" id="videosGrid">
+      {videos.map((video) => (
+        <article class="video-card">
+          <button
+            type="button"
+            class="video-card-link"
+            aria-label={`Reproducir: ${video.titulo}`}
+            data-video-url={video.url}
+            data-video-titulo={video.titulo}
+            data-video-autor={video.autor}
+            data-video-slug={video.slug}
+          >
+            <div class="video-thumb" style={`background: ${video.gradiente}`} aria-hidden="true">
+              <img class="video-thumb-img" data-slug={video.slug} alt={video.titulo} style="display:none; width:100%; height:100%; object-fit:cover; position:absolute; inset:0;" />
+              <span class="video-emoji">{video.emoji}</span>
+              <span class="video-duration">{video.duracion}</span>
+              <div class="video-play centered">
+                <div class="play-circle">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#FF6C3F" aria-hidden="true">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="video-overlay" aria-hidden="true">
+                <div class="overlay-left">
+                  <div class="overlay-title">{video.titulo}</div>
+                  <div class="overlay-sub">{video.autor}</div>
+                </div>
+                <div class="overlay-right">
+                  <div class="overlay-stats">
+                    <span class="ov-icon">❤</span>
+                    <span class="ov-count">{Number(video.vistas || 0).toLocaleString('es')}</span>
+                    <span class="ov-sep">•</span>
+                    <span class="ov-date">{video.fecha}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="video-info">
+              <h3 class="video-titulo">{video.titulo}</h3>
+              <div class="video-meta">
+                <span class="video-autor">{video.autor}</span>
+                <div class="video-vistas">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  {Number(video.vistas || 0).toLocaleString('es')} vistas
+                </div>
+              </div>
+            </div>
+          </button>
+        </article>
+      ))}
+    </div>
+    ) : (
+      <div class="empty-videos" id="videosEmpty">
+        <p>Aún no hay videos publicados.</p>
+      </div>
+    )}
+  </div>
+</section>
+
+<script>
+  // @ts-nocheck
+  (() => {
+    const section = document.getElementById('videos');
+    const apiUrl = section?.getAttribute('data-api') || 'http://localhost:3000/api';
+    const apiCandidates = [
+      ...(section?.getAttribute('data-api-candidates') || '').split(','),
+      apiUrl,
+      'http://localhost:3000/api',
+      'http://localhost:3002/api',
+    ]
+      .map((value) => String(value || '').trim())
+      .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index);
+    const GRADIENTES = [
+      'linear-gradient(135deg,#1565C0,#42A5F5)',
+      'linear-gradient(135deg,#B71C1C,#EF9A9A)',
+      'linear-gradient(135deg,#1B5E20,#81C784)',
+      'linear-gradient(135deg,#F9A825,#FFF176)',
+      'linear-gradient(135deg,#4527A0,#B39DDB)',
+    ];
+
+    function esc(str: unknown): string {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // @ts-ignore
+    function buildCard(video) {
+      const gradiente = video.gradiente || GRADIENTES[Math.floor(Math.random() * GRADIENTES.length)];
+      const duracion = video.duracion ? `<span style="position:absolute;bottom:.6rem;right:.6rem;background:rgba(0,0,0,.75);color:#fff;font-size:.78rem;font-weight:600;padding:.2rem .5rem;border-radius:4px">${esc(video.duracion)}</span>` : '';
+      return `
+        <article class="video-card" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1);border:1px solid #e5e7eb;transition:box-shadow .25s,transform .25s">
+          <button type="button" class="video-card-link"
+            style="display:flex;flex-direction:column;width:100%;background:none;border:none;cursor:pointer;text-align:left;padding:0"
+            aria-label="Reproducir: ${esc(video.titulo)}"
+            data-video-url="${esc(video.url)}"
+            data-video-titulo="${esc(video.titulo)}"
+            data-video-autor="${esc(video.autor_nombre || 'Anónimo')}"
+            data-video-slug="${esc(video.slug)}">
+            <div class="video-thumb" style="position:relative;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:${esc(gradiente)};overflow:hidden">
+              <img class="video-thumb-img" data-slug="${esc(video.slug)}" alt="${esc(video.titulo)}" style="display:none; width:100%; height:100%; object-fit:cover; position:absolute; inset:0;" />
+              <span style="font-size:2.5rem;opacity:.45;pointer-events:none" class="video-emoji">${esc(video.emoji || '🎬')}</span>
+              ${duracion}
+              <div class="video-play centered">
+                <div class="play-circle">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#FF6C3F"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </div>
+              </div>
+              <div class="video-overlay" aria-hidden="true">
+                <div class="overlay-left">
+                  <div class="overlay-title">${esc(video.titulo)}</div>
+                  <div class="overlay-sub">${esc(video.autor || video.autor_nombre || 'Anónimo')}</div>
+                </div>
+                <div class="overlay-right">
+                  <div class="overlay-stats">
+                    <span class="ov-icon">❤</span>
+                    <span class="ov-count">${Number(video.vistas || 0).toLocaleString('es')}</span>
+                    <span class="ov-sep">•</span>
+                    <span class="ov-date">${esc((video.fecha) || '')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="video-info">
+              <h3 class="video-titulo">${esc(video.titulo)}</h3>
+              <div class="video-meta">
+                <span>${esc(video.autor_nombre || 'Anónimo')}</span>
+                <div style="display:flex;align-items:center;gap:.3rem">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  ${Number(video.vistas || 0).toLocaleString('es')}
+                </div>
+              </div>
+            </div>
+          </button>
+        </article>`;
+    }
+
+    async function refreshVideos() {
+      try {
+        let data = [];
+
+        for (const baseUrl of apiCandidates) {
+          const res = await fetch(`${baseUrl}/videos?limit=3`, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const payload = await res.json();
+          data = Array.isArray(payload) ? payload : (payload.data || []);
+          break;
+        }
+
+        const section = document.getElementById('videos');
+        if (!section) return;
+
+        let grid = document.getElementById('videosGrid');
+        let empty = document.getElementById('videosEmpty');
+
+        if (data.length === 0) {
+          if (grid) grid.remove();
+          if (!empty) {
+            const div = document.createElement('div');
+            div.id = 'videosEmpty';
+            div.className = 'empty-videos';
+            div.innerHTML = '<p>Aún no hay videos publicados.</p>';
+            section.querySelector('.container')?.appendChild(div);
+          }
+          return;
+        }
+
+        if (empty) empty.remove();
+
+        if (!grid) {
+          grid = document.createElement('div');
+          grid.id = 'videosGrid';
+          grid.className = 'videos-grid';
+          section.querySelector('.container')?.appendChild(grid);
+        }
+
+        grid.innerHTML = data.map(buildCard).join('');
+        // after rendering, attempt to load thumbnails for each card
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.video-thumb-img').forEach((img) => {
+            const slug = img.getAttribute('data-slug');
+            const thumbContainer = img.closest('.video-thumb');
+            if (!slug || !thumbContainer) return;
+            loadThumbnailForCard(slug, img, thumbContainer);
+          });
+        });
+      } catch (_) {}
+    }
+
+    // Try to load a thumbnail for a given video slug into the img element.
+    async function loadThumbnailForCard(slug, imgEl, container) {
+      const api = apiCandidates[0] || '/api';
+      const tryUrl = `${api}/videos/${encodeURIComponent(slug)}/thumbnail.jpg`;
+
+      function markLoaded(dataUrl) {
+        imgEl.src = dataUrl;
+        imgEl.style.display = 'block';
+        // add class to container to animate emoji out
+        container.classList.add('loaded');
+      }
+
+      try {
+        // Try fetching a server-provided thumbnail first
+        const head = await fetch(tryUrl, { method: 'HEAD' });
+        if (head.ok) {
+          markLoaded(tryUrl);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Fallback: try to extract a frame from the video URL
+      try {
+        const videoUrl = (() => {
+          const btn = container.closest('.video-card')?.querySelector('[data-video-url]');
+          return btn ? btn.getAttribute('data-video-url') : null;
+        })();
+        if (!videoUrl) return;
+
+        const v = document.createElement('video');
+        v.crossOrigin = 'anonymous';
+        v.muted = true;
+        v.preload = 'metadata';
+        v.src = videoUrl;
+
+        await new Promise((resolve, reject) => {
+          const onLoaded = () => resolve(null);
+          const onErr = () => reject(new Error('error loading video'));
+          v.addEventListener('loadeddata', onLoaded, { once: true });
+          v.addEventListener('error', onErr, { once: true });
+        });
+
+        // seek to 1s if possible
+        try {
+          v.currentTime = Math.min(1, Math.max(0.1, (v.duration || 1) * 0.1));
+          await new Promise((resolve) => v.addEventListener('seeked', resolve, { once: true }));
+        } catch (_) {}
+
+        const canvas = document.createElement('canvas');
+        canvas.width = v.videoWidth || 640;
+        canvas.height = v.videoHeight || 360;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg');
+          markLoaded(dataUrl);
+        }
+        v.src = '';
+      } catch (err) {
+        // leave emoji if failed
+        return;
+      }
+    }
+
+    window.addEventListener('community:uploaded', (e) => {
+      // @ts-ignore
+      const mode = e.detail?.mode;
+      if (mode === 'video') refreshVideos();
+    });
+
+    window.addEventListener('video:updated', () => refreshVideos());
+
+    // Attempt to load thumbnails for server-rendered cards on first paint
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.video-thumb-img').forEach((img) => {
+        const slug = img.getAttribute('data-slug');
+        const thumbContainer = img.closest('.video-thumb');
+        if (!slug || !thumbContainer) return;
+        loadThumbnailForCard(slug, img, thumbContainer);
+      });
+    });
+  })();
+</script>
+
+<style is:global>
+  #videos {
+    position: relative;
+   
+    padding-bottom: 3rem;
+    overflow: hidden;
+    background: linear-gradient(180deg, #fffaf5 0%, #fff1e6 100%);
+  }
+
+  #videos::before {
+    content: '';
+    position: absolute;
+    top: -3rem;
+    right: -4rem;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 167, 97, 0.18), transparent 58%);
+    filter: blur(10px);
+  }
+
+  #videos::after {
+    content: '';
+    position: absolute;
+    bottom: -2.5rem;
+    left: -3rem;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 220, 192, 0.2), transparent 60%);
+    filter: blur(12px);
+  }
+
+  #videos .eyebrow {
+    display: inline-flex;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    font-size: 0.75rem;
+    color: #d96927;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+
+  #videos .section-header h2 {
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    margin-bottom: 0.75rem;
+  }
+
+  #videos .section-header p {
+    color: #5d5046;
+    line-height: 1.75;
+    max-width: 520px;
+  }
+
+  #videos .section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  #videos .upload-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  #videos .upload-btn,
+  #videos .ver-mas {
+    border-radius: 999px;
+    padding: 0.9rem 1.25rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+
+  #videos .upload-btn {
+    background: #ff6c3f;
+    color: #fff;
+  }
+
+  #videos .upload-btn:hover {
+    background: #e5562f;
+  }
+
+  #videos .videos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+
+  #videos .video-card {
+    background: #fff;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 164, 101, 0.22);
+    box-shadow: 0 18px 46px rgba(255, 110, 63, 0.12);
+    transition: transform 0.25s, box-shadow 0.25s;
+  }
+
+  #videos .video-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 22px 55px rgba(255, 109, 63, 0.13);
+  }
+
+  #videos .video-card-link {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    text-align: left;
+  }
+
+  #videos .video-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+  }
+
+  #videos .video-emoji {
+    font-size: 3rem;
+    opacity: 0.75;
+  }
+
+  #videos .video-play {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  #videos .video-play.centered .play-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.95);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 10px 30px rgba(13,34,64,0.12);
+    transition: transform .18s ease, opacity .18s ease;
+    opacity: 0.98;
+  }
+
+  #videos .video-card:hover .video-play.centered .play-circle {
+    transform: scale(1.02);
+  }
+
+  #videos .video-duration {
+    position: absolute;
+    bottom: 0.9rem;
+    right: 0.9rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+  }
+
+  #videos .video-info {
+    display: none;
+  }
+
+  #videos .video-titulo {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+    color: #2d2d2d;
+  }
+
+  #videos .video-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #7c6b5f;
+    font-size: 0.9rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* reveal info on hover */
+  #videos .video-card:hover .video-info {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* show play icon on hover */
+  #videos .video-card:hover .video-play {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* thumbnail image styles */
+  #videos .video-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity .22s ease;
+  }
+
+  #videos .video-thumb.loaded .video-thumb-img {
+    opacity: 1;
+  }
+
+  #videos .video-thumb .video-emoji {
+    z-index: 2;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  #videos .video-thumb.loaded .video-emoji {
+    opacity: 0;
+    transform: scale(.9);
+  }
+
+  /* overlay at bottom similar to the provided design */
+  #videos .video-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 45%, rgba(0,0,0,0.75) 100%);
+    color: #fff;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    transform: translateY(12px);
+    opacity: 0;
+    transition: transform .22s ease, opacity .22s ease;
+    pointer-events: none;
+  }
+
+  #videos .video-card:hover .video-overlay {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #videos .overlay-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  #videos .overlay-sub {
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+
+  #videos .overlay-stats {
+    display:flex;align-items:center;gap:0.5rem;font-size:0.95rem;color:#fff;opacity:0.95
+  }
+
+  #videos .ov-icon{opacity:.95}
+
+  #videos .ov-count{font-weight:700}
+
+  #videos .video-vistas {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  @media (max-width: 960px) {
+    #videos .videos-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    #videos .section-actions,
+    #videos .section-header.section-header-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #videos .videos-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<!-- Modal de reproducción de video -->
+<div id="videoPlayerModal" style="display:none;" class="vplayer-overlay" aria-hidden="true">
+  <div class="vplayer-backdrop" id="vplayerBackdrop"></div>
+  <div class="vplayer-card" role="dialog" aria-modal="true" aria-label="Reproductor de video">
+    <div class="vplayer-header">
+      <div>
+        <p class="vplayer-titulo" id="vplayerTitulo"></p>
+        <p class="vplayer-autor" id="vplayerAutor"></p>
+      </div>
+      <button type="button" class="vplayer-close" id="vplayerClose" aria-label="Cerrar">×</button>
+    </div>
+    <video id="vplayerVideo" class="vplayer-video" controls playsinline preload="metadata">
+      Tu navegador no soporta la reproducción de video.
+    </video>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const modal    = document.getElementById('videoPlayerModal');
+    const backdrop = document.getElementById('vplayerBackdrop');
+    const closeBtn = document.getElementById('vplayerClose');
+    const videoEl  = document.getElementById('vplayerVideo') as HTMLVideoElement | null;
+    const tituloEl = document.getElementById('vplayerTitulo');
+    const autorEl  = document.getElementById('vplayerAutor');
+    const API_URL = document.getElementById('videos')?.getAttribute('data-api') || '/api';
+
+    function openPlayer(url: string, titulo: string, autor: string, slug: string) {
+      if (!modal || !videoEl) return;
+      videoEl.src = url;
+      if (tituloEl) tituloEl.textContent = titulo || '';
+      if (autorEl)  autorEl.textContent  = autor  || '';
+      modal.style.display = 'grid';
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      videoEl.play().catch(() => {});
+      // Registrar vista y actualizar el contador en la UI.
+      if (slug) {
+        fetch(`${API_URL}/videos/${encodeURIComponent(slug)}`)
+          .then(() => window.dispatchEvent(new CustomEvent('video:updated', { detail: { slug } })))
+          .catch(() => {});
+      }
+    }
+
+    function closePlayer() {
+      if (!modal || !videoEl) return;
+      videoEl.pause();
+      videoEl.src = '';
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target instanceof Element ? e.target.closest('[data-video-url]') : null;
+      if (btn) {
+        const url    = btn.getAttribute('data-video-url')    || '';
+        const titulo = btn.getAttribute('data-video-titulo') || '';
+        const autor  = btn.getAttribute('data-video-autor')  || '';
+        const slug   = btn.getAttribute('data-video-slug')   || '';
+        if (url) openPlayer(url, titulo, autor, slug);
+        return;
+      }
+
+      if (e.target === backdrop || e.target === closeBtn) closePlayer();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal?.style.display !== 'none') closePlayer();
+    });
+  })();
+</script>
+
+<style>
+  .vplayer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    place-items: center;
+    padding: 1rem;
+  }
+
+  .vplayer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    cursor: pointer;
+  }
+
+  .vplayer-card {
+    position: relative;
+    width: min(860px, calc(100vw - 2rem));
+    background: #0d1117;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  }
+
+  .vplayer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .vplayer-titulo {
+    font-weight: 700;
+    color: #fff;
+    font-size: 1rem;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .vplayer-autor {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin: 0.2rem 0 0;
+  }
+
+  .vplayer-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 1.6rem;
+    line-height: 1;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  .vplayer-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .vplayer-video {
+    display: block;
+    width: 100%;
+    max-height: 70vh;
+    background: #000;
+  }
+</style>

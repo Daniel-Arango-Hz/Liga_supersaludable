@@ -1,0 +1,196 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { obtenerAutores } from '../utils/api';
+
+let autores: any[] = [];
+try {
+  const respuesta = await obtenerAutores();
+  autores = Array.isArray(respuesta) ? respuesta : (respuesta.data || []);
+} catch (error) {
+  console.error('Error al obtener autores:', error);
+}
+---
+
+<Layout title="Autores – FamiliaLee" description="Conoce a los autores que crean contenido para bendecir tu hogar.">
+  <Header />
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <h1 class="page-title">👨‍🎨 Autores</h1>
+        <p class="page-desc">Conoce a quienes crean contenido para bendecir tu hogar.</p>
+      </div>
+    </section>
+
+    {autores.length > 0 ? (
+      <section class="section">
+        <div class="container">
+          <div class="autores-grid">
+            {autores.map((autor: any) => (
+              <article class="autor-card">
+                <a href={`/autor/${autor.slug}`} class="autor-link">
+                  <div class="autor-avatar">👤</div>
+                  <h2 class="autor-nombre">{autor.nombre}</h2>
+                  <p class="autor-especialidad">{autor.especialidad || 'Autor destacado'}</p>
+                  <p class="autor-bio">{autor.biografia || 'Creador de contenido para familias'}</p>
+                  <div class="autor-stats">
+                    <div class="stat">
+                      <strong>📚 {autor.total_libros || 0}</strong>
+                      <span>Libros</span>
+                    </div>
+                    <div class="stat">
+                      <strong>⬇️ {(autor.total_descargas || 0).toLocaleString('es')}</strong>
+                      <span>Descargas</span>
+                    </div>
+                    <div class="stat">
+                      <strong>⭐ {autor.total_seguidores || 0}</strong>
+                      <span>Seguidores</span>
+                    </div>
+                  </div>
+                </a>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    ) : (
+      <section class="section">
+        <div class="container centered">
+          <p style="font-size: 3rem; margin-bottom: 1rem;">👨‍🎨</p>
+          <h2>Sin autores disponibles</h2>
+          <p>Por ahora no hay autores registrados. ¡Vuelve pronto!</p>
+        </div>
+      </section>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple), var(--color-primary-pink));
+    color: var(--color-white);
+    padding: 3rem 0;
+  }
+
+  .page-title {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .page-desc {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+    max-width: 500px;
+  }
+
+  .autores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .autor-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--color-primary-blue);
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+
+  .autor-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-pink);
+  }
+
+  .autor-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    text-align: center;
+  }
+
+  .autor-avatar {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  .autor-nombre {
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-primary-blue);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .autor-especialidad {
+    font-size: 0.95rem;
+    color: var(--color-primary-purple);
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .autor-bio {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0 0 1rem 0;
+    line-height: 1.5;
+  }
+
+  .autor-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .stat strong {
+    color: var(--color-primary-blue);
+    font-weight: 600;
+  }
+
+  .centered {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .centered h2 {
+    font-size: 1.75rem;
+    color: var(--color-primary-blue);
+    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 768px) {
+    .autores-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .autores-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    .autor-nombre {
+      font-size: 1rem;
+    }
+
+    .autor-link {
+      padding: 1rem;
+    }
+  }
+</style>

@@ -1,0 +1,210 @@
+---
+import BookCard from './BookCard.astro';
+import { obtenerLibros } from '../utils/api';
+import type { Libro } from '../data/libros';
+
+let librosDestacados: any[] = [];
+try {
+  const respuesta = await obtenerLibros({ orden: 'destacado', limite: 4 });
+  librosDestacados = respuesta.data || [];
+} catch (error) {
+  console.error('Error al obtener libros destacados:', error);
+}
+---
+
+{librosDestacados.length > 0 && (
+  <section class="section section-bg" id="biblioteca">
+    <div class="container">
+      <div class="section-header section-header-row">
+        <div>
+          <p class="eyebrow">BIBLIOTECA FAMILIAR</p>
+          <h2>Libros interactivos</h2>
+          <p>Cada libro es una historia única creada con amor por las familias de nuestros personitas.</p>
+        </div>
+        <div class="section-actions library-actions">
+          <div class="filter-pills" role="toolbar" aria-label="Filtrar libros">
+            <button type="button" class="pill active">Todos</button>
+            <button type="button" class="pill">Familia</button>
+            <button type="button" class="pill">Naturaleza</button>
+            <button type="button" class="pill">Rutinas</button>
+            <button type="button" class="pill">Aventuras</button>
+          </div>
+          <div class="header-actions">
+            <a href="/biblioteca" class="ver-mas">Ver todos los libros →</a>
+            <a href="/subir-libro" class="btn-pill">Subir mi libro</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="books-grid">
+        {librosDestacados.map((libro: any) => {
+          const libroAdaptado: Libro = {
+            slug: libro.slug,
+            titulo: libro.titulo,
+            autor: libro.autor_nombre || 'Anónimo',
+            familiaInfo: libro.familia_nombre || libro.autor_nombre || '',
+            descripcion: libro.descripcion,
+            portadaGradiente: libro.portada_gradiente || 'linear-gradient(135deg, #34d399 0%, #60a5fa 100%)',
+            portadaIcono: libro.portada_icono || '📖',
+            categorias: libro.categorias || [],
+            rating: libro.rating_promedio || 0,
+            votos: libro.total_valoraciones || 0,
+            likes: libro.likes_total || libro.total_valoraciones || 0,
+            descargas: libro.descargas_total || 0,
+            vistas: libro.vistas_total || libro.vistas || libro.descargas_total || 0,
+            edadRango: libro.edad_rango || '5-12',
+            autorSlug: libro.autor_slug || '',
+            paginas: Number(libro.paginas ?? libro.paginas_total ?? (Array.isArray(libro.paginas_contenido) ? libro.paginas_contenido.length : 0)),
+            anio: Number(libro.anio_publicacion || new Date().getFullYear()),
+            paginasContenido: Array.isArray(libro.paginas_contenido) ? libro.paginas_contenido : [],
+            destacado: libro.destacado || false,
+            nuevo: libro.nuevo || false,
+          };
+          return <BookCard libro={libroAdaptado} />;
+        })}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .eyebrow {
+    display: inline-flex;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.72rem;
+    color: #d66a2e;
+    margin-bottom: 0.8rem;
+    font-weight: 800;
+  }
+
+  .section-header h2 {
+    font-size: clamp(2rem, 3vw, 2.6rem);
+    margin-bottom: 0.75rem;
+  }
+
+  .section-header p {
+    max-width: 590px;
+    color: #5d6778;
+    line-height: 1.8;
+    margin-bottom: 0.25rem;
+  }
+
+  #biblioteca {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #fffaf6 0%, #fff1e4 100%);
+    padding: 4.5rem 0;
+  }
+
+  #biblioteca::before {
+    content: '';
+    position: absolute;
+    top: 1rem;
+    left: -2rem;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 170, 125, 0.18), transparent 58%);
+    filter: blur(10px);
+  }
+
+  #biblioteca::after {
+    content: '';
+    position: absolute;
+    bottom: 2rem;
+    right: 1rem;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(78, 160, 255, 0.12), transparent 58%);
+    filter: blur(12px);
+  }
+
+  .section-actions.library-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-end;
+  }
+
+  .filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-bottom: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .pill {
+    border: 1px solid rgba(255, 110, 60, 0.18);
+    background: rgba(255, 255, 255, 0.9);
+    color: #8e5a2d;
+    border-radius: 999px;
+    padding: 0.66rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .pill.active,
+  .pill:hover {
+    background: linear-gradient(135deg, #ff8a4a, #ff5f9c);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 26px rgba(255, 95, 156, 0.18);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.85rem 1.35rem;
+    background: linear-gradient(135deg, #ff7a54, #ff5f9c);
+    color: #fff;
+    border-radius: 999px;
+    font-weight: 800;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 14px 24px rgba(255, 111, 97, 0.2);
+  }
+
+  .btn-pill:hover {
+    transform: translateY(-2px);
+  }
+
+  .books-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.6rem;
+  }
+
+  @media (max-width: 1100px) {
+    .books-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .section-header.section-header-row,
+    .section-actions.library-actions {
+      align-items: flex-start;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    .books-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,657 @@
+---
+const SITE_URL = import.meta.env.SITE || 'http://localhost:3000';
+const API_BASE = import.meta.env.PUBLIC_API_URL || '/api';
+const API_URL = API_BASE.startsWith('http')
+  ? API_BASE.replace(/\/$/, '')
+  : new URL(API_BASE, SITE_URL).toString();
+
+let latestLibro: any = null;
+let stats = {
+  libros_subidos: 0,
+  fotos: 0,
+  videos: 0,
+  testimonios: 0,
+  usuarios: 0,
+};
+
+try {
+  const [librosRes, statsRes] = await Promise.all([
+    fetch(`${API_URL}/libros?page=1&limit=1`),
+    fetch(`${API_URL}/estadisticas`),
+  ]);
+
+  if (!librosRes.ok) {
+    const errorPayload = await librosRes.text();
+    console.error('Error al obtener el último libro:', librosRes.status, errorPayload);
+  } else {
+    const payload = await librosRes.json();
+    latestLibro = Array.isArray(payload)
+      ? payload[0]
+      : payload?.data?.[0] || payload?.[0] || null;
+  }
+
+  if (!statsRes.ok) {
+    const errorPayload = await statsRes.text();
+    console.error('Error al obtener estadísticas del hero:', statsRes.status, errorPayload);
+  } else {
+    stats = await statsRes.json();
+  }
+} catch (error) {
+  console.error('Error al cargar hero dinámico:', error);
+}
+---
+
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-shapes" aria-hidden="true">
+      <span class="shape shape-glow"></span>
+      <span class="shape shape-ring"></span>
+      <span class="shape shape-dot"></span>
+    </div>
+    <div class="hero-copy">
+      <span class="hero-badge">Espacio familiar del CBI Personitas</span>
+      <h1>Historias que <span>crecen</span> junto a tus <span>pequeños</span></h1>
+      <p>Un espacio donde las familias del CBI Personitas comparten los libros interactivos que crean con sus hijos, junto con fotos, videos y recuerdos de cada actividad especial.</p>
+
+      <div class="hero-actions">
+        <a href="/biblioteca" class="btn btn-primary">Ver libros</a>
+        <a href="/galeria" class="btn btn-secondary">Ver galería</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <strong>{stats.libros_subidos?.toLocaleString('es')}</strong>
+          <span>Libros subidos</span>
+        </div>
+        <div class="stat-card">
+          <strong>{stats.fotos?.toLocaleString('es')}</strong>
+          <span>Fotos</span>
+        </div>
+        <div class="stat-card">
+          <strong>{stats.videos?.toLocaleString('es')}</strong>
+          <span>Videos</span>
+        </div>
+        <div class="stat-card">
+          <strong>{stats.testimonios?.toLocaleString('es')}</strong>
+          <span>Testimonios</span>
+        </div>
+        <div class="stat-card">
+          <strong>{stats.usuarios?.toLocaleString('es')}</strong>
+          <span>Usuarios registrados</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hero-card">
+        <div class="hero-card-header">
+          <span class="hero-card-badge">Último libro publicado</span>
+          <span class="hero-card-label">{latestLibro?.autor_nombre ?? latestLibro?.autor ?? 'Familia CBI'}</span>
+        </div>
+        <div class="hero-card-illustration" aria-hidden="true">
+          <div class="book-illustration" style={`background: ${latestLibro?.portada_gradiente || 'linear-gradient(135deg, #ffe8d1 0%, #ffc38b 100%)'}`}>
+            {typeof latestLibro?.portada_icono === 'string' && /^(https?:)?\/\//i.test(latestLibro.portada_icono) ? (
+              <img src={latestLibro.portada_icono} alt={latestLibro?.titulo ?? 'Portada del libro'} />
+            ) : (
+              <span>{latestLibro?.portada_icono || '📚'}</span>
+            )}
+          </div>
+        </div>
+        <div class="hero-card-body">
+          <p class="hero-card-title">{latestLibro?.titulo ?? 'Libro comunitario'}</p>
+          <div class="hero-card-meta">
+            <span>{latestLibro?.categorias?.[0] ?? 'Categoría general'}</span>
+            <span>{Number(latestLibro?.paginas ?? latestLibro?.paginas_total ?? 0)} págs</span>
+            <span>⭐ {Number(latestLibro?.rating_promedio ?? latestLibro?.rating ?? 0).toFixed(1)}</span>
+          </div>
+          <p class="hero-card-copy">{latestLibro?.descripcion ?? 'Descubre una historia creada por nuestra comunidad familiar.'}</p>
+        </div>
+        <div class="hero-card-footer">
+          <div>
+            <strong>{Number(latestLibro?.descargas_total ?? latestLibro?.descargas ?? 0).toLocaleString('es')}</strong>
+            <span>Descargas</span>
+          </div>
+          <div class="hero-card-pill">{latestLibro?.categorias?.[0] ?? 'Libro nuevo'}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 10% 20%, rgba(255, 181, 96, 0.22), transparent 16%),
+      radial-gradient(circle at 90% 15%, rgba(78, 160, 255, 0.1), transparent 18%),
+      linear-gradient(180deg, #fffaf5 0%, #fff3e5 100%);
+    padding: 5rem 0 4.5rem;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 35% 40%, rgba(255, 255, 255, 0.6), transparent 30%),
+      radial-gradient(circle at 75% 75%, rgba(255, 202, 153, 0.28), transparent 18%);
+    opacity: 0.9;
+  }
+
+  .hero-inner {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+    gap: 2.2rem;
+    align-items: center;
+  }
+
+  .hero-shapes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero-shapes .shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(14px);
+    opacity: 0.75;
+  }
+
+  .hero-shapes .shape-glow {
+    top: 14%;
+    left: 3%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255, 195, 122, 0.38), transparent 60%);
+  }
+
+  .hero-shapes .shape-ring {
+    bottom: 10%;
+    right: 2%;
+    width: 240px;
+    height: 240px;
+    border: 2px solid rgba(255, 120, 89, 0.2);
+    background: transparent;
+    filter: blur(0);
+    opacity: 0.5;
+  }
+
+  .hero-shapes .shape-dot {
+    top: 42%;
+    right: 23%;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+  }
+
+  .hero-copy {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.8rem 1.1rem;
+    border-radius: 999px;
+    background: rgba(255, 120, 89, 0.08);
+    border: 1px solid rgba(255, 120, 89, 0.15);
+    color: #d16b2e;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .hero-copy h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(3rem, 5vw, 4.8rem);
+    letter-spacing: -0.04em;
+    color: #20304b;
+    margin-bottom: 1.1rem;
+    line-height: 0.96;
+  }
+
+  .hero-copy h1 span {
+    color: #f06641;
+  }
+
+  .hero-copy p {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--color-text-muted);
+    max-width: 580px;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.95rem 1.6rem;
+    border-radius: 16px;
+    font-weight: 800;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #ff7a54, #ff5f9c);
+    color: #fff;
+    box-shadow: 0 18px 32px rgba(255, 111, 97, 0.18);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(25, 39, 58, 0.08);
+    color: var(--color-navy);
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(94px, 1fr));
+    gap: 0.85rem;
+    margin-top: 2rem;
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(25, 39, 58, 0.06);
+    box-shadow: 0 12px 26px rgba(29, 41, 74, 0.05);
+    border-radius: 20px;
+    padding: 1rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-align: center;
+  }
+
+  .stat-card strong {
+    font-size: 1.3rem;
+    color: var(--color-navy);
+    font-weight: 800;
+    font-family: var(--font-serif);
+  }
+
+  .stat-card span {
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+  }
+
+  .hero-visual {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .hero-card {
+    width: min(100%, 420px);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(25, 39, 58, 0.06);
+    border-radius: 30px;
+    box-shadow: 0 20px 60px rgba(22, 35, 61, 0.12);
+    overflow: hidden;
+  }
+
+  .hero-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 1rem 1.1rem 0.85rem;
+  }
+
+  .hero-card-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #d86a22;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .hero-card-label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-weight: 700;
+  }
+
+  .hero-card-illustration {
+    padding: 0 1.1rem;
+  }
+
+  .book-illustration {
+    position: relative;
+    aspect-ratio: 14 / 11;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: inset 0 -20px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .book-illustration span {
+    font-size: 5rem;
+    opacity: 0.85;
+  }
+
+  .book-illustration img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-card-body {
+    padding: 1.2rem 1.1rem 0;
+  }
+
+  .hero-card-title {
+    font-size: 1.45rem;
+    color: var(--color-navy);
+    font-weight: 800;
+    font-family: var(--font-serif);
+    margin-bottom: 0.6rem;
+  }
+
+  .hero-card-meta {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    font-size: 0.76rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .hero-card-copy {
+    margin-top: 0.9rem;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: var(--color-text-muted);
+  }
+
+  .hero-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem 1.2rem;
+  }
+
+  .hero-card-footer strong {
+    display: block;
+    color: var(--color-navy);
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+
+  .hero-card-footer span {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  .hero-card-pill {
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(78, 160, 255, 0.12);
+    color: var(--color-navy);
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+
+  @media (max-width: 960px) {
+    .hero-inner {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-copy {
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .hero {
+      padding-top: 4rem;
+    }
+
+    .hero-stats {
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+  }
+
+  .hero-copy p {
+    max-width: 540px;
+    color: #5a5147;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    margin-bottom: 2rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 1.75rem;
+    border-radius: 999px;
+    font-weight: 700;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .btn-primary {
+    background: #ff6b3f;
+    color: #fff;
+    box-shadow: 0 18px 40px rgba(255, 107, 63, 0.2);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.8);
+    color: #4d3a2a;
+    border: 1px solid rgba(77, 58, 42, 0.12);
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .stat-card {
+    background: #ffffff;
+    border: 1px solid rgba(119, 84, 41, 0.12);
+    border-radius: var(--radius-lg);
+    padding: 1.2rem 1.25rem;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(198, 132, 79, 0.08);
+  }
+
+  .stat-card strong {
+    display: block;
+    font-size: 1.35rem;
+    color: #2b2b2b;
+    margin-bottom: 0.35rem;
+  }
+
+  .stat-card span {
+    font-size: 0.95rem;
+    color: #7f6b58;
+  }
+
+  .hero-visual {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .hero-card {
+    width: 100%;
+    max-width: 420px;
+    background: radial-gradient(135deg, #fff8f2 0%, #ffeade 100%);
+    border-radius: 2rem;
+    box-shadow: 0 32px 80px rgba(58, 31, 5, 0.14);
+    overflow: hidden;
+    border: 1px solid rgba(255, 152, 94, 0.2);
+    position: relative;
+  }
+
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    inset: -20px -18px 40px;
+    background: radial-gradient(circle, rgba(255, 186, 119, 0.18), transparent 35%);
+    pointer-events: none;
+  }
+
+  .hero-card-header {
+    padding: 1.3rem 1.4rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .hero-card-badge {
+    color: #9e3e00;
+    background: #fff2e4;
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .hero-card-label {
+    font-size: 0.9rem;
+    color: #5a4633;
+    opacity: 0.9;
+  }
+
+  .hero-card-illustration {
+    position: relative;
+    padding: 1.75rem 1.8rem 0;
+  }
+
+  .book-illustration {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 1.75rem;
+    background: linear-gradient(135deg, #ffe8d1 0%, #ffc38b 100%);
+    display: grid;
+    place-items: center;
+    font-size: 5rem;
+    color: #f15d25;
+  }
+
+  .hero-card-body {
+    padding: 1.25rem 1.4rem;
+  }
+
+  .hero-card-title {
+    font-family: var(--font-serif);
+    font-size: 1.35rem;
+    margin-bottom: 0.65rem;
+    color: #2d2d2d;
+  }
+
+  .hero-card-copy {
+    color: #6b5b4f;
+    line-height: 1.75;
+    font-size: 0.98rem;
+  }
+
+  .hero-card-footer {
+    padding: 1rem 1.4rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid rgba(236, 186, 144, 0.3);
+  }
+
+  .hero-card-footer div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .hero-card-footer strong {
+    font-size: 1.1rem;
+    color: #2d2d2d;
+  }
+
+  .hero-card-footer span {
+    font-size: 0.9rem;
+    color: #8d7a67;
+  }
+
+  .hero-card-pill {
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(255, 132, 63, 0.12);
+    color: #d05a2a;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 1024px) {
+    .hero-inner {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-visual {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding: 3rem 0 2rem;
+    }
+
+    .hero-copy h1 {
+      font-size: 2.6rem;
+    }
+
+    .hero-stats {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .hero {
+      padding: 4rem 0 3.5rem;
+    }
+
+    .hero-stats {
+      gap: 1.5rem;
+    }
+  }
+</style>

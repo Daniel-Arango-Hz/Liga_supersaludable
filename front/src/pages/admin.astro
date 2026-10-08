@@ -1,0 +1,579 @@
+---
+import Layout from '../layouts/Layout.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'http://localhost:3002/api';
+---
+
+<style>
+  .admin-page {
+    min-height: calc(100vh - 80px);
+    padding: 3rem 1.5rem 4rem;
+    background: var(--color-cream);
+  }
+
+  .admin-panel {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+
+  .admin-hero {
+    padding: 2rem 2.5rem;
+    background: linear-gradient(135deg, rgba(0,168,232,0.08), rgba(111,111,205,0.1));
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .admin-hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 2.5vw, 2.5rem);
+    color: var(--color-navy);
+  }
+
+  .admin-hero p {
+    margin: 1rem 0 0;
+    color: var(--color-text-muted);
+    line-height: 1.75;
+    max-width: 760px;
+  }
+
+  .admin-content {
+    padding: 2rem 2.5rem 2.5rem;
+  }
+
+  .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+  }
+
+  .admin-actions label {
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .admin-actions select,
+  .admin-actions button {
+    min-height: 3rem;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--color-border);
+    background: var(--color-white);
+    color: var(--color-text);
+    padding: 0 1rem;
+    font-size: 0.95rem;
+  }
+
+  .admin-actions button {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
+    color: var(--color-white);
+  }
+
+  .admin-actions button:hover {
+    opacity: 0.95;
+  }
+
+  .admin-status {
+    min-width: 260px;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-navy);
+    background: rgba(59,130,246,0.09);
+    border: 1px solid rgba(59,130,246,0.16);
+  }
+
+  .admin-status.error {
+    color: #991b1b;
+    background: #fee2e2;
+    border-color: #fecaca;
+  }
+
+  .admin-status.success {
+    color: #14532d;
+    background: #ecfdf5;
+    border-color: #bbf7d0;
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 1rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+    font-size: 0.95rem;
+  }
+
+  .admin-table thead th {
+    background: var(--color-cream);
+    color: var(--color-navy);
+    font-weight: 700;
+  }
+
+  .admin-table tbody tr:hover {
+    background: rgba(59,130,246,0.06);
+  }
+
+  .admin-table td pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  .admin-empty,
+  .admin-error {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-cream);
+  }
+
+  .btn {
+    padding: 0.85rem 1rem;
+    border-radius: 0.9rem;
+    border: 1px solid transparent;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+  }
+
+  .btn.danger:hover {
+    background: #fecaca;
+  }
+
+  .admin-card-btn {
+    min-width: 120px;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15,23,42,0.56);
+    z-index: 30;
+  }
+
+  .modal[hidden] {
+    display: none !important;
+  }
+
+  .modal-card {
+    position: relative;
+    width: min(95%, 920px);
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 1.5rem;
+  }
+
+  .modal-close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 999px;
+    background: rgba(148,163,184,0.14);
+    color: var(--color-text);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  .modal-close:hover {
+    background: rgba(148,163,184,0.22);
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .form-textarea {
+    width: 100%;
+    min-height: 320px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    background: #f8fafc;
+  }
+
+  @media (max-width: 900px) {
+    .admin-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .admin-actions select,
+    .admin-actions button,
+    .admin-status {
+      width: 100%;
+    }
+  }
+</style>
+
+<Layout title="Panel de administración – FamiliaLee" description="Administra libros, usuarios, autores, videos y testimonios desde el panel de administrador.">
+  <main class="section admin-page">
+    <div id="adminBlocked" class="admin-error" style="margin-bottom: 1.5rem;">Validando permisos de administrador...</div>
+    <div class="admin-panel" id="adminPanel" style="display: none;">
+      <section class="admin-hero">
+        <h1>Panel de administración</h1>
+        <p>Consulta y gestiona los libros, usuarios, autores, videos y testimonios directamente desde la base de datos. Este panel solo está disponible para usuarios con tipo <strong>admin</strong>.</p>
+      </section>
+
+      <div class="admin-content">
+        <div class="admin-actions">
+          <label for="resource">Recurso:</label>
+          <select id="resource">
+            <option value="libros">Libros</option>
+            <option value="usuarios">Usuarios</option>
+            <option value="testimonios">Testimonios</option>
+            <option value="videos">Videos</option>
+            <option value="autores">Autores</option>
+          </select>
+          <button id="refreshBtn" class="btn admin-card-btn">Refrescar</button>
+          <span id="status" class="admin-status"></span>
+        </div>
+
+        <div id="listContainer"></div>
+      </div>
+    </div>
+
+    <div id="editModal" hidden class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <button id="closeModal" class="modal-close" aria-label="Cerrar editor">×</button>
+        <h3 id="editTitle">Editar</h3>
+        <textarea id="editBody" class="form-textarea"></textarea>
+        <div class="modal-footer">
+          <button id="cancelEdit" class="btn">Cancelar</button>
+          <button id="saveEdit" class="btn">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  (function () {
+    const api = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'http://localhost:3002/api';
+    const token = () => localStorage.getItem('token');
+    const statusEl = document.getElementById('status');
+    const resourceSelect = document.getElementById('resource');
+    const adminPanel = document.getElementById('adminPanel');
+    const adminBlocked = document.getElementById('adminBlocked');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const listContainer = document.getElementById('listContainer');
+    const editModal = document.getElementById('editModal');
+    const editBody = document.getElementById('editBody');
+    const editTitle = document.getElementById('editTitle');
+    const cancelEdit = document.getElementById('cancelEdit');
+    const saveEdit = document.getElementById('saveEdit');
+    const closeModal = document.getElementById('closeModal');
+
+    const RESOURCE_COLUMNS = {
+      libros: ['titulo', 'autor_nombre', 'slug', 'categorias', 'publicado', 'destacado', 'nuevo', 'created_at'],
+      usuarios: ['email', 'nombre', 'apellido', 'tipo', 'created_at'],
+      testimonios: ['nombre_familia', 'texto', 'publicado', 'created_at'],
+      videos: ['titulo', 'slug', 'categoria', 'publicado', 'vistas', 'created_at'],
+      autores: ['nombre_completo', 'bio_corta', 'especialidad', 'total_libros', 'total_descargas', 'created_at'],
+    };
+
+    const COLUMN_LABELS = {
+      titulo: 'Título',
+      autor_nombre: 'Autor',
+      nombre_completo: 'Autor',
+      slug: 'Slug',
+      descripcion: 'Descripción',
+      categorias: 'Categorías',
+      publicado: 'Publicado',
+      destacado: 'Destacado',
+      nuevo: 'Nuevo',
+      created_at: 'Creado',
+      email: 'Email',
+      nombre: 'Nombre',
+      apellido: 'Apellido',
+      tipo: 'Tipo',
+      nombre_familia: 'Nombre familia',
+      texto: 'Testimonio',
+      categoria: 'Categoría',
+      vistas: 'Vistas',
+      bio_corta: 'Bio corta',
+      especialidad: 'Especialidad',
+      total_libros: 'Libros',
+      total_descargas: 'Descargas',
+    };
+
+    function setStatus(msg, err) {
+      statusEl.textContent = msg || '';
+      statusEl.className = err ? 'admin-status error' : 'admin-status success';
+    }
+
+    function buildHeaders(includeAuth = true) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (includeAuth && token()) headers.Authorization = `Bearer ${token()}`;
+      return headers;
+    }
+
+    function disableAdminView(message) {
+      resourceSelect.disabled = true;
+      refreshBtn.disabled = true;
+      if (adminPanel) adminPanel.style.display = 'none';
+      if (adminBlocked) {
+        adminBlocked.hidden = false;
+        adminBlocked.textContent = message;
+      }
+      listContainer.innerHTML = '';
+    }
+
+    function getDisplayColumns(resource, item) {
+      const configured = RESOURCE_COLUMNS[resource] || [];
+      const keys = [...configured];
+      Object.keys(item || {})
+        .filter((key) => !['id', 'autor_id', 'usuario_id', 'libro_id'].includes(key))
+        .forEach((key) => {
+          if (!keys.includes(key)) keys.push(key);
+        });
+      return keys.slice(0, 8);
+    }
+
+    function getColumnLabel(key) {
+      return COLUMN_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+    }
+
+    function formatValue(value) {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+      if (typeof value === 'object') return JSON.stringify(value, null, 2);
+      return String(value);
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    async function validateAdmin() {
+      const tokenValue = token();
+      if (!tokenValue) {
+        setStatus('Token no encontrado. Inicia sesión como admin.', true);
+        disableAdminView('Inicia sesión para acceder al panel de administración.');
+        return false;
+      }
+
+      try {
+        const res = await fetch(`${api}/usuarios/perfil`, {
+          headers: buildHeaders(),
+        });
+        if (!res.ok) {
+          setStatus('No autorizado. Inicia sesión como admin.', true);
+          disableAdminView('Usuario no autorizado para el panel de administración.');
+          return false;
+        }
+
+        const usuario = await res.json();
+        if (usuario.tipo !== 'admin') {
+          setStatus('Acceso restringido: tu usuario no es admin.', true);
+          disableAdminView('Solo administradores pueden acceder a esta página.');
+          return false;
+        }
+
+        if (adminPanel) adminPanel.style.display = 'block';
+        if (adminBlocked) adminBlocked.hidden = true;
+        setStatus('Acceso autorizado. Bienvenido, admin.');
+        return true;
+      } catch (error) {
+        console.error(error);
+        setStatus('Error al validar permisos de admin. Revisa que la API esté en ejecución.', true);
+        disableAdminView('No se pudo verificar permisos.');
+        return false;
+      }
+    }
+
+    async function fetchList() {
+      const resource = resourceSelect.value;
+      setStatus('Cargando datos...');
+
+      try {
+        const res = await fetch(`${api}/admin/${resource}?page=1&limit=100`, {
+          headers: buildHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          setStatus('Acceso denegado. Inicia sesión como admin.', true);
+          listContainer.innerHTML = '';
+          return;
+        }
+
+        const payload = await res.json();
+        renderList(resource, payload.data || []);
+        setStatus(`Mostrando ${payload.data?.length || 0} elementos.`);
+      } catch (error) {
+        console.error(error);
+        setStatus('Error al obtener datos del servidor.', true);
+        listContainer.innerHTML = '<div class="admin-error">No se pudieron cargar los datos. Revisa la consola para más detalles.</div>';
+      }
+    }
+
+    function renderList(resource, items) {
+      if (!items || !items.length) {
+        listContainer.innerHTML = '<div class="admin-empty">No hay elementos para este recurso.</div>';
+        return;
+      }
+
+      const cols = getDisplayColumns(resource, items[0]);
+      let html = '<table class="admin-table"><thead><tr>' + cols.map((col) => `<th>${escapeHtml(getColumnLabel(col))}</th>`).join('') + '<th>Acciones</th></tr></thead><tbody>';
+
+      for (const item of items) {
+        html += '<tr>' +
+          cols.map((col) => `<td><pre>${escapeHtml(formatValue(item[col]))}</pre></td>`).join('') +
+          `<td><button class="btn admin-card-btn" data-rid="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Editar</button> ` +
+          `<button class="btn danger admin-card-btn" data-delete="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Eliminar</button></td></tr>`;
+      }
+
+      html += '</tbody></table>';
+      listContainer.innerHTML = html;
+    }
+
+    async function openEditor(resource, id) {
+      const res = await fetch(`${api}/admin/${resource}?page=1&limit=200`, {
+        headers: buildHeaders(),
+      });
+      const payload = await res.json();
+      const current = (payload.data || []).find((item) => String(item.id) === String(id));
+
+      if (!current) {
+        alert('Elemento no encontrado.');
+        return;
+      }
+
+      editTitle.textContent = `Editar ${resource} — ${id}`;
+      editBody.value = JSON.stringify(current, null, 2);
+      editModal.hidden = false;
+      editModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      editBody.focus();
+
+      saveEdit.dataset.resource = resource;
+      saveEdit.dataset.id = id;
+    }
+
+    function closeEditor() {
+      editModal.hidden = true;
+      editModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      saveEdit.removeAttribute('data-resource');
+      saveEdit.removeAttribute('data-id');
+    }
+
+    editModal.addEventListener('click', (event) => {
+      if (event.target === editModal) closeEditor();
+    });
+
+    closeModal.addEventListener('click', closeEditor);
+    cancelEdit.addEventListener('click', closeEditor);
+
+    saveEdit.addEventListener('click', async () => {
+      const resource = saveEdit.dataset.resource;
+      const id = saveEdit.dataset.id;
+      if (!resource || !id) return;
+
+      try {
+        const body = JSON.parse(editBody.value);
+        const res = await fetch(`${api}/admin/${resource}/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: buildHeaders(),
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({}));
+          alert(`Error al guardar: ${error.error || res.status}`);
+          return;
+        }
+
+        closeEditor();
+        fetchList();
+      } catch (error) {
+        console.error(error);
+        alert('JSON inválido o error al guardar.');
+      }
+    });
+
+    listContainer.addEventListener('click', async (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      const resource = button.dataset.res;
+      const id = button.dataset.rid || button.dataset.delete;
+      if (!resource || !id) return;
+
+      if (button.dataset.delete !== undefined) {
+        if (!confirm('¿Eliminar este elemento? Esta acción no se puede deshacer.')) return;
+        try {
+          const res = await fetch(`${api}/admin/${resource}/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: buildHeaders(),
+          });
+          if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            alert(`Error al eliminar: ${error.error || res.status}`);
+            return;
+          }
+          fetchList();
+        } catch (error) {
+          console.error(error);
+          alert('Error al eliminar el elemento.');
+        }
+        return;
+      }
+
+      openEditor(resource, id);
+    });
+
+    refreshBtn.addEventListener('click', fetchList);
+    resourceSelect.addEventListener('change', fetchList);
+
+    validateAdmin().then((isAdmin) => {
+      if (isAdmin) fetchList();
+    });
+  })();
+</script>

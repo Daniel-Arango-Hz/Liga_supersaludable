@@ -1,0 +1,216 @@
+---
+interface Props {
+  autorId: string;
+  autorSlug?: string;
+  autorNombre: string;
+  autorEmail?: string;
+  estaSiguiendo?: boolean;
+}
+
+const { autorId, autorSlug, autorNombre, autorEmail: initialAutorEmail, estaSiguiendo = false } = Astro.props;
+let autorEmail = initialAutorEmail || '';
+---
+
+<div class="autor-actions-row">
+  <button
+    class={`btn-seguir${estaSiguiendo ? ' siguiendo' : ''}`}
+    id="btn-seguir"
+    data-autor-id={autorId}
+    data-autor-nombre={autorNombre}
+  >
+    {estaSiguiendo ? '⭐ Siguiendo' : '⭐ Seguir autor'}
+  </button>
+  <button class="btn-contactar" id="btn-contactar" data-autor-email={autorEmail || ''}>
+    💬 Conectar
+  </button>
+</div>
+
+<script define:vars={{ autorId, autorSlug, autorNombre, autorEmail, estaSiguiendo }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnSeguir = document.getElementById('btn-seguir');
+    const btnContactar = document.getElementById('btn-contactar');
+
+    function getToken() {
+      return window.localStorage.getItem('token');
+    }
+
+    function showLoginModal(title, message) {
+      const modal = document.getElementById('loginModalOverlay');
+      if (!modal) return;
+
+      modal.classList.add('active');
+      const titleEl = document.getElementById('modalTitle');
+      const msgEl = document.getElementById('modalMessage');
+      if (titleEl) titleEl.textContent = title;
+      if (msgEl) msgEl.textContent = message;
+    }
+
+    function setSeguirState(isSiguiendo, totalSeguidores) {
+      if (!btnSeguir) return;
+
+      btnSeguir.classList.toggle('siguiendo', Boolean(isSiguiendo));
+      btnSeguir.textContent = isSiguiendo ? '⭐ Siguiendo' : '⭐ Seguir autor';
+
+      const seguidoresEl = document.getElementById('seguidores-count');
+      if (seguidoresEl && totalSeguidores !== undefined) {
+        seguidoresEl.textContent = totalSeguidores;
+      }
+    }
+
+    async function loadFollowingState() {
+      const token = getToken();
+      if (!token || !autorSlug || !btnSeguir) return;
+
+      btnSeguir.disabled = true;
+      try {
+        const response = await fetch(`/api/autor/${encodeURIComponent(autorSlug)}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+        const data = await response.json();
+        setSeguirState(Boolean(data?.siguiendo), data?.total_seguidores);
+
+        if (!autorEmail && data?.email) {
+          autorEmail = data.email;
+          if (btnContactar) btnContactar.dataset.autorEmail = autorEmail;
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar estado de seguimiento:', error);
+      } finally {
+        btnSeguir.disabled = false;
+      }
+    }
+
+    if (btnSeguir) {
+      setSeguirState(Boolean(estaSiguiendo));
+      loadFollowingState();
+
+      btnSeguir.addEventListener('click', async () => {
+        try {
+          btnSeguir.disabled = true;
+
+          const token = getToken();
+          if (!token) {
+            showLoginModal('⭐ Seguir autores', 'Debes iniciar sesión para seguir autores. ⭐');
+            return;
+          }
+
+          const response = await fetch('/api/seguir', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ autorId }),
+          });
+
+          if (response.status === 401) {
+            showLoginModal('Sesión expirada', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo. 🔐');
+            return;
+          }
+
+          if (!response.ok) throw new Error('Error al seguir');
+
+          const data = await response.json();
+          setSeguirState(Boolean(data?.siguiendo), data?.total_seguidores);
+        } catch (error) {
+          console.error('Error al seguir autor:', error);
+          showLoginModal('Error', 'No se pudo actualizar el seguimiento. Intenta de nuevo.');
+        } finally {
+          btnSeguir.disabled = false;
+        }
+      });
+    }
+
+    if (btnContactar) {
+      btnContactar.addEventListener('click', () => {
+        const token = getToken();
+
+        if (!token) {
+          showLoginModal('Conectar autor', 'Debes iniciar sesión para contactar al autor. 🔐');
+          return;
+        }
+
+        if (!autorEmail || autorEmail.trim() === '') {
+          showLoginModal('Conectar autor', 'Este autor no tiene email público disponible.');
+          return;
+        }
+
+        window.location.href = `mailto:${autorEmail}?subject=Contacto desde FamiliaLee`;
+      });
+    }
+  });
+</script>
+
+<style>
+  .autor-actions-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-seguir,
+  .btn-contactar {
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .btn-seguir {
+    background: linear-gradient(135deg, #ffd93d, #ffb534);
+    color: white;
+  }
+
+  .btn-seguir:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 217, 61, 0.3);
+  }
+
+  .btn-seguir.siguiendo {
+    background: linear-gradient(135deg, #ffc857, #ffb534);
+    box-shadow: 0 4px 12px rgba(255, 200, 87, 0.3);
+  }
+
+  .btn-contactar {
+    background: transparent;
+    border: 2.5px solid white;
+    color: white;
+  }
+
+  .btn-contactar:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .btn-seguir:disabled,
+  .btn-contactar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 680px) {
+    .autor-actions-row {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .btn-seguir,
+    .btn-contactar {
+      flex: 1;
+      min-width: unset;
+      width: 100%;
+    }
+  }
+</style>

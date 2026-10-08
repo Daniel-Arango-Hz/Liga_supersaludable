@@ -1,0 +1,139 @@
+---
+import BookCard from './BookCard.astro';
+import { obtenerLibros } from '../utils/api';
+import type { Libro } from '../data/libros';
+
+let nuevos: any[] = [];
+try {
+  const respuesta = await obtenerLibros({ orden: 'nuevo', limite: 4 });
+  nuevos = respuesta.data || [];
+} catch (error) {
+  console.error('Error al obtener nuevas publicaciones:', error);
+}
+---
+
+{nuevos.length > 0 && (
+  <section class="section" id="nuevas">
+    <div class="container">
+      <div class="section-header section-header-row">
+        <div class="section-header">
+          <h2>Nuevas Publicaciones</h2>
+          <p>Los últimos recursos añadidos por nuestra comunidad</p>
+        </div>
+        <a href="/biblioteca?orden=nuevo" class="ver-mas">Ver todos los nuevos →</a>
+      </div>
+
+      <div class="pub-grid">
+        {nuevos.map((pub: any) => {
+          const libroAdaptado: Libro = {
+            slug: pub.slug,
+            titulo: pub.titulo,
+            autor: pub.autor_nombre || 'Anónimo',
+            familiaInfo: pub.familia_nombre || pub.autor_nombre || '',
+            descripcion: pub.descripcion,
+            portadaGradiente: pub.portada_gradiente || 'from-blue-500 to-indigo-600',
+            portadaIcono: pub.portada_icono || '📖',
+            categorias: pub.categorias || [],
+            rating: pub.rating_promedio || 0,
+            votos: pub.total_valoraciones || 0,
+            likes: pub.likes_total || pub.total_valoraciones || 0,
+            descargas: pub.descargas_total || 0,
+            vistas: pub.vistas_total || pub.vistas || pub.descargas_total || 0,
+            edadRango: pub.edad_rango || '5-12',
+            autorSlug: pub.autor_slug || '',
+               paginas: Number(pub.paginas ?? pub.paginas_total ?? (Array.isArray(pub.paginas_contenido) ? pub.paginas_contenido.length : 0)),
+            anio: Number(pub.anio_publicacion || new Date().getFullYear()),
+            paginasContenido: Array.isArray(pub.paginas_contenido) ? pub.paginas_contenido : [],
+            destacado: pub.destacado || false,
+            nuevo: pub.nuevo || false,
+          };
+          return <BookCard libro={libroAdaptado} variante="horizontal" />;
+        })}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .pub-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .pub-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: box-shadow 0.25s, transform 0.25s;
+  }
+
+  .pub-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .pub-card-inner {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .pub-thumb {
+    width: 72px;
+    min-width: 72px;
+    height: 90px;
+    background: var(--color-cream-dark);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+  }
+
+  .pub-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .pub-autor {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .pub-titulo {
+    font-family: var(--font-serif);
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--color-navy);
+    line-height: 1.3;
+  }
+
+  .pub-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .pub-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.83rem;
+    color: var(--color-text-muted);
+    margin-top: auto;
+  }
+
+  .pub-descargas {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  @media (max-width: 640px) {
+    .pub-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

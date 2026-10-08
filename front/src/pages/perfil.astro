@@ -1,0 +1,303 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Mi Perfil – FamiliaLee" description="Administra tu perfil en FamiliaLee">
+  <main class="profile-main">
+    <div class="container">
+      <div class="profile-header">
+        <h1 class="profile-title">👤 Mi Perfil</h1>
+        <p class="profile-subtitle">Administra tu información personal</p>
+      </div>
+
+      <div class="profile-grid">
+       
+
+        <div class="profile-card library-card">
+          <h3>📚 Mis Libros</h3>
+          <p class="library-desc">Aquí verás los libros que has publicado en la comunidad.</p>
+          <a href="/panel/publicaciones" class="library-link">Ver mis libros publicados</a>
+        </div>
+
+        <div class="profile-card library-card">
+          <h3>🗂️ Mi Biblioteca</h3>
+          <p class="library-desc">Accede a los libros que has guardado para leer después.</p>
+          <a href="/panel/guardados" class="library-link">Ver libros guardados</a>
+        </div>
+
+       
+
+        
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .profile-main {
+    min-height: calc(100vh - 64px);
+    background: linear-gradient(135deg, var(--color-cream) 0%, rgba(0, 168, 232, 0.1) 100%);
+    padding: 3rem 1.5rem;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .profile-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .profile-title {
+    font-family: var(--font-serif);
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+
+  .profile-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-muted);
+  }
+
+  .profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .profile-card {
+    background: var(--color-white);
+    border: 3px solid var(--color-primary-blue);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple), var(--color-primary-pink));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white);
+    font-weight: 700;
+    font-size: 2rem;
+    box-shadow: var(--shadow-lg);
+    flex-shrink: 0;
+  }
+
+  .user-info h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .user-info p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin: 0.25rem 0 0;
+  }
+
+  .btn-edit {
+    width: 100%;
+    padding: 0.8rem;
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .btn-edit:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .library-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .library-desc {
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .library-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
+    color: var(--color-white);
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .library-link:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .profile-card h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+  }
+
+  .security-options,
+  .danger-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn-security {
+    padding: 0.8rem;
+    background: var(--color-cream);
+    border: 2.5px solid var(--color-primary-blue);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-primary-blue);
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: var(--font-sans);
+  }
+
+  .btn-security:hover {
+    background: var(--color-primary-blue);
+    color: var(--color-white);
+  }
+
+  .danger-zone {
+    border-color: var(--color-primary-red);
+    background: rgba(255, 71, 87, 0.05);
+  }
+
+  .danger-text {
+    font-size: 0.85rem;
+    color: var(--color-primary-red);
+    margin-bottom: 1rem;
+  }
+
+  .btn-danger {
+    padding: 0.8rem;
+    background: var(--color-primary-red);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: var(--font-sans);
+  }
+
+  .btn-danger:hover {
+    background: darken(var(--color-primary-red), 10%);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    .profile-main {
+      padding: 2rem 1rem;
+    }
+
+    .profile-title {
+      font-size: 1.8rem;
+    }
+
+    .profile-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .card-header {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .avatar-large {
+      width: 64px;
+      height: 64px;
+      font-size: 1.5rem;
+    }
+  }
+</style>
+
+<script>
+  import { getUsuario } from '../utils/api';
+
+  // Load user data
+  const usuario = getUsuario();
+  
+  if (usuario) {
+    const userNameEl = document.getElementById('user-name');
+    const userEmailEl = document.getElementById('user-email');
+    const avatarEl = document.getElementById('avatar-display');
+    
+    if (userNameEl) {
+      userNameEl.textContent = usuario.nombre || 'Usuario';
+    }
+    if (userEmailEl) {
+      userEmailEl.textContent = usuario.email || 'correo@ejemplo.com';
+    }
+    if (avatarEl) {
+      avatarEl.textContent = (usuario.nombre?.charAt(0) || 'U').toUpperCase();
+    }
+  } else {
+    // Redirect to login if not authenticated
+    window.location.href = '/auth/login';
+  }
+
+  // Edit profile button
+  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
+    alert('Editar perfil - Función en desarrollo');
+  });
+
+  // Security buttons
+  document.querySelectorAll('.btn-security').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const text = (e.target as HTMLButtonElement).textContent || '';
+      alert(`${text} - Función en desarrollo`);
+    });
+  });
+
+  // Delete account button
+  document.querySelector('.btn-danger')?.addEventListener('click', () => {
+    if (confirm('¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.')) {
+      alert('Eliminar cuenta - Función en desarrollo');
+    }
+  });
+</script>

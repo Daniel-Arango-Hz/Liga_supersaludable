@@ -1,0 +1,516 @@
+---
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+---
+
+<div id="communityUploadModal" class="upload-modal" hidden aria-hidden="true">
+  <div class="upload-modal-backdrop" data-close-upload-modal></div>
+  <div class="upload-modal-card" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+    <button type="button" class="upload-modal-close" data-close-upload-modal aria-label="Cerrar">×</button>
+
+    <h3 id="uploadModalTitle" class="upload-modal-title">Compartir con la comunidad</h3>
+    <p class="upload-modal-subtitle" id="uploadModalSubtitle">Elige qué deseas publicar.</p>
+
+    <form id="communityUploadForm" class="upload-modal-form">
+      <input type="hidden" id="uploadMode" value="comentario" />
+
+      <label class="upload-field" id="fieldFamilia">
+        <span>Nombre de familia</span>
+        <input id="nombreFamiliaInput" type="text" maxlength="120" placeholder="Ej: Familia Gómez" required />
+      </label>
+
+      <label class="upload-field" id="fieldTitulo" hidden>
+        <span>Título del video</span>
+        <input id="tituloInput" type="text" maxlength="180" placeholder="Ej: Devocional en casa" />
+      </label>
+
+      <label class="upload-field" id="fieldCategoria" hidden>
+        <span>Categoría</span>
+        <input id="categoriaInput" type="text" maxlength="80" placeholder="Ej: Devoción" />
+      </label>
+
+
+      <label class="upload-field" id="fieldComentario">
+        <span>Comentario</span>
+        <textarea id="comentarioInput" rows="4" maxlength="2000" placeholder="Comparte tu experiencia..." required></textarea>
+      </label>
+
+      <label class="upload-field" id="fieldArchivo" hidden>
+        <span id="archivoLabel">Archivo</span>
+        <input id="archivoInput" type="file" />
+        <small id="archivoHelp">Selecciona un archivo.</small>
+      </label>
+
+      <p class="upload-modal-status" id="uploadModalStatus" role="status" aria-live="polite"></p>
+
+      <div class="upload-modal-actions">
+        <button type="button" class="btn-secondary" data-close-upload-modal>Cancelar</button>
+        <button type="submit" class="btn-primary" id="uploadSubmitBtn">Enviar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script define:vars={{ apiUrl }}>
+  (() => {
+    const modal = document.getElementById('communityUploadModal');
+    if (!modal) return;
+
+    const form = document.getElementById('communityUploadForm');
+    const modeInput = document.getElementById('uploadMode');
+    const subtitle = document.getElementById('uploadModalSubtitle');
+    const title = document.getElementById('uploadModalTitle');
+    const status = document.getElementById('uploadModalStatus');
+    const submitBtn = document.getElementById('uploadSubmitBtn');
+
+    const fieldFamilia = document.getElementById('fieldFamilia');
+    const fieldTitulo = document.getElementById('fieldTitulo');
+    const fieldCategoria = document.getElementById('fieldCategoria');
+    const fieldComentario = document.getElementById('fieldComentario');
+    const fieldArchivo = document.getElementById('fieldArchivo');
+
+    const nombreFamiliaInput = document.getElementById('nombreFamiliaInput');
+    const tituloInput = document.getElementById('tituloInput');
+    const categoriaInput = document.getElementById('categoriaInput');
+    const comentarioInput = document.getElementById('comentarioInput');
+    const archivoInput = document.getElementById('archivoInput');
+    const archivoLabel = document.getElementById('archivoLabel');
+    const archivoHelp = document.getElementById('archivoHelp');
+
+    const allowedVideoTypes = [
+      'video/mp4',
+      'video/webm',
+      'video/ogg',
+      'video/quicktime',
+      'video/x-m4v',
+    ];
+
+    const allowedImageTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+    ];
+
+    function getFileExtension(file) {
+      return file.name.split('.').pop()?.toLowerCase() || '';
+    }
+
+    function validateUploadFile(file, mode) {
+      if (!file) return false;
+
+      if (mode === 'video') {
+        const extension = getFileExtension(file);
+        if (!allowedVideoTypes.includes(file.type) && !['mp4', 'webm', 'ogg', 'mov', 'm4v'].includes(extension)) {
+          throw new Error('El video debe ser MP4, WEBM, OGG, MOV o M4V.');
+        }
+        if (file.size > 80 * 1024 * 1024) {
+          throw new Error('El video no puede superar 80 MB.');
+        }
+      }
+
+      if (mode === 'foto') {
+        const extension = getFileExtension(file);
+        if (!allowedImageTypes.includes(file.type) && !['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+          throw new Error('La imagen debe ser JPG, PNG, WEBP o GIF.');
+        }
+        if (file.size > 8 * 1024 * 1024) {
+          throw new Error('La imagen no puede superar 8 MB.');
+        }
+      }
+
+      return true;
+    }
+
+    function setFieldVisibility(el, visible) {
+      if (!el) return;
+      el.hidden = !visible;
+      if (visible) {
+        el.removeAttribute('hidden');
+      } else {
+        el.setAttribute('hidden', 'hidden');
+      }
+    }
+
+    function setStatus(message, isError = false) {
+      status.textContent = message || '';
+      status.classList.toggle('error', Boolean(isError));
+      status.classList.toggle('ok', !isError && Boolean(message));
+    }
+
+    function openModal(mode) {
+      const currentMode = mode || 'comentario';
+      modeInput.value = currentMode;
+      setStatus('');
+      form.reset();
+
+      setFieldVisibility(fieldFamilia, currentMode !== 'video');
+      setFieldVisibility(fieldTitulo, currentMode === 'video');
+      setFieldVisibility(fieldCategoria, currentMode === 'video');
+      setFieldVisibility(fieldArchivo, currentMode !== 'comentario');
+      setFieldVisibility(fieldComentario, currentMode !== 'video');
+
+      comentarioInput.required = currentMode === 'comentario';
+      tituloInput.required = currentMode === 'video';
+      archivoInput.required = currentMode !== 'comentario';
+      nombreFamiliaInput.required = currentMode !== 'video';
+
+      if (currentMode === 'video') {
+        title.textContent = 'Subir video';
+        subtitle.textContent = 'Comparte un video para publicarlo en la galería.';
+        archivoLabel.textContent = 'Archivo de video';
+        archivoHelp.textContent = 'Formatos permitidos: MP4, WEBM, OGG, MOV, M4V (máx. 80MB).';
+        archivoInput.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v,.mov,.m4v';
+      } else if (currentMode === 'foto') {
+        title.textContent = 'Subir foto';
+        subtitle.textContent = 'Comparte una imagen familiar. El comentario es opcional.';
+        archivoLabel.textContent = 'Imagen';
+        archivoHelp.textContent = 'Formatos permitidos: JPG, PNG, WEBP, GIF (máx. 8MB).';
+        archivoInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+        comentarioInput.required = false;
+      } else {
+        title.textContent = 'Compartir comentario';
+        subtitle.textContent = 'Escribe un testimonio para la comunidad.';
+      }
+
+      archivoInput.value = '';
+      setStatus('');
+
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      window.setTimeout(() => {
+        if (currentMode === 'video') {
+          tituloInput.focus();
+        } else {
+          nombreFamiliaInput.focus();
+        }
+      }, 20);
+    }
+
+    archivoInput.addEventListener('change', () => {
+      const file = archivoInput.files?.[0];
+      if (!file) {
+        setStatus('');
+        return;
+      }
+
+      try {
+        validateUploadFile(file, modeInput.value);
+        setStatus('Archivo listo para publicar.');
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Formato de archivo no válido.', true);
+        archivoInput.value = '';
+      }
+    });
+
+    function closeModal() {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      setStatus('');
+    }
+
+    async function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function getVideoDuration(file) {
+      return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const tempVideo = document.createElement('video');
+        tempVideo.preload = 'metadata';
+        tempVideo.src = url;
+        tempVideo.onloadedmetadata = () => {
+          URL.revokeObjectURL(url);
+          const totalSeconds = Math.round(tempVideo.duration || 0);
+          const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+          const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+          resolve(`${minutes}:${seconds}`);
+        };
+        tempVideo.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(null);
+        };
+      });
+    }
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const openBtn = target.closest('.js-open-upload');
+      if (openBtn) {
+        event.preventDefault();
+        const mode = openBtn.getAttribute('data-upload-type') || 'comentario';
+        openModal(mode);
+        return;
+      }
+
+      if (target.closest('[data-close-upload-modal]')) {
+        event.preventDefault();
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) closeModal();
+    });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const mode = modeInput.value;
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        setStatus('Debes iniciar sesión para publicar contenido.', true);
+        window.setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 700);
+        return;
+      }
+
+      const nombreFamilia = String(nombreFamiliaInput.value || '').trim();
+      const comentario = String(comentarioInput.value || '').trim();
+
+      if (mode !== 'video' && !nombreFamilia) {
+        setStatus('El nombre de familia es obligatorio.', true);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      setStatus('Enviando...');
+
+      try {
+        let endpoint = '';
+        let payload = {};
+
+        if (mode === 'video') {
+          const titulo = String(tituloInput.value || '').trim();
+          if (!titulo) throw new Error('El título del video es obligatorio.');
+
+          const file = archivoInput.files?.[0];
+          if (!file) throw new Error('Selecciona un video.');
+          validateUploadFile(file, 'video');
+
+          const fileBase64 = await fileToBase64(file);
+          const duracion = await getVideoDuration(file);
+          endpoint = `${apiUrl}/videos/propuesta`;
+          payload = {
+            titulo,
+            categoria: String(categoriaInput.value || '').trim() || 'Comunidad',
+            duracion,
+            fileName: file.name,
+            fileBase64,
+            mimeType: file.type,
+          };
+        } else if (mode === 'foto') {
+          const file = archivoInput.files?.[0];
+          if (!file) throw new Error('Selecciona una imagen.');
+          validateUploadFile(file, 'foto');
+
+          const fileBase64 = await fileToBase64(file);
+          endpoint = `${apiUrl}/galeria`;
+          payload = {
+            nombre_familia: nombreFamilia,
+            texto: comentario || '',
+            tipo: 'foto',
+            fileName: file.name,
+            fileBase64,
+            mimeType: file.type,
+          };
+        } else {
+          if (!comentario) throw new Error('El comentario es obligatorio.');
+
+          endpoint = `${apiUrl}/galeria`;
+          payload = {
+            nombre_familia: nombreFamilia,
+            texto: comentario,
+            tipo: 'testimonio',
+          };
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || 'No se pudo completar la publicación.');
+        }
+
+        setStatus(data?.mensaje || 'Contenido enviado correctamente.');
+
+        // Notificar a los componentes para que se refresquen.
+        window.dispatchEvent(new CustomEvent('community:uploaded', { detail: { mode } }));
+
+        window.setTimeout(() => {
+          closeModal();
+        }, 900);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Error inesperado.', true);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+
+<style>
+  .upload-modal[hidden] {
+    display: none;
+  }
+
+  .upload-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
+
+  .upload-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 22, 43, 0.6);
+    backdrop-filter: blur(2px);
+  }
+
+  .upload-modal-card {
+    position: relative;
+    width: min(560px, calc(100vw - 2rem));
+    max-height: 90vh;
+    overflow: auto;
+    background: var(--color-white);
+    border-radius: 18px;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 20px 50px rgba(10, 22, 43, 0.25);
+    padding: 1.2rem 1.2rem 1rem;
+  }
+
+  .upload-modal-close {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.6rem;
+    border: none;
+    background: transparent;
+    font-size: 1.8rem;
+    line-height: 1;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .upload-modal-title {
+    font-family: var(--font-serif);
+    font-size: 1.35rem;
+    color: var(--color-navy);
+    margin: 0;
+  }
+
+  .upload-modal-subtitle {
+    margin: 0.4rem 0 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .upload-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .upload-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .upload-field > span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-navy);
+  }
+
+  .upload-field input,
+  .upload-field textarea {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    padding: 0.7rem 0.8rem;
+    color: var(--color-text);
+  }
+
+  .upload-field textarea {
+    resize: vertical;
+    min-height: 110px;
+  }
+
+  .upload-field small {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+  }
+
+  .upload-modal-status {
+    margin: 0;
+    min-height: 1.2rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .upload-modal-status.error {
+    color: #b73232;
+  }
+
+  .upload-modal-status.ok {
+    color: #2a7e42;
+  }
+
+  .upload-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding-top: 0.2rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    padding: 0.5rem 0.95rem;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    border-color: var(--color-navy);
+    background: var(--color-navy);
+    color: var(--color-white);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: var(--color-white);
+    color: var(--color-text-muted);
+  }
+
+  :global(body.modal-open) {
+    overflow: hidden;
+  }
+</style>

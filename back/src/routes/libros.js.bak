@@ -1,0 +1,423 @@
+import { Router } from 'express';
+import { body, query, param } from 'express-validator';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+
+const router = Router();
+
+// ─── GET /libros ──────────────────────────────────────────────────────────────
+// Parámetros: ?orden=destacado|nuevo|descargas|rating&categoria=&edad=&q=&page=1&limit=12
+router.get('/', optionalAuth, async (req, res) => {
+  const {
+    orden = 'destacado',
+    categoria,
+    edad,
+    q,
+    page = 1,
+    limit = 12,
+  } = req.query;
+
+  const offset = (Number(page) - 1) * Number(limit);
+
+  let query_builder = supabase
+    .from('libros_completos') // Vista que une libros + autor + categorías
+    .select('*', { count: 'exact' })
+    .eq('publicado', true)
+    .range(offset, offset + Number(limit) - 1);
+
+  if (q) {
+    query_builder = query_builder.or(
+      `titulo.ilike.%${q}%,autor_nombre.ilike.%${q}%,descripcion.ilike.%${q}%`
+    );
+  }
+  if (orden === 'destacado') query_builder = query_builder.eq('destacado', true);
+  if (orden === 'nuevo') query_builder = query_builder.eq('nuevo', true);
+  if (orden === 'descargas') query_builder = query_builder.order('descargas_total', { ascending: false });
+  if (orden === 'rating') query_builder = query_builder.order('rating_promedio', { ascending: false });
+  if (categoria) query_builder = query_builder.contains('categorias', [categoria]);
+  if (edad) query_builder = query_builder.eq('edad_rango', edad);
+
+  const { data, error, count } = await query_builder;
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    data,
+    total: count,
+    page: Number(page),
+    totalPaginas: Math.ceil(count / Number(limit)),
+  });
+});
+
+// ─── GET /libros/:slug/pdf (endpoint para descargar PDF) ─────────────────────────────────────────────
+// DEBE ESTAR ANTES que GET /:slug para que Express lo evalúe primero
+router.get('/:slug/pdf', async (req, res) => {
+  const { data: libro } = await supabase
+    .from('libros')
+    .select('titulo, descripcion, autor_nombre')
+    .eq('slug', req.params.slug)
+    .single();
+
+  if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+  // Generar PDF simple
+  const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 200 >>
+stream
+BT
+/F1 24 Tf
+50 750 Td
+(${libro.titulo}) Tj
+0 -40 Td
+/F1 12 Tf
+(Autor: ${libro.autor_nombre || 'Desconocido'}) Tj
+0 -20 Td
+(${libro.descripcion || 'Sin descripción'}) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000230 00000 n
+0000000483 00000 n
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+580
+%%EOF`;
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${libro.titulo}.pdf"`);
+  res.send(Buffer.from(pdfContent, 'utf-8'));
+});
+
+// ─── GET /libros/:slug ────────────────────────────────────────────────────────
+router.get('/:slug', optionalAuth, async (req, res) => {
+  const { data: libro, error } = await supabase
+    .from('libros_completos')
+    .select('*')
+    .eq('slug', req.params.slug)
+    .eq('publicado', true)
+    .single();
+
+  if (error || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+  // Páginas del libro
+  const { data: paginas } = await supabase
+    .from('paginas_libro')
+    .select('numero, titulo, contenido')
+    .eq('libro_id', libro.id)
+    .order('numero');
+
+  // Si el usuario está autenticado, verificar si lo guardó
+  let guardado = false;
+  if (req.user) {
+    const { data: g } = await supabase
+      .from('guardados')
+      .select('libro_id')
+      .eq('usuario_id', req.user.id)
+      .eq('libro_id', libro.id)
+      .maybeSingle();
+    guardado = !!g;
+  }
+
+  res.json({ ...libro, paginas: paginas ?? [], guardado });
+});
+
+// ─── GET /libros/:slug/paginas ─────────────────────────────────────────────────
+router.get('/:slug/paginas', async (req, res) => {
+  const { data: libro } = await supabase
+    .from('libros')
+    .select('id')
+    .eq('slug', req.params.slug)
+    .single();
+
+  if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+  const { data, error } = await supabase
+    .from('paginas_libro')
+    .select('numero, titulo, contenido')
+    .eq('libro_id', libro.id)
+    .order('numero');
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// ─── POST /libros/:slug/descargar ─────────────────────────────────────────────
+router.post('/:slug/descargar', optionalAuth, async (req, res) => {
+  const { data: libro } = await supabase
+    .from('libros')
+    .select('id, titulo, descripcion, autor_nombre')
+    .eq('slug', req.params.slug)
+    .single();
+
+  if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+  // Registrar descarga
+  await supabaseAdmin.from('descargas').insert({
+    libro_id: libro.id,
+    usuario_id: req.user?.id ?? null,
+  });
+
+  // Incrementar contador
+  await supabaseAdmin.rpc('incrementar_descargas', { libro_id_param: libro.id });
+
+  // Obtener datos actualizados
+  const { data: libroActualizado } = await supabase
+    .from('libros')
+    .select('descargas_total')
+    .eq('id', libro.id)
+    .single();
+
+  // Generar PDF simple en formato de texto
+  const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 200 >>
+stream
+BT
+/F1 24 Tf
+50 750 Td
+(${libro.titulo}) Tj
+0 -40 Td
+/F1 12 Tf
+(Autor: ${libro.autor_nombre || 'Desconocido'}) Tj
+0 -20 Td
+(${libro.descripcion || 'Sin descripción'}) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000230 00000 n
+0000000483 00000 n
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+580
+%%EOF`;
+
+  // Retornar URL de descarga (se puede mejorar con un endpoint específico para PDFs)
+  res.json({ 
+    mensaje: 'Descarga registrada',
+    descargas_total: libroActualizado?.descargas_total || 0,
+    pdfUrl: `/api/libros/${req.params.slug}/pdf`
+  });
+});
+
+// ─── POST /libros/:slug/valorar [UPDATED] ───────────────────────────────────────────────
+router.post(
+  '/:slug/valorar',
+  requireAuth,
+  async (req, res) => {
+    try {
+      console.log('[RATING] Body recibido:', req.body);
+      // Aceptar tanto 'puntuacion' como 'calificacion'
+      const puntuacion = req.body.puntuacion || req.body.calificacion;
+      
+      console.log('[RATING] Puntuación extraída:', puntuacion);
+      
+      if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
+        return res.status(400).json({ error: 'Puntuación inválida (1-5)' });
+      }
+
+      const { data: libro } = await supabase
+        .from('libros')
+        .select('id')
+        .eq('slug', req.params.slug)
+        .single();
+
+      if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+      // Verificar si ya existe una valoración del usuario para este libro
+      const { data: existente } = await supabase
+        .from('valoraciones')
+        .select('id')
+        .eq('usuario_id', req.user.id)
+        .eq('libro_id', libro.id)
+        .maybeSingle();
+
+      if (existente) {
+        // Actualizar la valoración existente
+        const { error } = await supabase
+          .from('valoraciones')
+          .update({ puntuacion })
+          .eq('usuario_id', req.user.id)
+          .eq('libro_id', libro.id);
+        
+        if (error) return res.status(500).json({ error: error.message });
+      } else {
+        // Crear una nueva valoración
+        const { error } = await supabase
+          .from('valoraciones')
+          .insert({ usuario_id: req.user.id, libro_id: libro.id, puntuacion });
+        
+        if (error) return res.status(500).json({ error: error.message });
+      }
+      
+      // Obtener datos actualizados del libro - calcular promedio
+      console.log('[RATING] libro.id:', libro.id);
+      const { data: valoraciones, error: valError } = await supabase
+        .from('valoraciones')
+        .select('puntuacion')
+        .eq('libro_id', libro.id);
+
+      console.log('[RATING] valoraciones encontradas:', valoraciones?.length, 'error:', valError);
+
+      let rating_promedio = 0;
+      let total_valoraciones = 0;
+      let suma = 0;
+
+      if (valoraciones && valoraciones.length > 0) {
+        suma = valoraciones.reduce((acc, v) => acc + v.puntuacion, 0);
+        total_valoraciones = valoraciones.length;
+        rating_promedio = suma / total_valoraciones;
+      }
+      
+      console.log('[RATING] Cálculos individuales - suma:', suma, 'total:', total_valoraciones, 'promedio:', rating_promedio);
+      
+      const responseBody = { 
+        mensaje: 'Valoración guardada',
+        rating_promedio,
+        total_valoraciones
+      };
+      
+      console.log('[RATING] Response body object:', responseBody);
+      console.log('[RATING] JSON stringified:', JSON.stringify(responseBody));
+      
+      res.json(responseBody);
+    } catch (error) {
+      console.error('Error in valorar:', error);
+      res.status(500).json({ error: 'Error al valorar el libro' });
+    }
+  }
+);
+
+// ─── POST /libros/:slug/guardar ───────────────────────────────────────────────
+router.post('/:slug/guardar', requireAuth, async (req, res) => {
+  const { data: libro } = await supabase
+    .from('libros')
+    .select('id')
+    .eq('slug', req.params.slug)
+    .single();
+
+  if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+
+  const { data: existe } = await supabase
+    .from('guardados')
+    .select('libro_id')
+    .eq('usuario_id', req.user.id)
+    .eq('libro_id', libro.id)
+    .maybeSingle();
+
+  if (existe) {
+    await supabase.from('guardados').delete()
+      .eq('usuario_id', req.user.id).eq('libro_id', libro.id);
+    return res.json({ guardado: false });
+  }
+
+  await supabase.from('guardados').insert({ usuario_id: req.user.id, libro_id: libro.id });
+  res.json({ guardado: true });
+});
+
+// ─── POST /libros (admin) ─────────────────────────────────────────────────────
+router.post(
+  '/',
+  requireAuth,
+  requireAdmin,
+  [
+    body('titulo').trim().notEmpty(),
+    body('slug').trim().notEmpty(),
+    body('autor_id').isUUID(),
+    body('descripcion').optional().trim(),
+    body('edad_rango').optional().trim(),
+    body('paginas').optional().isInt({ min: 1 }),
+    body('anio').optional().isInt({ min: 1900, max: 2100 }),
+  ],
+  validate,
+  async (req, res) => {
+    const { categorias, paginas_contenido, ...libroData } = req.body;
+
+    const { data: libro, error } = await supabaseAdmin
+      .from('libros')
+      .insert(libroData)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    // Asociar categorías
+    if (categorias?.length) {
+      await supabaseAdmin.from('libros_categorias').insert(
+        categorias.map((id) => ({ libro_id: libro.id, categoria_id: id }))
+      );
+    }
+
+    // Insertar páginas si vienen
+    if (paginas_contenido?.length) {
+      await supabaseAdmin.from('paginas_libro').insert(
+        paginas_contenido.map((p) => ({ libro_id: libro.id, ...p }))
+      );
+    }
+
+    res.status(201).json(libro);
+  }
+);
+
+// ─── PATCH /libros/:id (admin) ────────────────────────────────────────────────
+router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { categorias, ...rest } = req.body;
+
+  const { data, error } = await supabaseAdmin
+    .from('libros')
+    .update({ ...rest, updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+});
+
+// ─── DELETE /libros/:id (admin) ───────────────────────────────────────────────
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { error } = await supabaseAdmin.from('libros').delete().eq('id', req.params.id);
+  if (error) return res.status(400).json({ error: error.message });
+  res.status(204).send();
+});
+
+export default router;

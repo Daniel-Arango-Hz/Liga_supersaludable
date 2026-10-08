@@ -1,0 +1,155 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+---
+
+<Layout title="Apoyar la biblioteca – CBI Personitas" description="Apoya con PSE los libros y recursos gratuitos para las familias.">
+  <Header />
+  <main class="support-page">
+    <section class="support-band">
+      <div class="container support-layout">
+        <div class="support-copy">
+          <p class="eyebrow">APORTE VOLUNTARIO · COLOMBIA</p>
+          <h1>Una biblioteca que crece en familia.</h1>
+          <p class="support-description">Tu aporte ayuda a mantener disponibles libros y recursos gratuitos para más familias.</p>
+          <div class="payment-note">
+            <span class="payment-mark" aria-hidden="true">PSE</span>
+            <p>El pago se completa en el checkout seguro de Wompi. Allí podrás elegir PSE y tu entidad bancaria.</p>
+          </div>
+        </div>
+
+        <form class="support-form" id="support-form">
+          <h2>¿Cuánto quieres aportar?</h2>
+          <p class="currency-label">Pesos colombianos (COP)</p>
+          <div class="amount-presets" aria-label="Montos sugeridos">
+            <button type="button" data-amount="5000" aria-pressed="false">$5.000</button>
+            <button type="button" data-amount="10000" aria-pressed="true">$10.000</button>
+            <button type="button" data-amount="25000" aria-pressed="false">$25.000</button>
+          </div>
+          <label for="amount">Otro monto</label>
+          <div class="amount-input-wrap">
+            <span aria-hidden="true">$</span>
+            <input id="amount" name="amount" type="number" min="1000" max="50000000" step="1000" value="10000" inputmode="numeric" required />
+            <span class="currency-suffix">COP</span>
+          </div>
+          <p class="amount-hint">Mínimo $1.000 · Máximo $50.000.000</p>
+          <button class="submit-button" type="submit" id="submit-button">Continuar con PSE <span aria-hidden="true">→</span></button>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+          <p class="secure-note">No almacenamos información bancaria ni de tarjetas.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+  const form = document.querySelector<HTMLFormElement>('#support-form');
+  const amountInput = document.querySelector<HTMLInputElement>('#amount');
+  const status = document.querySelector<HTMLElement>('#form-status');
+  const submitButton = document.querySelector<HTMLButtonElement>('#submit-button');
+  const presetButtons = document.querySelectorAll<HTMLButtonElement>('[data-amount]');
+
+  presetButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (amountInput) amountInput.value = button.dataset.amount ?? '';
+      if (status) status.textContent = '';
+      presetButtons.forEach((preset) => preset.setAttribute('aria-pressed', String(preset === button)));
+    });
+  });
+
+  amountInput?.addEventListener('input', () => {
+    if (status) status.textContent = '';
+    presetButtons.forEach((button) => button.setAttribute('aria-pressed', 'false'));
+  });
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!amountInput || !status || !submitButton) return;
+
+    const amount = Number(amountInput.value);
+    if (!Number.isInteger(amount) || amount < 1000 || amount > 50000000) {
+      status.textContent = 'Ingresa un monto entre $1.000 y $50.000.000 COP.';
+      return;
+    }
+
+    submitButton.disabled = true;
+    status.textContent = 'Preparando el checkout seguro…';
+
+    try {
+      const response = await fetch(`${apiUrl}/pagos/wompi/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      });
+      const checkout = await response.json();
+      if (!response.ok) {
+        const message = response.status === 404
+          ? 'La pasarela aún no está habilitada en el servidor.'
+          : checkout.error || 'No fue posible iniciar el pago.';
+        throw new Error(message);
+      }
+
+      const checkoutForm = document.createElement('form');
+      checkoutForm.method = 'GET';
+      checkoutForm.action = 'https://checkout.wompi.co/p/';
+      const fields = {
+        'public-key': checkout.publicKey,
+        currency: checkout.currency,
+        'amount-in-cents': checkout.amountInCents,
+        reference: checkout.reference,
+        'signature:integrity': checkout.signature,
+        'redirect-url': checkout.redirectUrl,
+      };
+
+      Object.entries(fields).forEach(([name, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = String(value);
+        checkoutForm.append(input);
+      });
+
+      document.body.append(checkoutForm);
+      checkoutForm.submit();
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : 'No fue posible iniciar el pago.';
+      submitButton.disabled = false;
+    }
+  });
+</script>
+
+<style>
+  .support-page { background: #f8f5ef; }
+  .support-band { padding: clamp(3rem, 7vw, 6rem) 0; background: linear-gradient(115deg, #f8f5ef 0 56%, #e8f3ef 56% 100%); }
+  .support-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 430px); align-items: center; gap: clamp(2rem, 7vw, 6rem); }
+  .support-copy { max-width: 570px; }
+  .eyebrow { margin-bottom: 1rem; color: #176b59; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.08em; }
+  .support-copy h1 { max-width: 540px; color: #173f37; font-family: var(--font-serif); font-size: clamp(2.1rem, 4vw, 3.35rem); line-height: 1.1; }
+  .support-description { max-width: 480px; margin-top: 1.2rem; color: #52645e; font-size: 1.05rem; line-height: 1.7; }
+  .payment-note { display: flex; align-items: center; gap: 0.9rem; max-width: 480px; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid #cad8d1; }
+  .payment-note p { color: #52645e; font-size: 0.9rem; line-height: 1.6; }
+  .payment-mark { display: grid; width: 48px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 4px; background: #176b59; color: white; font-size: 0.85rem; font-weight: 800; }
+  .support-form { padding: 1.75rem; background: #fff; border: 1px solid #d9e1dc; border-top: 4px solid #176b59; box-shadow: 0 14px 36px rgba(23, 63, 55, 0.08); }
+  .support-form h2 { color: #173f37; font-family: var(--font-serif); font-size: 1.45rem; }
+  .currency-label { margin-top: 0.35rem; color: #687771; font-size: 0.85rem; }
+  .amount-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; margin: 1.4rem 0 1.25rem; }
+  .amount-presets button { min-height: 42px; border: 1px solid #cbd8d1; border-radius: 4px; color: #234f43; font-size: 0.9rem; font-weight: 700; }
+  .amount-presets button[aria-pressed="true"] { border-color: #176b59; background: #e8f3ef; box-shadow: inset 0 0 0 1px #176b59; }
+  .support-form label { display: block; margin-bottom: 0.45rem; color: #33443e; font-size: 0.88rem; font-weight: 700; }
+  .amount-input-wrap { display: flex; min-height: 52px; align-items: center; gap: 0.6rem; padding: 0 0.9rem; border: 1px solid #aebdb5; border-radius: 4px; color: #557067; }
+  .amount-input-wrap input { width: 100%; min-width: 0; border: 0; outline: 0; color: #173f37; font: inherit; font-size: 1.1rem; font-weight: 700; }
+  .currency-suffix { font-size: 0.78rem; font-weight: 700; }
+  .amount-hint { margin-top: 0.45rem; color: #687771; font-size: 0.78rem; }
+  .submit-button { display: flex; width: 100%; min-height: 50px; align-items: center; justify-content: space-between; margin-top: 1.2rem; padding: 0 1rem; border-radius: 4px; background: #176b59; color: #fff; font-size: 0.96rem; font-weight: 700; transition: background 150ms ease; }
+  .submit-button:hover { background: #105442; }
+  .submit-button:disabled { cursor: wait; opacity: 0.65; }
+  .form-status { min-height: 1.3rem; margin-top: 0.65rem; color: #a23428; font-size: 0.85rem; }
+  .secure-note { margin-top: 0.3rem; color: #687771; font-size: 0.76rem; }
+  @media (max-width: 760px) {
+    .support-band { background: linear-gradient(180deg, #f8f5ef 0 43%, #e8f3ef 43% 100%); }
+    .support-layout { grid-template-columns: 1fr; gap: 2rem; }
+    .support-copy h1 { max-width: 460px; }
+    .support-form { width: 100%; max-width: 480px; }
+  }
+</style>

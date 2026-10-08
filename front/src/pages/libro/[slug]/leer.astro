@@ -1,0 +1,1273 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const { slug } = Astro.params;
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+---
+
+<Layout title={`Leyendo... – FamiliaLee`} description={`Lee en línea gratuitamente.`}>
+  <!-- Contenedor de carga -->
+  <div id="loading-spinner" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando libro...</p>
+  </div>
+
+  <!-- Contenedor de error -->
+  <div id="error-container" class="error-container" style="display: none;">
+    <p>No se pudo cargar el libro.</p>
+    <a href="/biblioteca">Volver a la biblioteca</a>
+  </div>
+
+  <!-- Contenido del lector -->
+  <div id="reader-container" style="display: none;">
+    <!-- Barra de lectura -->
+    <div class="reader-bar">
+      <div class="reader-bar-inner">
+        <a href={`/libro/${slug}`} class="reader-back" aria-label="Volver al libro">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          <span>Volver</span>
+        </a>
+        <div class="reader-book-info">
+          <div class="reader-cover-mini" aria-hidden="true">
+            📖
+          </div>
+          <div>
+            <p class="reader-titulo" id="reader-titulo">Cargando...</p>
+            <p class="reader-autor" id="reader-autor">...</p>
+          </div>
+        </div>
+        <div class="reader-bar-actions">
+          <button class="reader-btn" id="btn-font-down" aria-label="Reducir tamaño de texto" title="Texto más pequeño">A−</button>
+          <button class="reader-btn" id="btn-font-up" aria-label="Aumentar tamaño de texto" title="Texto más grande">A+</button>
+          <button class="reader-btn" id="btn-theme" aria-label="Cambiar tema" title="Cambiar tema">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+          </button>
+          <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Audiolibro</button>
+          <a id="btn-download" href="#" class="reader-btn reader-btn-dl" title="Ir al libro">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <!-- Barra de progreso -->
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <section class="audiobook-panel" id="audiobook-panel" aria-label="Crear audiolibro" hidden>
+      <div class="audiobook-heading">
+        <div>
+          <h2>Crear audiolibro</h2>
+          <p>Se usa una voz disponible en tu cuenta y el modelo multilingüe para narrar en español. Prueba la voz antes de generar todo el libro.</p>
+        </div>
+        <a href="/auth/login" id="audiobook-login" hidden>Inicia sesión para continuar</a>
+      </div>
+      <div class="audiobook-options">
+        <label for="audiobook-voice">Voz para probar</label>
+        <select id="audiobook-voice" disabled>
+          <option value="">Cargando voces…</option>
+        </select>
+        <button class="doc-open-btn" id="audiobook-preview" type="button">Volver a extraer texto (OCR)</button>
+        <button class="doc-open-btn" id="audiobook-generate" type="button" disabled hidden>Enviar texto a ElevenLabs</button>
+        <a class="doc-open-btn doc-open-btn-secondary" id="audiobook-download" hidden>Descargar MP3</a>
+      </div>
+      <label class="audiobook-preview-label" for="audiobook-text-preview" hidden>Texto que se enviará a ElevenLabs (puedes editarlo)</label>
+      <textarea class="audiobook-text-preview" id="audiobook-text-preview" rows="12" spellcheck="true" hidden></textarea>
+      <p class="audiobook-char-count" id="audiobook-char-count" hidden></p>
+      <progress class="audiobook-progress" id="audiobook-progress" max="100" value="0" hidden></progress>
+      <p class="audiobook-status" id="audiobook-status" role="status"></p>
+      <audio class="audiobook-audio" id="audiobook-audio" controls hidden></audio>
+    </section>
+
+    <main class="reader-main" id="reader-main">
+      <!-- Índice lateral -->
+      <aside class="reader-toc" aria-label="Tabla de contenidos">
+        <h2 class="toc-title">Contenido</h2>
+        <ol class="toc-list" id="toc-list">
+          <li><button class="toc-link" disabled>Cargando...</button></li>
+        </ol>
+      </aside>
+
+      <!-- Área de lectura -->
+      <article class="reader-content" id="reader-content" aria-live="polite">
+        <!-- Las páginas se cargan aquí con JavaScript -->
+      </article>
+    </main>
+  </div>
+</Layout>
+
+<script define:vars={{ slug, apiUrl }}>
+  const API_URL = apiUrl;
+  let libro = null;
+  let paginas = [];
+  let currentPage = 1;
+  let readerControlsInitialized = false;
+  let pdfjsLibPromise = null;
+  let audiobookUrl = null;
+  let ocrWorkerPromise = null;
+  const pdfState = {
+    doc: null,
+    page: 1,
+    total: 0,
+    rendering: false,
+    pendingPage: null,
+    scale: 1.25,
+  };
+
+  async function loadBook() {
+    try {
+      const res = await fetch(`${API_URL}/libros/${slug}`);
+      if (!res.ok) throw new Error('Libro no encontrado');
+      
+      libro = await res.json();
+
+      if (libro?.contenido_url) {
+        await renderPdfBook();
+        setupEventListeners();
+        enableAudiobook(/\.pdf(\?|$)/i.test(libro.contenido_url));
+        showReader();
+        return;
+      }
+
+      paginas = Array.isArray(libro.paginas) ? libro.paginas : [];
+      
+      if (paginas.length === 0) {
+        showError();
+        return;
+      }
+      
+      renderBook();
+      setupEventListeners();
+      enableAudiobook(true);
+      showReader();
+    } catch (error) {
+      console.error('Error cargando libro:', error);
+      showError();
+    }
+  }
+
+  async function renderPdfBook() {
+    document.getElementById('reader-titulo').textContent = libro.titulo || 'Libro';
+    document.getElementById('reader-autor').textContent = libro.autor_nombre || 'Autor';
+    document.getElementById('btn-download').href = libro.contenido_url;
+    document.getElementById('btn-download').target = '_blank';
+    document.getElementById('btn-download').rel = 'noopener noreferrer';
+
+    const isPdf = /\.pdf(\?|$)/i.test(libro.contenido_url);
+    const isWord = /\.(doc|docx)(\?|$)/i.test(libro.contenido_url);
+    const contentArea = document.getElementById('reader-content');
+    if (isPdf) {
+      await renderPdfPaginated(contentArea);
+      return;
+    }
+
+    if (isWord) {
+      renderWordOnline(contentArea);
+      return;
+    }
+
+    const tocList = document.getElementById('toc-list');
+    tocList.innerHTML = '<li><button class="toc-link" disabled>Vista previa no disponible</button></li>';
+
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = '100%';
+
+    contentArea.innerHTML = `
+      <div class="doc-preview-unavailable">
+        <h2>Vista previa no disponible</h2>
+        <p>Este formato todavía no se puede mostrar en el lector integrado. Puedes abrirlo en una nueva pestaña.</p>
+        <a href="${libro.contenido_url}" target="_blank" rel="noopener noreferrer" class="doc-open-btn">Abrir archivo</a>
+      </div>
+    `;
+  }
+
+  function renderWordOnline(contentArea) {
+    const tocList = document.getElementById('toc-list');
+    tocList.innerHTML = '<li><button class="toc-link active" disabled>Documento Word</button></li>';
+
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = '100%';
+
+    const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(libro.contenido_url)}`;
+
+    contentArea.innerHTML = `
+      <section class="doc-viewer-shell">
+        <div class="doc-viewer-wrap">
+          <iframe
+            class="doc-viewer"
+            src="${officeViewerUrl}"
+            title="Vista en línea del documento"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+        <div class="doc-viewer-fallback">
+          <p>Si no se carga la vista previa, abre el archivo directamente:</p>
+          <div class="doc-viewer-actions">
+            <a href="${libro.contenido_url}" target="_blank" rel="noopener noreferrer" class="doc-open-btn">Abrir archivo</a>
+            <a href="${libro.contenido_url}" download class="doc-open-btn doc-open-btn-secondary">Descargar</a>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  async function loadPdfJs() {
+    if (pdfjsLibPromise) return pdfjsLibPromise;
+
+    pdfjsLibPromise = import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.mjs')
+      .then((pdfjs) => {
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
+        return pdfjs;
+      });
+
+    return pdfjsLibPromise;
+  }
+
+  async function renderPdfPaginated(contentArea) {
+    const tocList = document.getElementById('toc-list');
+    tocList.innerHTML = '<li><button class="toc-link" disabled>Cargando PDF...</button></li>';
+
+    contentArea.innerHTML = `
+      <section class="pdf-reader-shell">
+        <div class="pdf-canvas-wrap">
+          <canvas id="pdf-canvas" class="pdf-canvas" aria-label="Vista de página PDF"></canvas>
+        </div>
+        <footer class="page-footer pdf-footer">
+          <div class="page-nav pdf-nav">
+            <button id="pdf-prev" class="page-nav-btn" type="button">Anterior</button>
+            <span id="pdf-page-indicator" class="pdf-page-indicator">Página 1 de 1</span>
+            <button id="pdf-next" class="page-nav-btn page-nav-next" type="button">Siguiente</button>
+          </div>
+        </footer>
+      </section>
+    `;
+
+    try {
+      const pdfjs = await loadPdfJs();
+      const task = pdfjs.getDocument(libro.contenido_url);
+      const pdfDoc = await task.promise;
+
+      pdfState.doc = pdfDoc;
+      pdfState.page = 1;
+      pdfState.total = pdfDoc.numPages || 1;
+
+      tocList.innerHTML = `
+        <li><button class="toc-link active" disabled>PDF · ${pdfState.total} páginas</button></li>
+      `;
+
+      await renderPdfPage(pdfState.page);
+
+      document.getElementById('pdf-prev')?.addEventListener('click', () => {
+        if (pdfState.page <= 1) return;
+        queuePdfPage(pdfState.page - 1);
+      });
+
+      document.getElementById('pdf-next')?.addEventListener('click', () => {
+        if (pdfState.page >= pdfState.total) return;
+        queuePdfPage(pdfState.page + 1);
+      });
+    } catch (error) {
+      console.error('No se pudo renderizar el PDF paginado:', error);
+      contentArea.innerHTML = `
+        <div class="doc-preview-unavailable">
+          <h2>No se pudo abrir el PDF aquí</h2>
+          <p>Puedes abrir el archivo en una nueva pestaña para leerlo.</p>
+          <a href="${libro.contenido_url}" target="_blank" rel="noopener noreferrer" class="doc-open-btn">Abrir PDF</a>
+        </div>
+      `;
+      const fill = document.getElementById('progress-fill');
+      if (fill) fill.style.width = '100%';
+      tocList.innerHTML = '<li><button class="toc-link" disabled>PDF externo</button></li>';
+    }
+  }
+
+  function queuePdfPage(pageNumber) {
+    if (!pdfState.doc) return;
+    const safePage = Math.min(Math.max(1, pageNumber), pdfState.total);
+
+    if (pdfState.rendering) {
+      pdfState.pendingPage = safePage;
+      return;
+    }
+
+    renderPdfPage(safePage);
+  }
+
+  async function renderPdfPage(pageNumber) {
+    if (!pdfState.doc) return;
+
+    pdfState.rendering = true;
+    pdfState.page = pageNumber;
+
+    const page = await pdfState.doc.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: pdfState.scale });
+
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) {
+      pdfState.rendering = false;
+      return;
+    }
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    updatePdfUi();
+    pdfState.rendering = false;
+
+    if (pdfState.pendingPage !== null) {
+      const nextPage = pdfState.pendingPage;
+      pdfState.pendingPage = null;
+      queuePdfPage(nextPage);
+    }
+  }
+
+  function updatePdfUi() {
+    const indicator = document.getElementById('pdf-page-indicator');
+    if (indicator) indicator.textContent = `Página ${pdfState.page} de ${pdfState.total}`;
+
+    const prevBtn = document.getElementById('pdf-prev');
+    const nextBtn = document.getElementById('pdf-next');
+    if (prevBtn) prevBtn.disabled = pdfState.page <= 1;
+    if (nextBtn) nextBtn.disabled = pdfState.page >= pdfState.total;
+
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = `${(pdfState.page / pdfState.total) * 100}%`;
+  }
+
+  function renderBook() {
+    document.getElementById('reader-titulo').textContent = libro.titulo;
+    document.getElementById('reader-autor').textContent = libro.autor_nombre;
+    document.getElementById('btn-download').href = `/libro/${slug}`;
+
+    const tocList = document.getElementById('toc-list');
+    tocList.innerHTML = paginas
+      .map((pag) => {
+        const pageId = pag.titulo || `pagina-${pag.numero}`;
+        return `
+        <li>
+          <button class="toc-link" data-goto="${pageId}" data-page="${pageId}">
+            <span class="toc-num">${pag.numero}</span>
+            <span class="toc-name">${pageId}</span>
+          </button>
+        </li>
+      `;
+      })
+      .join('');
+
+    const contentArea = document.getElementById('reader-content');
+    contentArea.innerHTML = paginas
+      .map((pag, idx) => {
+        const pageId = pag.titulo || `pagina-${pag.numero}`;
+        const prevPageId = idx > 0 ? (paginas[idx - 1].titulo || `pagina-${paginas[idx - 1].numero}`) : null;
+        const nextPageId = idx < paginas.length - 1 ? (paginas[idx + 1].titulo || `pagina-${paginas[idx + 1].numero}`) : null;
+        
+        return `
+        <div class="page-section ${idx === 0 ? 'active' : ''}" data-page="${pageId}" aria-hidden="${idx !== 0}">
+          <header class="page-header">
+            <span class="page-label">Página ${pag.numero} de ${paginas.length}</span>
+            ${pag.titulo ? `<h1 class="page-titulo">${pag.titulo}</h1>` : ''}
+          </header>
+
+          <div class="page-body">
+            ${pag.contenido
+              .split('\n\n')
+              .map((parrafo) => {
+                if (parrafo.startsWith('**') && parrafo.endsWith('**')) {
+                  return `<h3 class="parrafo-titulo">${parrafo.replace(/\*\*/g, '')}</h3>`;
+                }
+                const formatted = parrafo.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                if (parrafo.startsWith('"') && parrafo.includes('" —')) {
+                  return `<blockquote class="page-quote">${formatted}</blockquote>`;
+                }
+                return `<p class="page-parrafo">${formatted}</p>`;
+              })
+              .join('')}
+          </div>
+
+          <footer class="page-footer">
+            <div class="page-nav">
+              ${prevPageId ? `<button class="page-nav-btn" data-goto="${prevPageId}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Anterior</button>` : ''}
+              <span class="page-dots">
+                ${paginas.map((p, i) => {
+                  const pId = p.titulo || `pagina-${p.numero}`;
+                  return `<button class="dot-btn ${pId === pageId ? 'active' : ''}" data-goto="${pId}"></button>`;
+                }).join('')}
+              </span>
+              ${nextPageId ? `<button class="page-nav-btn page-nav-next" data-goto="${nextPageId}">Siguiente <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>` : `<a href="/libro/${slug}" class="page-nav-btn page-nav-next">Finalizar <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>`}
+            </div>
+          </footer>
+        </div>
+      `;
+      })
+      .join('');
+  }
+
+  const MAX_AUDIOBOOK_CHARACTERS = 90000;
+
+  function enableAudiobook(enabled) {
+    const button = document.getElementById('btn-audiobook');
+    if (button) button.hidden = !enabled;
+  }
+
+  function setAudiobookStatus(message) {
+    const status = document.getElementById('audiobook-status');
+    if (status) status.textContent = message;
+  }
+
+  function cleanExtractedAudiobookText(text) {
+    return text
+      .split(/(\s+)/)
+      .map((part) => {
+        if (/^\s+$/.test(part)) return part;
+        const token = part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+        if (!token || /\d/u.test(token) || !/\p{L}/u.test(token)) return '';
+        if ([...token].length === 1 && !/^[aáeéiíoóuúy]$/u.test(token)) return '';
+        if (/\p{Ll}\p{Lu}|\p{Lu}{2,}\p{Ll}/u.test(token)) return '';
+        return token;
+      })
+      .join('')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/ *\n */g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function getReadableOcrText(result) {
+    if (!Array.isArray(result.data.lines) || !result.data.lines.length) {
+      return cleanExtractedAudiobookText(result.data.text);
+    }
+
+    return result.data.lines
+      .filter((line) => Array.isArray(line.words))
+      .map((line) => {
+        const words = line.words
+          .filter((word) => word.confidence >= 78)
+          .map((word) => word.text.trim())
+          .filter((word) => isPlausibleSpanishOcrWord(word));
+        const letters = words.join('').replace(/[^\p{L}]/gu, '');
+        const letterCount = [...letters].length;
+        const uppercaseCount = [...letters].filter((letter) => letter === letter.toLocaleUpperCase('es') && letter !== letter.toLocaleLowerCase('es')).length;
+        const mostlyUppercase = letterCount > 0 && uppercaseCount / letterCount > 0.75;
+        const plausibleLine = words.length >= 2 && letterCount >= 12 && line.confidence >= 70;
+        const plausibleSingleWord = words.length === 1 && letterCount >= 8 && line.confidence >= 92 && !mostlyUppercase;
+
+        if ((!plausibleLine && !plausibleSingleWord) || mostlyUppercase) return '';
+        return words.join(' ');
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+
+  function isPlausibleSpanishOcrWord(word) {
+    if (!/^[\p{L}]+(?:['’\-][\p{L}]+)*$/u.test(word) || [...word].length > 18) return false;
+    if (/\p{Ll}\p{Lu}|\p{Lu}{2,}\p{Ll}/u.test(word)) return false;
+
+    const normalized = word.toLocaleLowerCase('es');
+    const letters = [...normalized].filter((letter) => /\p{L}/u.test(letter));
+    if (letters.length <= 3) return /^(a|al|de|del|el|en|es|la|las|le|les|lo|los|me|mi|no|o|os|pa|por|se|si|sin|su|un|una|y)$/u.test(normalized);
+    if (letters.length < 4) return false;
+
+    const vowels = letters.filter((letter) => 'aeiouáéíóúü'.includes(letter)).length;
+    if (vowels / letters.length < 0.28) return false;
+    if (/(.)\1{2,}/u.test(normalized)) return false;
+    if (/[^aeiouáéíóúü]{4,}/u.test(normalized)) return false;
+    return true;
+  }
+
+  function splitAudiobookText(text, maxLength = 4000) {
+    const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+    const chunks = [];
+    let current = '';
+
+    for (const sentence of sentences) {
+      const trimmed = sentence.trim();
+      if (!trimmed) continue;
+      if (trimmed.length > maxLength) {
+        const words = trimmed.split(/\s+/);
+        for (const word of words) {
+          if (current && `${current} ${word}`.length > maxLength) {
+            chunks.push(current);
+            current = word;
+          } else {
+            current = current ? `${current} ${word}` : word;
+          }
+        }
+      } else if (current && `${current} ${trimmed}`.length > maxLength) {
+        chunks.push(current);
+        current = trimmed;
+      } else {
+        current = current ? `${current} ${trimmed}` : trimmed;
+      }
+    }
+
+    if (current) chunks.push(current);
+    return chunks;
+  }
+
+  async function getAudiobookText() {
+    if (pdfState.doc) {
+      const pages = [];
+      let ocrWorker = null;
+      let extractedLength = 0;
+
+      try {
+        for (let pageNumber = 1; pageNumber <= pdfState.total; pageNumber += 1) {
+          setAudiobookStatus(`Extrayendo texto del PDF · página ${pageNumber} de ${pdfState.total}…`);
+          const page = await pdfState.doc.getPage(pageNumber);
+          const content = await page.getTextContent();
+          const pageText = cleanExtractedAudiobookText(content.items
+            .map((item) => ('str' in item ? item.str : ''))
+            .filter(Boolean)
+            .join(' ')
+            .trim());
+
+          let textToAdd = pageText;
+          if (!pageText) {
+            if (!ocrWorker) {
+              ocrWorker = await loadSpanishOcrWorker();
+            }
+
+            setAudiobookStatus(`Aplicando OCR en español · página ${pageNumber} de ${pdfState.total}…`);
+            const viewport = page.getViewport({ scale: 1 });
+            const scale = Math.min(1.5, Math.sqrt(2000000 / (viewport.width * viewport.height)));
+            const ocrViewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(ocrViewport.width);
+            canvas.height = Math.ceil(ocrViewport.height);
+
+            try {
+              const context = canvas.getContext('2d');
+              if (!context) throw new Error('No se pudo preparar la página para OCR.');
+              await page.render({ canvasContext: context, viewport: ocrViewport }).promise;
+              const result = await ocrWorker.recognize(canvas);
+              textToAdd = getReadableOcrText(result);
+            } finally {
+              canvas.width = 0;
+              canvas.height = 0;
+            }
+          }
+
+          if (textToAdd) {
+            pages.push(textToAdd);
+            extractedLength += textToAdd.length;
+          }
+          if (extractedLength > MAX_AUDIOBOOK_CHARACTERS) {
+            throw new Error(`El libro supera el límite de ${MAX_AUDIOBOOK_CHARACTERS.toLocaleString('es')} caracteres por audiolibro.`);
+          }
+        }
+      } finally {
+        if (ocrWorker) {
+          await ocrWorker.terminate();
+          ocrWorkerPromise = null;
+        }
+      }
+      return pages.join('\n\n').trim();
+    }
+
+    return paginas
+      .map((page) => [page.titulo, page.contenido].filter(Boolean).join('. '))
+      .join('\n\n')
+      .replace(/\*\*/g, '')
+      .replace(/[#*_`]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function loadSpanishOcrWorker() {
+    if (!ocrWorkerPromise) {
+      ocrWorkerPromise = import('https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/+esm')
+        .then(({ createWorker }) =>
+          createWorker('spa', 1, {
+            logger: (message) => {
+              if (message.status === 'loading language traineddata') {
+                setAudiobookStatus('Descargando el modelo OCR en español…');
+              } else if (message.status === 'recognizing text') {
+                setAudiobookStatus(`Reconociendo texto de la página… ${Math.round(message.progress * 100)}%`);
+              }
+            },
+          }),
+        )
+        .catch((error) => {
+          ocrWorkerPromise = null;
+          throw error;
+        });
+    }
+
+    return ocrWorkerPromise;
+  }
+
+  async function loadAudiobookVoices() {
+    const select = document.getElementById('audiobook-voice');
+    const generateButton = document.getElementById('audiobook-generate');
+    const token = localStorage.getItem('token');
+    if (!select || !generateButton) return;
+
+    if (!token) {
+      select.innerHTML = '<option value="">Inicia sesión para cargar voces</option>';
+      document.getElementById('audiobook-login').hidden = false;
+      setAudiobookStatus('Inicia sesión para usar la generación de audiolibros.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/elevenlabs', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.status === 401) {
+        document.getElementById('audiobook-login').hidden = false;
+      }
+      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las voces.');
+      if (!Array.isArray(data.voices) || data.voices.length === 0) {
+        throw new Error('No hay voces disponibles para esta clave de ElevenLabs. Revisa tu biblioteca de voces y los permisos de la clave.');
+      }
+
+      select.replaceChildren(
+        ...data.voices.map((voice) => {
+          const option = document.createElement('option');
+          option.value = voice.voice_id;
+          const details = [voice.accent, voice.language].filter(Boolean).join(' · ');
+          option.textContent = details ? `${voice.name} · ${details}` : voice.name;
+          return option;
+        }),
+      );
+      select.disabled = false;
+      generateButton.disabled = !document.getElementById('audiobook-text-preview').value.trim();
+      setAudiobookStatus('Elige una voz. Se usará el modelo multilingüe de ElevenLabs para narrar el texto en español.');
+    } catch (error) {
+      console.error('No se pudieron cargar las voces del audiolibro:', error);
+      select.innerHTML = '<option value="">Voces no disponibles</option>';
+      setAudiobookStatus(error instanceof Error ? error.message : 'No se pudieron cargar las voces.');
+    }
+  }
+
+  async function prepareAudiobookPreview() {
+    const previewButton = document.getElementById('audiobook-preview');
+    const preview = document.getElementById('audiobook-text-preview');
+    const previewLabel = document.querySelector('.audiobook-preview-label');
+    const charCount = document.getElementById('audiobook-char-count');
+    const generateButton = document.getElementById('audiobook-generate');
+    if (!previewButton || !preview || !previewLabel || !charCount || !generateButton) return;
+
+    previewButton.disabled = true;
+    generateButton.disabled = true;
+    generateButton.hidden = true;
+    preview.hidden = true;
+    previewLabel.hidden = true;
+    charCount.hidden = true;
+    preview.value = '';
+    if (audiobookUrl) {
+      URL.revokeObjectURL(audiobookUrl);
+      audiobookUrl = null;
+    }
+    document.getElementById('audiobook-audio').hidden = true;
+    document.getElementById('audiobook-download').hidden = true;
+    setAudiobookStatus('Preparando el texto para revisión…');
+
+    try {
+      const text = await getAudiobookText();
+      if (!text) throw new Error('No se encontró texto en el libro. Revisa que el PDF tenga páginas legibles.');
+      if (text.length > MAX_AUDIOBOOK_CHARACTERS) {
+        throw new Error(`El libro supera el límite de ${MAX_AUDIOBOOK_CHARACTERS.toLocaleString('es')} caracteres por audiolibro.`);
+      }
+
+      preview.value = text;
+      preview.hidden = false;
+      previewLabel.hidden = false;
+      charCount.hidden = false;
+      charCount.textContent = `${text.length.toLocaleString('es')} caracteres. Revisa o edita el texto antes de enviarlo.`;
+      generateButton.hidden = false;
+      generateButton.disabled = !document.getElementById('audiobook-voice').value;
+      preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setAudiobookStatus('Nueva vista previa OCR lista. No se ha enviado texto a ElevenLabs.');
+    } catch (error) {
+      console.error('No se pudo preparar la vista previa del audiolibro:', error);
+      setAudiobookStatus(error instanceof Error ? error.message : 'No se pudo preparar el texto.');
+    } finally {
+      previewButton.disabled = false;
+    }
+  }
+
+  async function createAudiobook() {
+    const generateButton = document.getElementById('audiobook-generate');
+    const preview = document.getElementById('audiobook-text-preview');
+    const progress = document.getElementById('audiobook-progress');
+    const audioPlayer = document.getElementById('audiobook-audio');
+    const downloadLink = document.getElementById('audiobook-download');
+    const select = document.getElementById('audiobook-voice');
+    const token = localStorage.getItem('token');
+    if (!generateButton || !preview || !progress || !audioPlayer || !downloadLink || !select || !token) return;
+
+    generateButton.disabled = true;
+    preview.disabled = true;
+    progress.hidden = false;
+    progress.value = 0;
+    audioPlayer.hidden = true;
+    downloadLink.hidden = true;
+    setAudiobookStatus('Enviando el texto revisado a ElevenLabs…');
+
+    try {
+      const text = preview.value.trim();
+      if (!text) throw new Error('No se encontró texto en el libro. Revisa que el PDF tenga páginas legibles.');
+      if (text.length > MAX_AUDIOBOOK_CHARACTERS) {
+        throw new Error(`El libro supera el límite de ${MAX_AUDIOBOOK_CHARACTERS.toLocaleString('es')} caracteres por audiolibro.`);
+      }
+
+      const chunks = splitAudiobookText(text);
+      if (!chunks.length) throw new Error('No se encontró texto para narrar.');
+
+      const audioChunks = [];
+      for (let index = 0; index < chunks.length; index += 1) {
+        setAudiobookStatus(`Generando audiolibro… fragmento ${index + 1} de ${chunks.length}`);
+        const response = await fetch('/api/elevenlabs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            text: chunks[index],
+            voiceId: select.value,
+            previousText: chunks[index - 1]?.slice(-250),
+            nextText: chunks[index + 1]?.slice(0, 250),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || `Falló la generación del fragmento ${index + 1}.`);
+        }
+
+        audioChunks.push(await response.blob());
+        progress.value = Math.round(((index + 1) / chunks.length) * 100);
+      }
+
+      const audiobook = new Blob(audioChunks, { type: 'audio/mpeg' });
+      if (audiobookUrl) URL.revokeObjectURL(audiobookUrl);
+      audiobookUrl = URL.createObjectURL(audiobook);
+      audioPlayer.src = audiobookUrl;
+      audioPlayer.hidden = false;
+      downloadLink.href = audiobookUrl;
+      downloadLink.download = `${(libro.titulo || 'audiolibro').replace(/[^\p{L}\p{N}\-_ ]/gu, '').trim() || 'audiolibro'}.mp3`;
+      downloadLink.hidden = false;
+      setAudiobookStatus('Audiolibro listo. Puedes escucharlo o descargar el MP3.');
+    } catch (error) {
+      console.error('No se pudo crear el audiolibro:', error);
+      setAudiobookStatus(error instanceof Error ? error.message : 'No se pudo crear el audiolibro.');
+    } finally {
+      preview.disabled = false;
+      generateButton.disabled = !select.value || !preview.value.trim() || preview.value.length > MAX_AUDIOBOOK_CHARACTERS;
+    }
+  }
+
+  function setupEventListeners() {
+    if (readerControlsInitialized) return;
+    readerControlsInitialized = true;
+
+    // Navegación por botones
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      const btn = target?.closest?.('[data-goto]');
+      if (btn?.dataset?.goto) goToPage(btn.dataset.goto);
+    });
+
+    // Tamaño de fuente
+    let fontSize = 17;
+    const main = document.getElementById('reader-main');
+    document.getElementById('btn-font-up')?.addEventListener('click', () => {
+      fontSize = Math.min(fontSize + 1, 24);
+      main.style.setProperty('--reader-font-size', `${fontSize}px`);
+    });
+    document.getElementById('btn-font-down')?.addEventListener('click', () => {
+      fontSize = Math.max(fontSize - 1, 13);
+      main.style.setProperty('--reader-font-size', `${fontSize}px`);
+    });
+
+    // Tema
+    let themeIdx = 0;
+    const themes = ['', 'sepia', 'dark'];
+    document.getElementById('btn-theme')?.addEventListener('click', () => {
+      themeIdx = (themeIdx + 1) % themes.length;
+      document.body.dataset.readerTheme = themes[themeIdx];
+    });
+
+    document.getElementById('btn-audiobook')?.addEventListener('click', () => {
+      const panel = document.getElementById('audiobook-panel');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (!panel.dataset.voicesLoaded) {
+          panel.dataset.voicesLoaded = 'true';
+          loadAudiobookVoices();
+        }
+      }
+    });
+    document.getElementById('audiobook-preview')?.addEventListener('click', prepareAudiobookPreview);
+    document.getElementById('audiobook-text-preview')?.addEventListener('input', (event) => {
+      const preview = event.currentTarget;
+      const charCount = document.getElementById('audiobook-char-count');
+      const generateButton = document.getElementById('audiobook-generate');
+      const voiceSelect = document.getElementById('audiobook-voice');
+      if (charCount) {
+        charCount.textContent = `${preview.value.length.toLocaleString('es')} caracteres. Máximo: ${MAX_AUDIOBOOK_CHARACTERS.toLocaleString('es')}.`;
+      }
+      if (generateButton) {
+        generateButton.disabled = !preview.value.trim() || preview.value.length > MAX_AUDIOBOOK_CHARACTERS || !voiceSelect.value;
+      }
+    });
+    document.getElementById('audiobook-generate')?.addEventListener('click', createAudiobook);
+
+    // Leer página desde URL
+    const params = new URLSearchParams(window.location.search);
+    const initPageTitle = params.get('pagina');
+    if (initPageTitle) goToPage(initPageTitle);
+  }
+
+  window.goToPage = goToPage;
+
+  function goToPage(pageId) {
+    currentPage = pageId;
+    document.querySelectorAll('.page-section').forEach((el) => {
+      const active = el.dataset.page === String(pageId);
+      el.classList.toggle('active', active);
+      el.setAttribute('aria-hidden', String(!active));
+    });
+    document.querySelectorAll('.toc-link').forEach((el) => {
+      el.classList.toggle('active', el.dataset.page === String(pageId));
+    });
+    document.querySelectorAll('.dot-btn').forEach((el) => {
+      el.classList.toggle('active', el.dataset.goto === String(pageId));
+    });
+    
+    // Calcular índice de página para la barra de progreso
+    const pageIndex = Array.from(document.querySelectorAll('.page-section')).findIndex(el => el.dataset.page === String(pageId));
+    const fill = document.getElementById('progress-fill');
+    if (fill && pageIndex >= 0) fill.style.width = `${((pageIndex + 1) / paginas.length) * 100}%`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showReader() {
+    document.getElementById('loading-spinner').style.display = 'none';
+    document.getElementById('reader-container').style.display = 'block';
+  }
+
+  function showError() {
+    document.getElementById('loading-spinner').style.display = 'none';
+    document.getElementById('error-container').style.display = 'block';
+  }
+
+  loadBook();
+</script>
+
+<style is:global>
+  /* Variables del lector */
+  :root {
+    --reader-bg: #faf5ef;
+    --reader-text: #1a2332;
+    --reader-card: #ffffff;
+    --reader-border: #e2d8cc;
+    --reader-font-size: 17px;
+  }
+  [data-reader-theme="sepia"] {
+    --reader-bg: #f3e8d0;
+    --reader-text: #3d2b1f;
+    --reader-card: #fdf3e3;
+    --reader-border: #d4b896;
+  }
+  [data-reader-theme="dark"] {
+    --reader-bg: #1a1a2e;
+    --reader-text: #e0d6cc;
+    --reader-card: #16213e;
+    --reader-border: #2a3a5c;
+  }
+
+  body { background: var(--reader-bg); color: var(--reader-text); transition: background 0.3s, color 0.3s; }
+
+  /* Spinner de carga */
+  .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    gap: 1rem;
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--reader-border);
+    border-top-color: #d4af37;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Error */
+  .error-container {
+    text-align: center;
+    padding: 3rem 1.5rem;
+  }
+  .error-container a {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.6rem 1.2rem;
+    background: #0d2240;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+  }
+
+  .pdf-viewer-wrap {
+    width: 100%;
+    min-height: calc(100vh - 180px);
+    background: var(--reader-card);
+    border: 1px solid var(--reader-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .pdf-viewer {
+    width: 100%;
+    min-height: calc(100vh - 180px);
+    border: none;
+    display: block;
+    background: #fff;
+  }
+
+  .pdf-reader-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .pdf-canvas-wrap {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--reader-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    overflow: auto;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .pdf-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .pdf-footer {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .pdf-nav {
+    justify-content: center;
+  }
+
+  .pdf-page-indicator {
+    min-width: 140px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--reader-text);
+    font-weight: 600;
+  }
+
+  .doc-preview-unavailable {
+    max-width: 680px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 12px;
+    background: var(--reader-card);
+    border: 1px solid var(--reader-border);
+    text-align: center;
+  }
+
+  .doc-viewer-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .doc-viewer-wrap {
+    width: 100%;
+    min-height: calc(100vh - 180px);
+    background: var(--reader-card);
+    border: 1px solid var(--reader-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .doc-viewer {
+    width: 100%;
+    min-height: calc(100vh - 180px);
+    border: none;
+    display: block;
+    background: #fff;
+  }
+
+  .doc-viewer-fallback {
+    padding: 1rem 1.1rem;
+    border-radius: 10px;
+    border: 1px solid var(--reader-border);
+    background: var(--reader-card);
+  }
+
+  .doc-viewer-fallback p {
+    margin: 0;
+    color: var(--reader-text);
+    font-size: 0.92rem;
+  }
+
+  .doc-viewer-actions {
+    display: flex;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .doc-open-btn-secondary {
+    background: transparent;
+    color: #0d2240;
+    border: 1px solid #0d2240;
+  }
+
+  .audiobook-panel {
+    max-width: 1200px;
+    margin: 1rem auto 0;
+    padding: 1rem 1.5rem;
+    border: 1px solid var(--reader-border);
+    border-radius: 10px;
+    background: var(--reader-card);
+  }
+  .audiobook-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+  }
+  .audiobook-heading h2 {
+    color: var(--reader-text);
+    font-size: 1.05rem;
+  }
+  .audiobook-heading p,
+  .audiobook-status {
+    margin: 0.35rem 0 0;
+    color: var(--reader-text);
+    font-size: 0.9rem;
+  }
+  .audiobook-heading a {
+    color: #0d2240;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .audiobook-options {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .audiobook-options label {
+    color: var(--reader-text);
+    font-weight: 600;
+  }
+  .audiobook-options select {
+    max-width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--reader-border);
+    border-radius: 8px;
+    color: var(--reader-text);
+    background: var(--reader-bg);
+    font: inherit;
+  }
+  .audiobook-preview-label,
+  .audiobook-char-count {
+    display: block;
+    margin: 0.75rem 0 0.35rem;
+    color: var(--reader-text);
+    font-size: 0.9rem;
+  }
+  .audiobook-preview-label {
+    font-weight: 600;
+  }
+  .audiobook-text-preview {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 14rem;
+    padding: 0.75rem;
+    border: 1px solid var(--reader-border);
+    border-radius: 8px;
+    color: var(--reader-text);
+    background: var(--reader-bg);
+    font: inherit;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  .audiobook-preview-label[hidden],
+  .audiobook-text-preview[hidden],
+  .audiobook-char-count[hidden],
+  #audiobook-generate[hidden] {
+    display: none;
+  }
+  .audiobook-options button:disabled {
+    cursor: progress;
+    opacity: 0.65;
+  }
+  .audiobook-progress,
+  .audiobook-audio {
+    display: block;
+    width: 100%;
+    margin-top: 0.8rem;
+  }
+
+  .doc-preview-unavailable h2 {
+    margin-bottom: 0.75rem;
+  }
+
+  .doc-preview-unavailable p {
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+
+  .doc-open-btn {
+    display: inline-block;
+    padding: 0.65rem 1.2rem;
+    background: #0d2240;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* Barra superior */
+  .reader-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--reader-card); border-bottom: 1px solid var(--reader-border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .reader-bar-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 1.5rem;
+    height: 58px; display: flex; align-items: center; gap: 1.25rem;
+  }
+  .reader-back {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.88rem; color: #999;
+    white-space: nowrap; transition: color 0.2s;
+  }
+  .reader-back:hover { color: #333; }
+  .reader-book-info {
+    display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0;
+  }
+  .reader-cover-mini {
+    width: 30px; min-width: 30px; height: 38px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .reader-titulo { font-size: 0.88rem; font-weight: 700; color: var(--reader-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; margin: 0; }
+  .reader-autor { font-size: 0.76rem; color: #999; margin: 0; }
+  .reader-bar-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+  .reader-btn {
+    padding: 0.3rem 0.6rem; border: 1px solid var(--reader-border);
+    border-radius: 5px; font-size: 0.82rem; font-weight: 600;
+    color: var(--reader-text); background: var(--reader-bg);
+    cursor: pointer; transition: all 0.15s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex; align-items: center; gap: 0.2rem;
+  }
+  .reader-btn:hover { background: #0d2240; color: #fff; border-color: #0d2240; }
+
+  .progress-bar { height: 3px; background: var(--reader-border); }
+  .progress-fill { height: 100%; background: #d4af37; transition: width 0.4s ease; }
+
+  /* Layout principal */
+  .reader-main {
+    max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem;
+    display: grid; grid-template-columns: 220px 1fr; gap: 3rem; align-items: start;
+    --reader-font-size: 17px;
+  }
+
+  /* TOC */
+  .reader-toc { position: sticky; top: 80px; }
+  .toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #999; margin-bottom: 0.75rem; margin: 0 0 0.75rem 0; }
+  .toc-list { list-style: none; display: flex; flex-direction: column; gap: 0.15rem; padding: 0; margin: 0; }
+  .toc-link {
+    display: flex; align-items: flex-start; gap: 0.6rem; width: 100%;
+    padding: 0.45rem 0.6rem; border-radius: 4px;
+    font-size: 0.85rem; color: #999;
+    cursor: pointer; background: none; border: none; text-align: left;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; transition: all 0.15s;
+  }
+  .toc-link:hover { background: rgba(13,34,64,0.06); color: #0d2240; }
+  .toc-link.active { background: rgba(13,34,64,0.08); color: #0d2240; font-weight: 600; }
+  .toc-num { font-size: 0.72rem; font-weight: 700; background: #f0ebe3; color: #0d2240; border-radius: 50%; width: 20px; height: 20px; min-width: 20px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .toc-name { flex: 1; line-height: 1.4; }
+
+  /* Contenido de la página */
+  .reader-content { min-height: 80vh; }
+  .page-section { display: none; }
+  .page-section.active { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .page-header { padding-bottom: 1rem; border-bottom: 1px solid var(--reader-border); }
+  .page-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: #999; display: block; margin-bottom: 0.5rem; }
+  .page-titulo { font-family: Georgia, serif; font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; color: var(--reader-text); line-height: 1.25; margin: 0; }
+
+  .page-body { display: flex; flex-direction: column; gap: 1rem; line-height: 1.7; }
+  .page-parrafo { font-size: var(--reader-font-size); color: var(--reader-text); margin: 0; }
+  .parrafo-titulo { font-family: Georgia, serif; font-size: 1.3em; font-weight: 600; color: var(--reader-text); margin-top: 0.5em; margin-bottom: 0; }
+  .page-quote { font-style: italic; border-left: 4px solid #d4af37; padding-left: 1rem; color: #555; font-size: 0.95em; margin: 0; }
+
+  .page-footer { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--reader-border); }
+  .page-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .page-nav-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 1rem; border: 1px solid var(--reader-border);
+    border-radius: 6px; font-size: 0.87rem; font-weight: 600;
+    color: var(--reader-text); background: var(--reader-bg);
+    cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    text-decoration: none; transition: all 0.15s;
+  }
+  .page-nav-btn:hover { background: #0d2240; color: #fff; border-color: #0d2240; }
+  .page-nav-next { background: #0d2240; color: #fff; border-color: #0d2240; }
+  .page-nav-next:hover { background: #0a1929; }
+  .page-dots { display: flex; gap: 0.3rem; }
+  .dot-btn {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--reader-border); border: none; cursor: pointer;
+    transition: all 0.2s; padding: 0;
+  }
+  .dot-btn.active { background: #d4af37; width: 20px; border-radius: 4px; }
+
+  @media (max-width: 900px) {
+    .reader-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .reader-toc { position: static; }
+    .toc-list { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; }
+    .toc-link { flex: 0 1 calc(33.33% - 0.35rem); }
+
+    .doc-viewer-wrap,
+    .doc-viewer {
+      min-height: calc(100vh - 220px);
+    }
+  }
+</style>

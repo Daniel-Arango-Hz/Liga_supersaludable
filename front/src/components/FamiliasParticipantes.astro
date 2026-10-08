@@ -1,0 +1,512 @@
+---
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+
+function formatFecha(raw: string) {
+  if (!raw) return 'Sin fecha';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return 'Sin fecha';
+  return d.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+let participantes: any[] = [];
+try {
+  const res = await fetch(`${API_URL}/galeria?limit=3`);
+  if (res.ok) {
+    const payload = await res.json();
+    const data = Array.isArray(payload) ? payload : (payload.data || []);
+    participantes = data.map((item: any) => ({
+      id: item.id,
+      familia: item.nombre_familia || item.usuario_nombre || 'Familia participante',
+      fecha: formatFecha(item.created_at),
+      texto: typeof item.texto === 'string' ? item.texto.trim() : '',
+      tipo: item.tipo === 'foto' ? 'Foto' : 'Testimonio',
+      imagen: item.tipo === 'foto' && !!item.imagen_url,
+      imagenUrl: item.imagen_url || '',
+      likes: Number(item.total_likes ?? item.totalLikes ?? 0),
+      liked: !!item.user_liked,
+    }));
+  }
+} catch (error) {
+  console.error('Error al obtener familias participantes:', error);
+}
+
+const imagenes = participantes.filter((item) => item.imagen);
+const textos = participantes.filter((item) => !item.imagen);
+---
+
+<section class="section" id="galeria" data-api={API_URL}>
+  <div class="container">
+    <div class="section-header section-header-row">
+      <div>
+        <p class="eyebrow">VOCES DE LA COMUNIDAD</p>
+        <h2>Lo que dicen las familias</h2>
+        <p>Las experiencias más hermosas nacen cuando las familias y el CBI trabajan juntos. Aquí sus palabras.</p>
+      </div>
+      <div class="section-actions">
+        <a href="/galeria" class="ver-mas">Ver galería familiar →</a>
+      </div>
+    </div>
+
+    {participantes.length > 0 ? (
+      <>
+        {imagenes.length > 0 ? (
+          <div class="gallery-grid image-testimonios">
+            {imagenes.map((item) => (
+              <article class="gallery-card has-image" key={item.id} data-id={item.id}>
+                <div class="gallery-image-wrapper">
+                  <div class="gallery-image" style={`background-image:url(${item.imagenUrl})`} role="img" aria-label={item.familia} />
+                  <div class="gallery-overlay">
+                    <span class="gallery-type">{item.tipo}</span>
+                    <p class="gallery-text">{item.texto || 'Un momento especial compartido por nuestra comunidad familiar.'}</p>
+                    <div class="gallery-meta">
+                      <div class="meta-left">
+                        <span class="meta-family">{item.familia}</span>
+                        <button class="like-button" aria-label="Me gusta" data-id={item.id}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                            <path d="M12 21s-7.333-4.333-9.333-6.333C-0.667 10.667 3 5 7.333 5c2.333 0 3.333 1 4.667 2.333C13.333 6 14.333 5 16.667 5 21 5 24.667 10.667 21.333 14.667 19.333 16.667 12 21 12 21z" fill="#FF6C3F" />
+                          </svg>
+                          <span class="like-count">{item.likes}</span>
+                        </button>
+                      </div>
+                      <span class="meta-date">{item.fecha}</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+
+        {textos.length > 0 ? (
+          <div class="gallery-grid text-testimonios">
+            {textos.map((item) => (
+              <article class="gallery-card no-image" key={item.id} data-id={item.id}>
+                <div class="gallery-content">
+                  <span class="gallery-type">{item.tipo}</span>
+                  <p class="gallery-text">{item.texto || 'Un momento especial compartido por nuestra comunidad familiar.'}</p>
+                  <div class="gallery-meta">
+                    <div class="meta-left">
+                      <span class="meta-family">{item.familia}</span>
+                      <button class="like-button" aria-label="Me gusta" data-id={item.id}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M12 21s-7.333-4.333-9.333-6.333C-0.667 10.667 3 5 7.333 5c2.333 0 3.333 1 4.667 2.333C13.333 6 14.333 5 16.667 5 21 5 24.667 10.667 21.333 14.667 19.333 16.667 12 21 12 21z" fill="#FF6C3F" />
+                        </svg>
+                        <span class="like-count">{item.likes}</span>
+                      </button>
+                    </div>
+                    <span class="meta-date">{item.fecha}</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </>
+    ) : (
+      <div class="empty-familias" id="familiasEmpty">
+        <p>Aún no hay testimonios publicados.</p>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  
+
+  #galeria .eyebrow {
+    display: inline-flex;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.75rem;
+    color: #d96927;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+
+  #galeria .section-header h2 {
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    margin-bottom: 0.75rem;
+  }
+
+  #galeria .section-header p {
+    color: #5d5046;
+    line-height: 1.75;
+    max-width: 520px;
+  }
+
+  #galeria .section-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  #galeria .ver-mas {
+    border-radius: 999px;
+    padding: 0.9rem 1.4rem;
+    font-weight: 700;
+    background: #ff6c3f;
+    color: #fff;
+    border: 1px solid transparent;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+  }
+
+  #galeria .ver-mas:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(255, 108, 63, 0.12);
+  }
+
+  #galeria .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    padding: 1rem;
+  }
+
+  #galeria .gallery-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 1.75rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 119, 73, 0.12);
+    box-shadow: 0 18px 34px rgba(29, 41, 74, 0.08);
+    display: grid;
+    grid-template-rows: auto;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  #galeria .gallery-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 38px rgba(29, 41, 74, 0.12);
+  }
+
+  #galeria .gallery-image-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  #galeria .gallery-image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: block;
+  }
+
+  #galeria .gallery-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.4rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.0) 0%, rgba(10, 10, 10, 0.55) 100%);
+    color: #fff;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  #galeria .gallery-card.has-image:hover .gallery-overlay,
+  #galeria .gallery-card.has-image:focus-within .gallery-overlay {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  #galeria .gallery-card.has-image .gallery-overlay .gallery-type {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+
+  #galeria .gallery-card.has-image .gallery-text {
+    color: #fff;
+    margin: 0;
+    line-height: 1.55;
+  }
+
+  #galeria .gallery-card.has-image .gallery-meta {
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  #galeria .gallery-card.no-image {
+    display: grid;
+    grid-template-rows: auto;
+  }
+
+  #galeria .gallery-card.no-image .gallery-content {
+    padding: 1.5rem 1.5rem 1.6rem;
+  }
+  
+  #galeria .gallery-card.no-image .gallery-text {
+    max-height: none;
+  }
+
+  #galeria .gallery-card.no-image .gallery-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 108, 63, 0.12);
+    color: #c74323;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #galeria .gallery-card.no-image .gallery-text {
+    color: #3a2c25;
+    margin: 0;
+    line-height: 1.7;
+    font-size: 1rem;
+  }
+
+  #galeria .gallery-card.no-image .gallery-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #7b675a;
+    font-size: 0.9rem;
+    align-items: center;
+  }
+
+  #galeria .gallery-placeholder {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(245, 118, 63, 0.12), rgba(255, 201, 176, 0.2));
+  }
+
+  #galeria .gallery-placeholder span {
+    font-size: 3rem;
+    color: #ff6c3f;
+  }
+
+  /* Like button */
+  #galeria .gallery-meta .meta-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  #galeria .like-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.35rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    color: #c74323;
+    font-weight: 700;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  #galeria .like-button svg {
+    display: block;
+    transition: transform 0.15s ease, opacity 0.15s ease, fill 0.15s ease;
+  }
+
+  #galeria .like-count {
+    font-size: 0.95rem;
+    color: #7b675a;
+  }
+
+  /* liked state */
+  #galeria .like-button[data-liked="1"] svg path {
+    fill: #e84b3b;
+    transform: scale(1.05);
+  }
+
+  #galeria .like-button:hover {
+    transform: translateY(-2px);
+  }
+
+  #galeria .gallery-content {
+    padding: 1.25rem 1.4rem 1.4rem;
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  #galeria .gallery-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 108, 63, 0.12);
+    color: #c74323;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #galeria .gallery-text {
+    margin: 0;
+    color: #3a2c25;
+    line-height: 1.65;
+    font-size: 1rem;
+  }
+
+  #galeria .gallery-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #7b675a;
+    font-size: 0.9rem;
+    align-items: center;
+  }
+
+  #galeria .meta-family {
+    font-weight: 700;
+    color: #4a392f;
+    font-size: 0.95rem;
+  }
+
+  #galeria .gallery-card {
+    display: grid;
+    grid-template-rows: auto;
+  }
+
+  #galeria .gallery-card.no-image {
+    min-height: auto;
+  }
+
+  .empty-familias {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid rgba(255, 119, 73, 0.16);
+    border-radius: 1.5rem;
+    padding: 2rem;
+    color: #5d5046;
+    text-align: center;
+    box-shadow: 0 16px 36px rgba(255, 119, 73, 0.08);
+  }
+
+  @media (max-width: 960px) {
+    #galeria .gallery-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    #galeria .section-actions,
+    #galeria .section-header.section-header-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #galeria .gallery-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script type="module">
+  const root = document.getElementById('galeria');
+  const apiUrl = root?.dataset?.api || '';
+
+  function attachLikeHandlers() {
+    document.querySelectorAll('#galeria .like-button').forEach((btn) => {
+      if (btn.dataset.attached) return;
+      btn.dataset.attached = '1';
+      btn.addEventListener('click', async (e) => {
+        const id = btn.dataset.id;
+        const countSpan = btn.querySelector('.like-count');
+        const svg = btn.querySelector('svg');
+        let count = Number(countSpan?.textContent || 0) || 0;
+
+        const currentlyLiked = btn.dataset.liked === '1';
+
+        // optimistic toggle
+        if (currentlyLiked) {
+          btn.dataset.liked = '0';
+          if (svg) svg.style.opacity = '';
+          count = Math.max(0, count - 1);
+        } else {
+          btn.dataset.liked = '1';
+          if (svg) svg.style.opacity = '0.9';
+          count += 1;
+        }
+        if (countSpan) countSpan.textContent = String(count);
+
+        try {
+          if (!apiUrl) return;
+          const token = localStorage.getItem('token');
+          const headers = token ? { Authorization: `Bearer ${token}` } : {};
+          const res = await fetch(`${apiUrl}/galeria/${id}/like`, { method: 'POST', headers });
+          if (!res.ok) {
+            // revert optimistic if error
+            btn.dataset.liked = currentlyLiked ? '1' : '0';
+            if (svg) svg.style.opacity = currentlyLiked ? '0.9' : '';
+            if (countSpan) countSpan.textContent = String(Number(countSpan.textContent || 0));
+            if (res.status === 401) {
+              window.location.href = '/auth/login';
+            }
+          } else {
+            const payload = await res.json();
+            if (payload.total_likes !== undefined) {
+              if (countSpan) countSpan.textContent = String(payload.total_likes);
+            }
+            if (payload.liked !== undefined) {
+              btn.dataset.liked = payload.liked ? '1' : '0';
+              if (svg) svg.style.opacity = payload.liked ? '0.9' : '';
+            }
+          }
+        } catch (err) {
+          console.warn('Like failed', err);
+        }
+      });
+    });
+  }
+
+  async function refreshUserLikes() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${apiUrl}/galeria?limit=9`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      const payload = await res.json();
+      const entries = payload.data || [];
+      entries.forEach((t) => {
+        const card = document.querySelector(`#galeria .gallery-card[data-id='${t.id}']`);
+        if (!card) return;
+        const likeBtn = card.querySelector('.like-button');
+        const countSpan = card.querySelector('.like-count');
+        if (countSpan) countSpan.textContent = String(t.total_likes ?? 0);
+        if (likeBtn) {
+          if (t.user_liked) {
+            likeBtn.dataset.liked = '1';
+            const svg = likeBtn.querySelector('svg');
+            if (svg) svg.style.opacity = '0.9';
+          } else {
+            likeBtn.dataset.liked = '0';
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('No se pudo refrescar likes', err);
+    }
+  }
+
+  // attach on load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      attachLikeHandlers();
+      refreshUserLikes();
+    });
+  } else {
+    attachLikeHandlers();
+    refreshUserLikes();
+  }
+</script>

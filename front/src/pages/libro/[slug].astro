@@ -1,0 +1,620 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import LigaBookShell from '../../components/LigaBookShell.astro';
+import BookActions from '../../components/BookActions.astro';
+import BookRating from '../../components/BookRating.astro';
+import { obtenerLibro, obtenerLibros } from '../../utils/api';
+
+export async function getStaticPaths() {
+  try {
+    const librosResponse = await obtenerLibros({ limite: 500 });
+    const libros = Array.isArray(librosResponse) ? librosResponse : (librosResponse.data || []);
+    
+    return libros.map((libro: any) => ({
+      params: { slug: libro.slug },
+      props: { libro },
+    }));
+  } catch (error) {
+    console.error('Error getting static paths for books:', error);
+    return [];
+  }
+}
+
+interface Props {
+  libro?: any;
+}
+
+export const prerender = true;
+
+const { slug } = Astro.params;
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+const { libro: initialLibro } = Astro.props;
+
+let libro = initialLibro;
+let relacionados: any[] = [];
+let error = false;
+const isImageCover = typeof libro?.portada_icono === 'string' && /^https?:\/\//i.test(libro.portada_icono);
+
+try {
+  if (!libro && slug) {
+    libro = await obtenerLibro(slug);
+  }
+  
+  if (libro && libro.categorias && libro.categorias.length > 0) {
+    const allLibros = await obtenerLibros({ categoria: libro.categorias[0], limite: 8 });
+    relacionados = (allLibros.data || [])
+      .filter((l: any) => l.slug !== slug)
+      .slice(0, 4);
+  }
+} catch (err) {
+  console.error('Error al obtener libro:', err);
+  error = true;
+}
+---
+
+<Layout title={!error && libro ? `${libro.titulo} – FamiliaLee` : 'Libro no encontrado'} description={!error && libro ? libro.descripcion : 'Explora libros y recursos para familias'}>
+  <LigaBookShell>
+  <main>
+    {!error && libro ? (
+      <>
+        <section class="libro-hero">
+          <div class="container">
+            <a href="/biblioteca" class="breadcrumb">← Volver a Biblioteca</a>
+            <div class="libro-detail">
+              <div class="libro-cover-wrap">
+                <div class="libro-cover" style={`background: ${libro.portada_gradiente || 'linear-gradient(135deg, #00a8e8, #b82db5)'}`} aria-hidden="true">
+                  {isImageCover ? (
+                    <img class="cover-image" src={libro.portada_icono} alt={`Portada de ${libro.titulo}`} loading="lazy" />
+                  ) : (
+                    <span class="cover-icon">{libro.portada_icono || '📖'}</span>
+                  )}
+                  {libro.destacado && <span class="badge badge-destacado">⭐ Destacado</span>}
+                  {libro.nuevo && <span class="badge badge-nuevo">✨ Nuevo</span>}
+                </div>
+              </div>
+
+              <div class="libro-info">
+                <div class="libro-tags">
+                  {libro.categorias?.map((cat: string) => <span class="badge">{cat}</span>)}
+                </div>
+                <h1 class="libro-titulo">{libro.titulo}</h1>
+                <a href={`/autor/${libro.autor_slug || libro.autor_nombre?.toLowerCase().replace(/\s+/g, '-')}`} class="libro-autor">
+                  por <strong>{libro.autor_nombre || 'Anónimo'}</strong>
+                </a>
+                <div class="libro-meta-row">
+                  <div class="star-rating">
+                    ⭐ <span id="hero-rating-promedio">{libro.rating_promedio?.toFixed(1) || '0'}</span>/5
+                    <span id="hero-rating-votos">({libro.total_valoraciones || 0} votos)</span>
+                  </div>
+                  <span class="dot">·</span>
+                  <span>{libro.edad_rango || 'N/A'}</span>
+                  <span class="dot">·</span>
+                  <span>{libro.paginas_total || (Array.isArray(libro.paginas) ? libro.paginas.length : (libro.paginas || 'N/A'))} páginas</span>
+                  <span class="dot">·</span>
+                  <span>{libro.anio || 'N/A'}</span>
+                </div>
+
+                <p class="libro-desc">{libro.descripcion || 'No hay descripción disponible.'}</p>
+
+                <BookActions libroSlug={slug || ''} libroTitulo={libro.titulo} />
+
+                <BookRating libroSlug={slug || ''} currentRating={libro.rating_promedio || 0} totalVotes={libro.total_valoraciones || 0} />
+
+                <div class="libro-stats">
+                  <div class="stat-item">
+                    <strong id="descargas-count">{(libro.descargas_total || 0).toLocaleString('es')}</strong>
+                    <p>Descargas</p>
+                  </div>
+                  <div class="stat-item">
+                    <strong id="valoraciones-count">{libro.total_valoraciones || 0}</strong>
+                    <p>Valoraciones</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {relacionados.length > 0 && (
+          <section class="section section-bg">
+            <div class="container">
+              <div class="section-header">
+                <h2>📚 También te puede interesar</h2>
+                <p>Libros relacionados</p>
+              </div>
+              <div class="relacionados-grid">
+                {relacionados.map((r: any) => (
+                  <article class="book-card-small">
+                    <a href={`/libro/${r.slug}`} class="book-link">
+                      <div class="book-cover-small" style={`background: ${r.portada_gradiente}`}>
+                        {typeof r.portada_icono === 'string' && /^https?:\/\//i.test(r.portada_icono) ? (
+                          <img class="book-cover-image" src={r.portada_icono} alt={`Portada de ${r.titulo}`} loading="lazy" />
+                        ) : (
+                          <span class="book-icon">{r.portada_icono || '📖'}</span>
+                        )}
+                      </div>
+                      <h3>{r.titulo}</h3>
+                      <p>{r.autor_nombre || 'Anónimo'}</p>
+                      <div class="book-rating">⭐ {r.rating_promedio?.toFixed(1) || '0'}</div>
+                    </a>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+      </>
+    ) : (
+      <section class="section">
+        <div class="container centered">
+          <p style="font-size: 3rem; margin-bottom: 1rem;">📚</p>
+          <h2>Libro no encontrado</h2>
+          <p>Lo sentimos, el libro que buscas no está disponible.</p>
+          <a href="/biblioteca" class="btn-primary">Volver a Biblioteca</a>
+        </div>
+      </section>
+    )}
+  </main>
+  </LigaBookShell>
+</Layout>
+
+<script define:vars={{ slug, apiUrl }}>
+  function onReady(callback) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', callback);
+    } else {
+      callback();
+    }
+  }
+
+  function updateBookMetrics(detail) {
+    if (!detail || detail.slug !== slug) return;
+
+    if (detail.descargas_total !== undefined) {
+      const descargasEl = document.getElementById('descargas-count');
+      if (descargasEl) {
+        descargasEl.textContent = String(detail.descargas_total).toLocaleString('es');
+      }
+    }
+
+    if (detail.total_valoraciones !== undefined) {
+      const valoracionesEl = document.getElementById('valoraciones-count');
+      if (valoracionesEl) {
+        valoracionesEl.textContent = String(detail.total_valoraciones);
+      }
+      const votosEl = document.getElementById('hero-rating-votos');
+      if (votosEl) {
+        votosEl.textContent = `(${detail.total_valoraciones} votos)`;
+      }
+    }
+
+    if (detail.rating_promedio !== undefined) {
+      const promedioEl = document.getElementById('hero-rating-promedio');
+      if (promedioEl) {
+        promedioEl.textContent = Number(detail.rating_promedio).toFixed(1);
+      }
+      const ratingValue = document.querySelector('.rating-value');
+      if (ratingValue && detail.total_valoraciones !== undefined) {
+        ratingValue.textContent = `${Number(detail.rating_promedio).toFixed(1)}/5 (${detail.total_valoraciones} votos)`;
+      }
+    }
+  }
+
+  onReady(async () => {
+    window.addEventListener('book:update', (event) => {
+      if (!event?.detail) return;
+      updateBookMetrics(event.detail);
+    });
+
+    try {
+      const res = await fetch(`${apiUrl}/libros/${slug}`, { cache: 'no-store' });
+      if (!res.ok) return;
+
+      const libro = await res.json();
+
+      const descargasEl = document.getElementById('descargas-count');
+      if (descargasEl && typeof libro.descargas_total === 'number') {
+        descargasEl.textContent = libro.descargas_total.toLocaleString('es');
+      }
+
+      const valoracionesEl = document.getElementById('valoraciones-count');
+      if (valoracionesEl && typeof libro.total_valoraciones === 'number') {
+        valoracionesEl.textContent = String(libro.total_valoraciones);
+      }
+
+      const promedioEl = document.getElementById('hero-rating-promedio');
+      if (promedioEl && typeof libro.rating_promedio === 'number') {
+        promedioEl.textContent = Number(libro.rating_promedio).toFixed(1);
+      }
+
+      const votosEl = document.getElementById('hero-rating-votos');
+      if (votosEl && typeof libro.total_valoraciones === 'number') {
+        votosEl.textContent = `(${libro.total_valoraciones} votos)`;
+      }
+
+      const ratingValue = document.querySelector('.rating-value');
+      if (ratingValue && typeof libro.rating_promedio === 'number' && typeof libro.total_valoraciones === 'number') {
+        ratingValue.textContent = `${Number(libro.rating_promedio).toFixed(1)}/5 (${libro.total_valoraciones} votos)`;
+      }
+    } catch (error) {
+      console.error('No se pudieron refrescar métricas del libro:', error);
+    }
+  });
+</script>
+
+<style>
+  .breadcrumb {
+    display: inline-block;
+    color: var(--color-primary-blue);
+    text-decoration: none;
+    font-weight: 500;
+    margin-bottom: 2rem;
+    transition: color 0.3s;
+  }
+
+  .breadcrumb:hover {
+    color: var(--color-primary-pink);
+  }
+
+  .libro-hero {
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple), var(--color-primary-pink));
+    padding: 3rem 0;
+    color: var(--color-white);
+  }
+
+  .libro-detail {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .libro-cover-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .libro-cover {
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border: 3px solid var(--color-primary-blue);
+    overflow: hidden;
+  }
+
+  .cover-icon {
+    font-size: 6rem;
+    opacity: 0.3;
+    line-height: 1;
+  }
+
+  .cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: var(--color-primary-yellow);
+    color: var(--color-primary-blue);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  .badge-nuevo {
+    background: var(--color-primary-pink);
+    color: white;
+  }
+
+  .libro-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .libro-tags {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .libro-tags .badge {
+    position: static;
+    background: var(--color-primary-blue);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .libro-titulo {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
+    font-weight: 700;
+    color: var(--color-white);
+    margin: 0;
+  }
+
+  .libro-autor {
+    color: var(--color-primary-yellow);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+
+  .libro-autor:hover {
+    color: var(--color-white);
+  }
+
+  .libro-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+    align-items: center;
+  }
+
+  .star-rating {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+  }
+
+  .dot {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .libro-desc {
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.7;
+    font-size: 1rem;
+  }
+
+  .libro-actions-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-leer-lg,
+  .btn-dl-lg,
+  .btn-save-lg {
+    padding: 0.9rem 1.75rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .btn-leer-lg {
+    background: var(--color-primary-pink);
+    color: white;
+  }
+
+  .btn-leer-lg:hover {
+    background: var(--color-primary-red);
+    transform: translateY(-2px);
+  }
+
+  .btn-dl-lg {
+    background: var(--color-primary-green);
+    color: white;
+  }
+
+  .btn-dl-lg:hover {
+    background: #04a373;
+    transform: translateY(-2px);
+  }
+
+  .btn-save-lg {
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .btn-save-lg:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .libro-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-item strong {
+    display: block;
+    font-size: 1.75rem;
+    color: var(--color-primary-yellow);
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-item p {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+  }
+
+  .section-bg {
+    background: var(--color-cream);
+  }
+
+  .section-header {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .section-header h2 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    color: var(--color-primary-blue);
+    margin-bottom: 0.5rem;
+  }
+
+  .section-header p {
+    color: var(--color-text-muted);
+  }
+
+  .relacionados-grid {
+    grid-template-columns: repeat(4, 1fr);
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .book-card-small {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--color-primary-blue);
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+
+  .book-card-small:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-pink);
+  }
+
+  .book-link {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    padding: 1rem;
+  }
+
+  .book-link h3 {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary-blue);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .book-link p {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0 0 0.75rem 0;
+  }
+
+  .book-cover-small {
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .book-icon {
+    font-size: 3rem;
+    opacity: 0.3;
+  }
+
+  .book-cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+  }
+
+  .book-rating {
+    font-size: 0.85rem;
+    color: var(--color-primary-yellow);
+    font-weight: 600;
+  }
+
+  .centered {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .centered h2 {
+    font-size: 1.75rem;
+    color: var(--color-primary-blue);
+    margin-bottom: 0.75rem;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--color-primary-pink), var(--color-primary-red));
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (max-width: 1024px) {
+    .libro-detail {
+      grid-template-columns: 1fr;
+    }
+
+    .libro-cover {
+      max-width: 250px;
+    }
+
+    .relacionados-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .libro-titulo {
+      font-size: 1.5rem;
+    }
+
+    .libro-actions-row {
+      flex-direction: column;
+    }
+
+    .btn-leer-lg,
+    .btn-dl-lg {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .libro-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .relacionados-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

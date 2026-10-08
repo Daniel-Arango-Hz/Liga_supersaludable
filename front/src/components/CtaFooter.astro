@@ -1,0 +1,273 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<section class="cta-section" id="cta-participacion-global">
+  <div class="container">
+    <div class="cta-box">
+      <h2 class="cta-title">¿Tu familia quiere participar?</h2>
+      <p class="cta-desc">
+        Comparte fotos, videos y testimonios de tu hogar con la comunidad de CBI Personitas Biblioteca.
+      </p>
+      <a href="/auth/registro" class="cta-btn">
+        Unirse ahora
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="/" class="footer-logo" aria-label="FamiliaLee inicio">
+          <img src="/logos/logo.png" alt="" width="44" height="44" loading="lazy" />
+          <span>CBI Personitas Biblioteca</span>
+        </a>
+        <p class="footer-desc">
+          Una comunidad de familias y autores que comparten el amor por la lectura y la unión familiar.
+        </p>
+        <blockquote class="footer-verse">
+          "Instruye al niño en su camino, y aun cuando fuere viejo no se apartará de él." — <cite>Proverbios 22:6</cite>
+        </blockquote>
+      </div>
+
+      <nav class="footer-nav" aria-label="Explorar">
+        <h3>EXPLORAR</h3>
+        <ul>
+          <li><a href="/biblioteca">Biblioteca</a></li>
+          <li><a href="/autores">Autores</a></li>
+          <li><a href="/galeria">Galería Familiar</a></li>
+          <li><a href="/recursos">Recursos</a></li>
+          <li><a href="/apoyar">Apoyar la biblioteca con PSE</a></li>
+        </ul>
+      </nav>
+
+      <nav class="footer-nav" aria-label="Cuenta">
+        <h3>CUENTA</h3>
+        <ul>
+          <li><a href="/auth/registro">Registrarse</a></li>
+          <li><a href="/auth/login">Ingresar</a></li>
+          <li><a href="/panel/publicaciones">Mi Panel</a></li>
+          <li id="footer-admin-link" hidden><a href="/admin">Administrador</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; {currentYear} CBI Personitas Biblioteca. Todos los derechos reservados.</p>
+      <p class="footer-heart">Hecho con <span aria-label="amor">♥</span> para las familias</p>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+  const ctaParticipacion = document.getElementById('cta-participacion-global');
+  const footerAdminLink = document.getElementById('footer-admin-link');
+  const usuarioRaw = localStorage.getItem('usuario');
+  const hasSession = Boolean(localStorage.getItem('token') || usuarioRaw);
+
+  if (hasSession && ctaParticipacion) {
+    ctaParticipacion.style.display = 'none';
+  }
+
+  if (footerAdminLink) {
+    if (usuarioRaw && localStorage.getItem('token')) {
+      try {
+        const usuario = JSON.parse(usuarioRaw);
+        footerAdminLink.hidden = usuario?.tipo !== 'admin';
+      } catch (err) {
+        console.error('Error leyendo usuario en footer:', err);
+        footerAdminLink.hidden = true;
+      }
+    } else {
+      footerAdminLink.hidden = true;
+    }
+  }
+</script>
+
+<style>
+  .cta-section {
+    width: 100%;
+    background: linear-gradient(180deg, #edf7f5 0%, #f5fbfa 100%);
+    padding: clamp(2rem, 5vw, 3.5rem) 0 1.25rem;
+  }
+
+  .cta-box {
+    background: linear-gradient(135deg, #e0f5ef 0%, #f7fcf9 55%, #e5f4fa 100%);
+    border: 1px solid #cfe9e3;
+    border-radius: 24px;
+    padding: clamp(1.5rem, 4vw, 2.75rem) 1.5rem;
+    text-align: center;
+    display: grid;
+    gap: 1rem;
+    justify-items: center;
+    box-shadow: 0 16px 38px rgba(31, 64, 68, 0.07);
+  }
+
+  .cta-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    font-weight: 800;
+    color: #176f70;
+    margin: 0;
+  }
+
+  .cta-desc {
+    font-size: 1rem;
+    color: #526b78;
+    line-height: 1.8;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #31a99d, #2288a0);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.96rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 12px 28px rgba(35, 143, 137, 0.2);
+  }
+
+  .cta-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 34px rgba(35, 143, 137, 0.25);
+  }
+
+  .footer {
+    width: 100%;
+    background: #f5fbfa;
+    border-top: 1px solid #d8ece9;
+    padding: 2.25rem 0 1.25rem;
+  }
+
+  .footer-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) repeat(2, minmax(150px, 1fr));
+    gap: clamp(1.5rem, 4vw, 3rem);
+    padding-bottom: 2rem;
+  }
+
+  .footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+    text-decoration: none;
+  }
+
+  .footer-logo img {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    object-fit: contain;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(42, 101, 102, 0.1);
+  }
+
+  .footer-logo span {
+    font-family: var(--font-serif);
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #245d60;
+  }
+
+  .footer-brand {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+  }
+
+  .footer-desc {
+    font-size: 0.95rem;
+    color: #526b78;
+    line-height: 1.7;
+    max-width: 360px;
+  }
+
+  .footer-verse {
+    font-size: 0.92rem;
+    font-style: italic;
+    color: #526b78;
+    border-left: 3px solid #72cbb8;
+    padding-left: 0.9rem;
+    margin-top: 0.5rem;
+    line-height: 1.7;
+  }
+
+  .footer-nav h3 {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #287d78;
+    margin-bottom: 1rem;
+  }
+
+  .footer-nav ul {
+    list-style: none;
+    display: grid;
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0;
+  }
+
+  .footer-nav a {
+    font-size: 0.95rem;
+    color: #526b78;
+    text-decoration: none;
+    transition: color 0.2s ease, padding-left 0.2s ease;
+  }
+
+  .footer-nav a:hover,
+  .footer-nav a:focus-visible {
+    color: #168f83;
+    padding-left: 3px;
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+    border-top: 1px solid #d8ece9;
+    padding-top: 1rem;
+    color: #607889;
+    font-size: 0.85rem;
+  }
+
+  .footer-heart {
+    color: #526b78;
+    font-weight: 700;
+  }
+
+  @media (max-width: 820px) {
+    .footer-top {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .footer-bottom {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cta-btn,
+    .footer-nav a {
+      transition: none;
+    }
+  }
+</style>

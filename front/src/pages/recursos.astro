@@ -1,0 +1,119 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import BookCard from '../components/BookCard.astro';
+import { libros } from '../data/libros';
+
+const recursosDestacados = libros.slice(0, 4);
+
+const guias = [
+  { titulo: "Cómo establecer devocionales en familia", tipo: "Guía PDF", paginas: 12 },
+  { titulo: "Plan de lectura bíblica para niños", tipo: "Plan de lectura", paginas: 8 },
+  { titulo: "Actividades de fe para hacer en casa", tipo: "Actividades", paginas: 20 },
+  { titulo: "Oraciones para cada momento del día", tipo: "Guía PDF", paginas: 16 },
+];
+---
+
+<Layout title="Recursos – FamiliaLee" description="Guías, planes y recursos para fortalecer la fe en tu hogar.">
+  <Header />
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <h1 class="page-title">Recursos</h1>
+        <p class="page-desc">Guías, planes y herramientas para fortalecer la fe en tu hogar.</p>
+      </div>
+    </section>
+
+    <section class="section section-bg">
+      <div class="container">
+        <div class="section-header">
+          <h2>Guías y Herramientas</h2>
+          <p>Recursos gratuitos para tu familia</p>
+        </div>
+        <div class="guias-grid">
+          {guias.map((guia) => (
+            <article class="guia-card">
+              <div class="guia-icon" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="3" y="4" width="13" height="16" rx="2"/>
+                  <path d="M7 8h5M7 12h5M7 16h3" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="guia-info">
+                <span class="guia-tipo">{guia.tipo}</span>
+                <h3 class="guia-titulo">{guia.titulo}</h3>
+                <p class="guia-paginas">{guia.paginas} páginas</p>
+              </div>
+              <a href="#" class="guia-btn" aria-label={`Descargar ${guia.titulo}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Descargar
+              </a>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-header section-header-row">
+          <div class="section-header">
+            <h2>Libros Recomendados</h2>
+            <p>Selección especial para comenzar</p>
+          </div>
+          <a href="/biblioteca" class="ver-mas">Ver biblioteca completa →</a>
+        </div>
+        <div class="libros-grid">
+          {recursosDestacados.map((libro) => <BookCard libro={libro} />)}
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .page-hero { background: var(--color-navy); color: var(--color-white); padding: 3.5rem 0; }
+  .page-title { font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 700; margin-bottom: 0.5rem; }
+  .page-desc { color: rgba(255,255,255,0.7); font-size: 1rem; max-width: 500px; }
+
+  .guias-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+
+  .guia-card {
+    background: var(--color-white); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); padding: 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+  }
+  .guia-card:hover { box-shadow: var(--shadow-md); }
+
+  .guia-icon {
+    width: 52px; height: 52px; min-width: 52px;
+    background: rgba(13,34,64,0.06); border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-navy);
+  }
+
+  .guia-info { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+  .guia-tipo { font-size: 0.75rem; color: var(--color-gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .guia-titulo { font-family: var(--font-serif); font-size: 0.95rem; font-weight: 700; color: var(--color-navy); line-height: 1.3; }
+  .guia-paginas { font-size: 0.8rem; color: var(--color-text-muted); }
+
+  .guia-btn {
+    display: flex; align-items: center; gap: 0.35rem;
+    padding: 0.5rem 0.9rem; background: var(--color-navy);
+    color: var(--color-white); border-radius: var(--radius-sm);
+    font-size: 0.85rem; font-weight: 500; white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .guia-btn:hover { background: var(--color-navy-light); }
+
+  .libros-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+
+  @media (max-width: 900px) { .guias-grid { grid-template-columns: 1fr; } .libros-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .libros-grid { grid-template-columns: 1fr; } }
+</style>

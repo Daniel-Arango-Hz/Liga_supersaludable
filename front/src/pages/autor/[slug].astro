@@ -1,0 +1,548 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import AuthorActions from '../../components/AuthorActions.astro';
+import BookCard from '../../components/BookCard.astro';
+import { obtenerAutor, obtenerLibros, obtenerAutores } from '../../utils/api';
+
+export async function getStaticPaths() {
+  try {
+    const autoresResponse = await obtenerAutores();
+    const autores = Array.isArray(autoresResponse) ? autoresResponse : (autoresResponse.data || []);
+    
+    return autores.map((autor: any) => ({
+      params: { slug: autor.slug },
+      props: { autor },
+    }));
+  } catch (error) {
+    console.error('Error getting static paths for authors:', error);
+    return [];
+  }
+}
+
+interface Props {
+  autor?: any;
+}
+
+export const prerender = true;
+
+const { slug } = Astro.params;
+const { autor: initialAutor } = Astro.props;
+
+let autor = initialAutor || null;
+const rawSlug = typeof slug === 'string' ? slug : (Array.isArray(slug) ? slug[0] : '') || '';
+const normalizedSlug = rawSlug.toLowerCase();
+
+let librosAutor: any[] = [];
+let error = false;
+
+try {
+  if (!autor && rawSlug) {
+    try {
+      autor = await obtenerAutor(rawSlug);
+    } catch (e) {
+      autor = await obtenerAutor(normalizedSlug);
+    }
+  }
+  
+  if (autor) {
+    try {
+      const autorCompleto = await obtenerAutor(rawSlug || normalizedSlug);
+      autor = { ...autor, ...autorCompleto };
+    } catch (e) {
+      console.warn('No se pudo enriquecer el autor con sus libros:', e);
+    }
+
+    const librosDelAutor = Array.isArray(autor?.libros) && autor.libros.length > 0
+      ? autor.libros
+      : [];
+
+    if (librosDelAutor.length > 0) {
+      librosAutor = librosDelAutor;
+    } else {
+      const allLibros = await obtenerLibros({ limite: 100 });
+      librosAutor = (allLibros.data || []).filter((l: any) =>
+        l.autor_slug?.toLowerCase() === normalizedSlug ||
+        l.autor_nombre?.toLowerCase() === autor.nombre?.toLowerCase()
+      );
+    }
+
+    autor.email = autor.email || autor.correo || autor.usuario?.email || '';
+  }
+} catch (err) {
+  console.error('Error al obtener autor:', err);
+  error = true;
+}
+---
+
+<Layout title={!error && autor ? `${autor.nombre} – Autor – FamiliaLee` : 'Autor no encontrado'} description={!error && autor ? autor.especialidad : 'Conoce a los autores de FamiliaLee'}>
+  <Header />
+  <main>
+    {!error && autor ? (
+      <>
+        <section class="autor-hero">
+          <div class="container">
+            <a href="/autores" class="breadcrumb">← Volver a Autores</a>
+            
+            <div class="autor-header">
+              <div class="autor-avatar-large">👤</div>
+              <div class="autor-content">
+                <h1 class="autor-nombre">{autor.nombre}</h1>
+                <p class="autor-especialidad">{autor.especialidad || 'Autor destacado'}</p>
+                <p class="autor-bio">{autor.biografia || 'Creador de contenido para familias'}</p>
+                
+                <div class="autor-stats">
+                  <div class="stat">
+                    <strong>{autor.total_libros || 0}</strong>
+                    <p>Libros publicados</p>
+                  </div>
+                  <div class="stat">
+                    <strong>{(autor.total_descargas || 0).toLocaleString('es')}</strong>
+                    <p>Descargas totales</p>
+                  </div>
+                  <div class="stat">
+                    <strong id="seguidores-count">{autor.total_seguidores || 0}</strong>
+                    <p>Seguidores</p>
+                  </div>
+                </div>
+
+                <AuthorActions
+                  autorId={autor.id}
+                  autorSlug={autor.slug}
+                  autorNombre={autor.nombre}
+                  autorEmail={autor.email || autor.correo || autor.usuario?.email || ''}
+                  estaSiguiendo={Boolean(autor.siguiendo)}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {librosAutor.length > 0 && (
+          <section class="section">
+            <div class="container">
+              <h2 class="section-title">📚 Libros de {autor.nombre}</h2>
+              <div class="libros-grid">
+                {librosAutor.map((libro: any) => {
+                  const isImageCover = typeof libro.portada_icono === 'string' && /^https?:\/\//i.test(libro.portada_icono);
+                  return (
+                    <article class="libro-card">
+                      <a href={`/libro/${libro.slug}`} class="libro-link">
+                        <div class="libro-cover-card" style={`background: ${libro.portada_gradiente || 'linear-gradient(135deg, #00a8e8, #6c5ce7)'}`}>
+                          {isImageCover ? (
+                            <img class="libro-icon-img" src={libro.portada_icono} alt={libro.titulo} loading="lazy" />
+                          ) : (
+                            <span class="libro-icon">{libro.portada_icono || '📖'}</span>
+                          )}
+                          {libro.destacado && <span class="badge-pequeño">⭐</span>}
+                        </div>
+                        <div class="libro-info-card">
+                          <h3>{libro.titulo}</h3>
+                          <p class="edad-rango">Edad: {libro.edad_rango || 'N/A'}</p>
+                          <div class="rating">⭐ {libro.rating_promedio?.toFixed(1) || '0'}</div>
+                        </div>
+                      </a>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+      </>
+    ) : (
+      <section class="section">
+        <div class="container centered">
+          <p style="font-size: 3rem; margin-bottom: 1rem;">👤</p>
+          <h2>Autor no encontrado</h2>
+          <p>Lo sentimos, el autor que buscas no está disponible.</p>
+          <a href="/autores" class="btn-primary">Volver a Autores</a>
+        </div>
+      </section>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .breadcrumb {
+    display: inline-block;
+    color: var(--color-primary-blue);
+    text-decoration: none;
+    font-weight: 500;
+    margin-bottom: 2rem;
+    transition: color 0.3s;
+  }
+
+  .breadcrumb:hover {
+    color: var(--color-primary-pink);
+  }
+
+  .autor-hero {
+    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple), var(--color-primary-pink));
+    padding: 3rem 0;
+    color: var(--color-white);
+  }
+
+  .autor-header {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+
+  .autor-avatar-large {
+    font-size: 6rem;
+    width: 200px;
+    height: 200px;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .autor-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .autor-nombre {
+    font-family: var(--font-serif);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .autor-especialidad {
+    font-size: 1.25rem;
+    color: var(--color-primary-yellow);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .autor-bio {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .libros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .libro-card {
+    border-radius: 24px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: white;
+    box-shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .libro-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(17, 24, 39, 0.12);
+  }
+
+  .libro-link {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .libro-cover-card {
+    border-radius: 24px;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    color: white;
+    overflow: hidden;
+  }
+
+  .libro-cover-card img.libro-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .libro-icon {
+    font-size: 3rem;
+  }
+
+  .badge-pequeño {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.88);
+    color: #222;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .libro-info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .libro-info-card h3 {
+    font-size: 1.1rem;
+    line-height: 1.3;
+    margin: 0;
+    color: #102a43;
+  }
+
+  .edad-rango,
+  .rating {
+    font-size: 0.95rem;
+    color: #475569;
+    margin: 0;
+  }
+
+  .rating {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .autor-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    padding: 2rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat strong {
+    display: block;
+    font-size: 2rem;
+    color: var(--color-primary-yellow);
+    margin-bottom: 0.25rem;
+  }
+
+  .stat p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+  }
+
+  .autor-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-seguir,
+  .btn-contactar {
+    padding: 0.9rem 1.75rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-seguir {
+    background: var(--color-primary-yellow);
+    color: var(--color-primary-blue);
+  }
+
+  .btn-seguir:hover {
+    background: #ffd700;
+    transform: translateY(-2px);
+  }
+
+  .btn-contactar {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .btn-contactar:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    color: var(--color-primary-blue);
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .libros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .libro-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--color-primary-blue);
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+
+  .libro-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-pink);
+  }
+
+  .libro-link {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    padding: 1rem;
+  }
+
+  .libro-cover-card {
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
+  .libro-icon {
+    font-size: 3rem;
+    opacity: 0.3;
+  }
+
+  .badge-pequeño {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--color-primary-yellow);
+    color: var(--color-primary-blue);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .libro-link h3 {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-primary-blue);
+    margin: 0 0 0.5rem 0;
+    line-height: 1.3;
+  }
+
+  .edad-rango {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .rating {
+    font-size: 0.85rem;
+    color: var(--color-primary-yellow);
+    font-weight: 600;
+  }
+
+  .centered {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .centered h2 {
+    font-size: 1.75rem;
+    color: var(--color-primary-blue);
+    margin-bottom: 0.75rem;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--color-primary-pink), var(--color-primary-red));
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (max-width: 768px) {
+    .autor-header {
+      grid-template-columns: 1fr;
+    }
+
+    .autor-avatar-large {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto;
+      font-size: 4rem;
+    }
+
+    .autor-stats {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      padding: 1.5rem 0;
+    }
+
+    .stat strong {
+      font-size: 1.5rem;
+    }
+
+    .autor-actions {
+      justify-content: center;
+    }
+
+    .libros-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .autor-actions {
+      flex-direction: column;
+    }
+
+    .btn-seguir,
+    .btn-contactar {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .libros-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

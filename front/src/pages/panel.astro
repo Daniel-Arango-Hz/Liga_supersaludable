@@ -1,0 +1,209 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import BookCard from '../components/BookCard.astro';
+import { libros } from '../data/libros';
+
+// En producción, esto vendría de la sesión autenticada
+const usuario = {
+  nombre: "María González",
+  email: "maria@ejemplo.com",
+  tipo: "familia",
+  librosGuardados: libros.slice(0, 3),
+  librosDescargados: libros.slice(1, 4),
+};
+---
+
+<Layout title="Mi Panel – FamiliaLee" description="Tu espacio personal en FamiliaLee.">
+  <Header />
+  <main>
+    <section class="panel-hero">
+      <div class="container panel-hero-inner">
+        <div class="panel-avatar" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9aabb8" stroke-width="1.5" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="panel-nombre">Hola, {usuario.nombre} 👋</h1>
+          <p class="panel-email">{usuario.email}</p>
+        </div>
+        <a href="/panel/editar" class="btn-edit">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Editar perfil
+        </a>
+        <a href="/subir-libro" class="btn-upload js-require-login-upload">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Subir Libro
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container panel-layout">
+        <!-- Sidebar de navegación del panel -->
+        <nav class="panel-nav" aria-label="Navegación del panel">
+          <ul class="panel-nav-list">
+            {[
+              { label: "Guardados", href: "/panel/guardados", activo: false, icon: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>' },
+              { label: "Publicaciones", href: "/panel/publicaciones", activo: true, icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>' },
+            ].map((item) => (
+              <li>
+                <a href={item.href} class={`panel-nav-link ${item.activo ? 'active' : ''}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" set:html={item.icon} />
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <!-- Contenido principal del panel -->
+        <div class="panel-content">
+          <!-- Stats rápidos -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <strong>{usuario.librosDescargados.length}</strong>
+              <span>Descargados</span>
+            </div>
+            <div class="stat-card">
+              <strong>{usuario.librosGuardados.length}</strong>
+              <span>Guardados</span>
+            </div>
+            <div class="stat-card">
+              <strong>2</strong>
+              <span>Publicaciones</span>
+            </div>
+          </div>
+
+          <!-- Libros descargados -->
+          <div class="panel-section">
+            <div class="section-header section-header-row">
+              <div class="section-header">
+                <h2>Libros Descargados</h2>
+                <p>Tu historial de descargas</p>
+              </div>
+              <a href="/biblioteca" class="ver-mas">Explorar más →</a>
+            </div>
+            <div class="panel-books-grid">
+              {usuario.librosDescargados.map((libro) => <BookCard libro={libro} />)}
+            </div>
+          </div>
+
+          <!-- Libros guardados -->
+          <div class="panel-section">
+            <div class="section-header">
+              <h2>Lista de Deseos</h2>
+              <p>Libros que guardaste para leer después</p>
+            </div>
+            <div class="panel-books-grid">
+              {usuario.librosGuardados.map((libro) => <BookCard libro={libro} />)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const uploadBtn = document.querySelector('.js-require-login-upload');
+
+    uploadBtn?.addEventListener('click', (e) => {
+      const token = localStorage.getItem('token');
+      if (token) return;
+
+      e.preventDefault();
+
+      const modal = document.getElementById('loginModalOverlay');
+      const titleEl = document.getElementById('modalTitle');
+      const msgEl = document.getElementById('modalMessage');
+
+      if (titleEl) titleEl.textContent = 'Inicio de sesión requerido';
+      if (msgEl) msgEl.textContent = 'Debes iniciar sesión para publicar contenido.';
+      if (modal) modal.classList.add('active');
+    });
+  });
+</script>
+
+<style>
+  .panel-hero {
+    background: var(--color-cream); border-bottom: 1px solid var(--color-border);
+    padding: 2rem 0;
+  }
+  .panel-hero-inner {
+    display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+  }
+  .panel-avatar {
+    width: 64px; height: 64px; min-width: 64px; border-radius: 50%;
+    background: var(--color-white); border: 2px solid var(--color-border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .panel-nombre { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--color-navy); }
+  .panel-email { font-size: 0.88rem; color: var(--color-text-muted); }
+  .btn-edit {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 1rem; border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 500;
+    color: var(--color-navy); transition: border-color 0.2s, background 0.2s;
+    margin-left: auto;
+  }
+  .btn-edit:hover { border-color: var(--color-navy); background: var(--color-white); }
+
+  .btn-upload {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.5rem 1rem; border: 1.5px solid #d4af37;
+    border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 500;
+    color: #b8860b; background: #fffbf0; transition: all 0.2s;
+  }
+  .btn-upload:hover { border-color: #b8860b; background: #fff8e7; }
+
+  .panel-layout {
+    display: grid; grid-template-columns: 200px 1fr; gap: 2.5rem; align-items: start;
+  }
+  .panel-nav { position: sticky; top: 80px; }
+  .panel-nav-list { list-style: none; display: flex; flex-direction: column; gap: 0.2rem; }
+  .panel-nav-link {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);
+    font-size: 0.9rem; color: var(--color-text-muted); transition: all 0.15s;
+  }
+  .panel-nav-link:hover { background: var(--color-cream); color: var(--color-navy); }
+  .panel-nav-link.active { background: var(--color-cream-dark); color: var(--color-navy); font-weight: 600; }
+
+  .panel-content { display: flex; flex-direction: column; gap: 2.5rem; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .stat-card {
+    background: var(--color-white); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: 1.25rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+    text-align: center; box-shadow: var(--shadow-sm);
+  }
+  .stat-card strong { font-size: 1.75rem; font-weight: 700; color: var(--color-navy); }
+  .stat-card span { font-size: 0.82rem; color: var(--color-text-muted); }
+
+  .panel-section { display: flex; flex-direction: column; gap: 1.25rem; }
+  .panel-books-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+
+  @media (max-width: 900px) {
+    .panel-layout { grid-template-columns: 1fr; }
+    .panel-nav { position: static; }
+    .panel-nav-list { flex-direction: row; flex-wrap: wrap; }
+    .panel-books-grid { grid-template-columns: repeat(2, 1fr); }
+    .btn-edit { margin-left: 0; }
+  }
+  @media (max-width: 480px) {
+    .panel-books-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr 1fr; }
+  }
+</style>

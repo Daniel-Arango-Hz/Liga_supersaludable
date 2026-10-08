@@ -1,0 +1,916 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+
+// @ts-ignore
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+---
+
+<Layout title="Mis Libros – FamiliaLee" description="Libros publicados por el usuario.">
+  <Header />
+  <main>
+    <section class="panel-hero">
+      <div class="container panel-hero-inner">
+        <div class="panel-avatar" aria-hidden="true">✍️</div>
+        <div>
+          <h1 class="panel-nombre">Mis Libros</h1>
+          <p class="panel-email">Tus publicaciones en FamiliaLee</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container panel-layout">
+        <nav class="panel-nav" aria-label="Navegación del panel">
+          <ul class="panel-nav-list">
+            <li><a href="/panel/guardados" class="panel-nav-link">Guardados</a></li>
+            <li><a href="/panel/publicaciones" class="panel-nav-link active">Publicaciones</a></li>
+          </ul>
+        </nav>
+
+        <div class="panel-content">
+          <div class="stats-row" id="published-stats" style="display: none;">
+            <div class="stat-card">
+              <strong id="stat-publicaciones">0</strong>
+              <span>Publicaciones</span>
+            </div>
+            <div class="stat-card">
+              <strong id="stat-descargas">0</strong>
+              <span>Descargas</span>
+            </div>
+            <div class="stat-card">
+              <strong id="stat-guardados">0</strong>
+              <span>Guardados</span>
+            </div>
+          </div>
+
+          <div class="section-header section-header-row">
+            <div class="section-header">
+              <h2>Libros Publicados</h2>
+              <p id="published-count">Cargando...</p>
+            </div>
+            <a href="/subir-libro" class="btn-link">+ Publicar nuevo</a>
+          </div>
+
+          <div id="published-grid" class="panel-books-grid"></div>
+
+          <div id="published-empty" class="empty-state" style="display: none;">
+            <p>Aún no has publicado libros.</p>
+            <a href="/subir-libro" class="btn-link">Subir primer libro</a>
+          </div>
+
+          <div id="deleteConfirmOverlay" class="delete-modal-overlay" aria-hidden="true">
+            <div class="delete-modal" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" aria-describedby="deleteConfirmMessage">
+              <h3 id="deleteConfirmTitle">Confirmar eliminación</h3>
+              <p id="deleteConfirmMessage">¿Seguro que quieres eliminar esta publicación?</p>
+              <div class="delete-modal-actions">
+                <button type="button" class="delete-cancel-btn" id="deleteCancelBtn">Cancelar</button>
+                <button type="button" class="delete-confirm-btn" id="deleteConfirmBtn">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script define:vars={{ apiUrl }}>
+  // @ts-nocheck
+  const API_URL = apiUrl;
+  let isDeleting = false;
+
+  function showDeleteConfirmModal(titulo) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('deleteConfirmOverlay');
+      const message = document.getElementById('deleteConfirmMessage');
+      const btnConfirm = document.getElementById('deleteConfirmBtn');
+      const btnCancel = document.getElementById('deleteCancelBtn');
+
+      if (!overlay || !message || !btnConfirm || !btnCancel) {
+        resolve(false);
+        return;
+      }
+
+      let resolved = false;
+
+      const cleanup = () => {
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+        btnConfirm.removeEventListener('click', onConfirm);
+        btnCancel.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onOverlayClick);
+        document.removeEventListener('keydown', onKeyDown);
+      };
+
+      const finalize = (value) => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        resolve(value);
+      };
+
+      const onConfirm = () => finalize(true);
+      const onCancel = () => finalize(false);
+      const onOverlayClick = (event) => {
+        if (event.target === overlay) finalize(false);
+      };
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') finalize(false);
+      };
+
+      message.textContent = `¿Eliminar "${titulo}"? Esta acción quitará el libro y sus datos asociados.`;
+      overlay.classList.add('active');
+      overlay.setAttribute('aria-hidden', 'false');
+
+      btnConfirm.addEventListener('click', onConfirm);
+      btnCancel.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onOverlayClick);
+      document.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function renderPublishedBooks(libros) {
+    const grid = document.getElementById('published-grid');
+    const empty = document.getElementById('published-empty');
+    const count = document.getElementById('published-count');
+    const stats = document.getElementById('published-stats');
+    const statPublicaciones = document.getElementById('stat-publicaciones');
+    const statDescargas = document.getElementById('stat-descargas');
+    const statGuardados = document.getElementById('stat-guardados');
+
+    if (!grid || !empty || !count || !stats || !statPublicaciones || !statDescargas || !statGuardados) return;
+
+    const totalPublicaciones = libros.length;
+    const totalDescargas = libros.reduce((acc, libro) => acc + Number(libro.descargas_total || 0), 0);
+    const totalGuardados = libros.reduce((acc, libro) => acc + Number(libro.guardados_total || 0), 0);
+
+    statPublicaciones.textContent = totalPublicaciones.toLocaleString('es');
+    statDescargas.textContent = totalDescargas.toLocaleString('es');
+    statGuardados.textContent = totalGuardados.toLocaleString('es');
+    stats.style.display = 'grid';
+
+    count.textContent = `${libros.length} ${libros.length === 1 ? 'publicación' : 'publicaciones'}`;
+
+    if (!libros.length) {
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    grid.innerHTML = libros
+      .map((libro) => {
+        const portada = /^https?:\/\//i.test(libro.portada_icono || '')
+          ? `<img class="cover-image" src="${escapeHtml(libro.portada_icono)}" alt="Portada de ${escapeHtml(libro.titulo)}" loading="lazy" />`
+          : `<span class="cover-icon">${escapeHtml(libro.portada_icono || '📖')}</span>`;
+
+        const estado = libro.publicado ? 'Publicado' : 'Borrador';
+
+        return `
+          <article class="book-card">
+            <button class="delete-book-btn js-delete-book" data-slug="${encodeURIComponent(libro.slug || '')}" data-title="${encodeURIComponent(String(libro.titulo || 'este libro'))}" type="button" aria-label="Eliminar ${escapeHtml(libro.titulo || 'libro')}">
+              🗑
+            </button>
+            <a href="/libro/${encodeURIComponent(libro.slug)}" class="book-card-link">
+              <div class="book-cover" style="background: ${escapeHtml(libro.portada_gradiente || 'linear-gradient(135deg,#00a8e8,#b82db5)')}">
+                ${portada}
+                <div class="cover-title-overlay">
+                  <p class="cover-titulo">${escapeHtml(libro.titulo || 'Sin título')}</p>
+                  <p class="cover-autor">${escapeHtml(libro.autor_nombre || 'Autor')}</p>
+                </div>
+              </div>
+              <div class="book-info">
+                <p class="book-autor">${escapeHtml(libro.autor_nombre || 'Autor')}</p>
+                <h3 class="book-titulo">${escapeHtml(libro.titulo || 'Sin título')}</h3>
+                <div class="book-tags">
+                  <span class="badge">${estado}</span>
+                </div>
+                <div class="book-meta">
+                  <div class="star-rating">⭐ ${Number(libro.rating_promedio || 0).toFixed(1)}</div>
+                  <div class="book-descargas">⬇ ${Number(libro.descargas_total || 0).toLocaleString('es')}</div>
+                  <div class="book-guardados">❤️ ${Number(libro.guardados_total || 0).toLocaleString('es')}</div>
+                </div>
+              </div>
+            </a>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  async function deletePublishedBook(slug, titulo) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    if (isDeleting) return;
+
+    const confirmed = await showDeleteConfirmModal(titulo);
+    if (!confirmed) return;
+
+    isDeleting = true;
+
+    try {
+      const res = await fetch(`${API_URL}/libros/${slug}/publicacion`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/auth/login';
+        return;
+      }
+
+      if (res.status === 403) {
+        window.alert('No tienes permisos para eliminar este libro.');
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || 'No se pudo eliminar la publicación.');
+      }
+
+      await loadPublishedBooks();
+    } catch (error) {
+      window.alert(error?.message || 'Error al eliminar la publicación.');
+    } finally {
+      isDeleting = false;
+    }
+  }
+
+  function bindPublishedActions() {
+    const grid = document.getElementById('published-grid');
+    if (!grid || grid.dataset.bound === '1') return;
+
+    grid.addEventListener('click', async (event) => {
+      const button = event.target.closest('.js-delete-book');
+      if (!button) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const slug = button.getAttribute('data-slug') || '';
+      const rawTitle = button.getAttribute('data-title') || '';
+      const title = rawTitle ? decodeURIComponent(rawTitle) : 'este libro';
+      if (!slug) return;
+
+      await deletePublishedBook(slug, title);
+    });
+
+    grid.dataset.bound = '1';
+  }
+
+  async function loadPublishedBooks() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/usuarios/publicaciones`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/auth/login';
+        return;
+      }
+
+      if (!res.ok) throw new Error('No se pudieron cargar las publicaciones.');
+
+      const data = await res.json();
+      renderPublishedBooks(Array.isArray(data) ? data : []);
+      bindPublishedActions();
+    } catch (error) {
+      const count = document.getElementById('published-count');
+      if (count) count.textContent = 'Error al cargar publicaciones';
+      renderPublishedBooks([]);
+      bindPublishedActions();
+    }
+  }
+
+  loadPublishedBooks();
+</script>
+
+<style>
+  .panel-hero {
+    background: var(--color-cream);
+    border-bottom: 1px solid var(--color-border);
+    padding: 2rem 0;
+  }
+
+  .panel-hero-inner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .panel-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--color-white);
+    border: 2px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .panel-nombre {
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    color: var(--color-navy);
+  }
+
+  .panel-email {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+  }
+
+  .panel-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 2rem;
+  }
+
+  .panel-nav {
+    position: sticky;
+    top: 80px;
+  }
+
+  .panel-nav-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .panel-nav-link {
+    display: block;
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+  }
+
+  .panel-nav-link:hover {
+    background: var(--color-cream);
+    color: var(--color-navy);
+  }
+
+  .panel-nav-link.active {
+    background: var(--color-cream-dark);
+    color: var(--color-navy);
+    font-weight: 700;
+  }
+
+  .panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .stat-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .stat-card strong {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--color-navy);
+    line-height: 1.1;
+  }
+
+  .stat-card span {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+  }
+
+  .panel-books-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .book-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: all 0.3s;
+    border: 3px solid var(--color-primary-blue);
+    position: relative;
+  }
+
+  .book-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 168, 232, 0), rgba(0, 168, 232, 0.15));
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  .book-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-8px) scale(1.02);
+    border-color: var(--color-primary-pink);
+  }
+
+  .book-card:hover::before {
+    opacity: 1;
+  }
+
+  .book-card-link {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+  }
+
+  .book-cover {
+    position: relative;
+    aspect-ratio: 3/4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cover-icon {
+    font-size: 4.5rem;
+    opacity: 0.4;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+  }
+
+  .cover-title-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1.5rem 1rem 1rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  }
+
+  .cover-titulo {
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+
+  .cover-autor {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 0.25rem;
+    font-weight: 500;
+  }
+
+  .book-info {
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .book-autor {
+    font-size: 0.85rem;
+    color: var(--color-primary-blue);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .book-titulo {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  .book-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .badge {
+    background: var(--color-cream-dark);
+    color: var(--color-navy);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.22rem 0.5rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .book-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-top: 0.2rem;
+  }
+
+  .star-rating {
+    color: var(--color-primary-yellow);
+    font-weight: 600;
+  }
+
+  .book-descargas {
+    color: var(--color-primary-blue);
+    font-weight: 600;
+  }
+
+  .book-guardados {
+    color: #d44f75;
+    font-weight: 600;
+  }
+
+  .empty-state {
+    background: var(--color-white);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1.2rem;
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .btn-link {
+    display: inline-block;
+    margin-top: 0.2rem;
+    padding: 0.45rem 0.8rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-primary-blue);
+    color: var(--color-white);
+    font-size: 0.88rem;
+  }
+
+  .delete-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .delete-modal-overlay.active {
+    display: flex;
+  }
+
+  .delete-modal {
+    width: min(460px, 100%);
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 1rem;
+  }
+
+  .delete-modal h3 {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-serif);
+    color: var(--color-navy);
+    font-size: 1.2rem;
+  }
+
+  .delete-modal p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .delete-modal-actions {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+  }
+
+  .delete-cancel-btn,
+  .delete-confirm-btn {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.8rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .delete-cancel-btn {
+    background: var(--color-white);
+    color: var(--color-text-muted);
+  }
+
+  .delete-cancel-btn:hover {
+    background: var(--color-cream);
+  }
+
+  .delete-confirm-btn {
+    background: #b42323;
+    border-color: #b42323;
+    color: #fff;
+  }
+
+  .delete-confirm-btn:hover {
+    background: #8f1a1a;
+    border-color: #8f1a1a;
+  }
+
+  @media (max-width: 900px) {
+    .panel-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .panel-nav {
+      position: static;
+    }
+
+    .panel-nav-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .panel-books-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stats-row {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (max-width: 520px) {
+    .stats-row {
+      grid-template-columns: 1fr;
+    }
+
+    .panel-books-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .book-card {
+      border-width: 2px;
+    }
+
+    .cover-icon {
+      font-size: 3rem;
+    }
+
+    .book-meta {
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+  }
+</style>
+
+<style is:global>
+  #published-grid .book-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: all 0.3s;
+    border: 3px solid var(--color-primary-blue);
+    position: relative;
+  }
+
+  #published-grid .delete-book-btn {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 3;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 999px;
+    background: rgba(180, 35, 35, 0.85);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  #published-grid .delete-book-btn:hover {
+    background: rgba(154, 22, 22, 0.95);
+    transform: scale(1.06);
+  }
+
+  #published-grid .delete-book-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  #published-grid .book-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0, 168, 232, 0), rgba(0, 168, 232, 0.15));
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+
+  #published-grid .book-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-8px) scale(1.02);
+    border-color: var(--color-primary-pink);
+  }
+
+  #published-grid .book-card:hover::before {
+    opacity: 1;
+  }
+
+  #published-grid .book-card-link {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+  }
+
+  #published-grid .book-cover {
+    position: relative;
+    aspect-ratio: 3/4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #published-grid .cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  #published-grid .cover-icon {
+    font-size: 4.5rem;
+    opacity: 0.4;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+  }
+
+  #published-grid .cover-title-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1.5rem 1rem 1rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  }
+
+  #published-grid .cover-titulo {
+    font-family: var(--font-serif);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  #published-grid .cover-autor {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 0.25rem;
+    font-weight: 500;
+  }
+
+  #published-grid .book-info {
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  #published-grid .book-autor {
+    font-size: 0.85rem;
+    color: var(--color-primary-blue);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  #published-grid .book-titulo {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  #published-grid .book-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  #published-grid .badge {
+    background: var(--color-cream-dark);
+    color: var(--color-navy);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.22rem 0.5rem;
+    border-radius: var(--radius-lg);
+  }
+
+  #published-grid .book-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-top: 0.2rem;
+  }
+
+  #published-grid .star-rating {
+    color: var(--color-primary-yellow);
+    font-weight: 600;
+  }
+
+  #published-grid .book-descargas {
+    color: var(--color-primary-blue);
+    font-weight: 600;
+  }
+
+  #published-grid .book-guardados {
+    color: #d44f75;
+    font-weight: 600;
+  }
+
+  @media (max-width: 520px) {
+    #published-grid .book-card {
+      border-width: 2px;
+    }
+
+    #published-grid .cover-icon {
+      font-size: 3rem;
+    }
+
+    #published-grid .book-meta {
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+  }
+</style>
