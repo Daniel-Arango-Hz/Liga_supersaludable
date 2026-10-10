@@ -18,7 +18,7 @@ function normalizeCoverIcon(icon) {
 }
 
 router.get('/categorias', async (_req, res) => {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('categorias')
     .select('id, nombre')
     .order('nombre', { ascending: true });
