@@ -158,15 +158,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           link.click();
           document.body.removeChild(link);
 
-          // Actualizar contador de descargas
+          // El backend devuelve el total vigente y solo lo incrementa en una descarga nueva.
           const descargasEl = document.getElementById('descargas-count');
           if (descargasEl && data.descargas_total !== undefined) {
             descargasEl.textContent = data.descargas_total.toLocaleString('es');
           }
 
-          dispatchBookUpdate({ slug: libroSlug, descargas_total: data.descargas_total });
+          if (data.nueva_descarga) {
+            dispatchBookUpdate({ slug: libroSlug, descargas_total: data.descargas_total });
+          }
 
-          btnDescargar.textContent = '✓ Descargado';
+          btnDescargar.textContent = data.nueva_descarga ? '✓ Descargado' : '✓ Ya descargado';
           setTimeout(() => {
             btnDescargar.textContent = '⬇️ Descargar libro';
             btnDescargar.disabled = false;

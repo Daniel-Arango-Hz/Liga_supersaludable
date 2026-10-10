@@ -46,7 +46,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
               <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
             </svg>
           </button>
-          <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Audiolibro</button>
+          <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Crear audiolibro</button>
           <a id="btn-download" href="#" class="reader-btn reader-btn-dl" title="Ir al libro">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -56,11 +56,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           </a>
         </div>
       </div>
-      <!-- Barra de progreso -->
-      <div class="progress-bar">
+    </div>
+
+    <section class="reader-progress" aria-label="Progreso de lectura">
+      <span class="reader-progress-title" id="reader-progress-title">Tu aventura</span>
+      <div class="progress-bar" role="progressbar" aria-label="Progreso del libro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
       </div>
-    </div>
+      <span class="reader-page-count" id="reader-page-count">1 / 1</span>
+    </section>
 
     <section class="audiobook-panel" id="audiobook-panel" aria-label="Crear audiolibro" hidden>
       <div class="audiobook-heading">
@@ -101,6 +105,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         <!-- Las páginas se cargan aquí con JavaScript -->
       </article>
     </main>
+
+    <nav class="reader-page-nav" aria-label="Navegación entre páginas">
+      <button class="reader-page-nav-btn" id="reader-prev" type="button" disabled>
+        <span aria-hidden="true">‹</span> Anterior
+      </button>
+      <p>Sigue leyendo para descubrirlo</p>
+      <button class="reader-page-nav-btn reader-page-nav-next" id="reader-next" type="button">
+        Siguiente <span aria-hidden="true">›</span>
+      </button>
+    </nav>
   </div>
 </Layout>
 
@@ -114,6 +128,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   let audiobookUrl = null;
   let pendingAudiobook = null;
   let ocrWorkerPromise = null;
+  let canCreateAudiobook = false;
   const pdfState = {
     doc: null,
     page: 1,
@@ -129,6 +144,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       if (!res.ok) throw new Error('Libro no encontrado');
       
       libro = await res.json();
+      canCreateAudiobook = await verifyAdminRole();
+      const progressTitle = document.getElementById('reader-progress-title');
+      if (progressTitle) progressTitle.textContent = libro.titulo || 'Tu aventura';
 
       if (libro?.contenido_url) {
         await renderPdfBook();
@@ -267,6 +285,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         <li><button class="toc-link active" disabled>PDF · ${pdfState.total} páginas</button></li>
       `;
 
+      updatePdfUi();
       await renderPdfPage(pdfState.page);
 
       document.getElementById('pdf-prev')?.addEventListener('click', () => {
@@ -277,6 +296,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       document.getElementById('pdf-next')?.addEventListener('click', () => {
         if (pdfState.page >= pdfState.total) return;
         queuePdfPage(pdfState.page + 1);
+      });
+
+      document.getElementById('reader-prev')?.addEventListener('click', () => {
+        if (pdfState.page > 1) queuePdfPage(pdfState.page - 1);
+      });
+      document.getElementById('reader-next')?.addEventListener('click', () => {
+        if (pdfState.page < pdfState.total) queuePdfPage(pdfState.page + 1);
       });
     } catch (error) {
       console.error('No se pudo renderizar el PDF paginado:', error);
@@ -339,11 +365,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   function updatePdfUi() {
     const indicator = document.getElementById('pdf-page-indicator');
     if (indicator) indicator.textContent = `Página ${pdfState.page} de ${pdfState.total}`;
+    const pageCount = document.getElementById('reader-page-count');
+    if (pageCount) pageCount.textContent = `${pdfState.page} / ${pdfState.total}`;
+    const progressBar = document.querySelector('.reader-progress .progress-bar');
+    progressBar?.setAttribute('aria-valuenow', String(Math.round((pdfState.page / pdfState.total) * 100)));
 
     const prevBtn = document.getElementById('pdf-prev');
     const nextBtn = document.getElementById('pdf-next');
     if (prevBtn) prevBtn.disabled = pdfState.page <= 1;
     if (nextBtn) nextBtn.disabled = pdfState.page >= pdfState.total;
+    const readerPrev = document.getElementById('reader-prev');
+    const readerNext = document.getElementById('reader-next');
+    if (readerPrev) readerPrev.disabled = pdfState.page <= 1;
+    if (readerNext) readerNext.disabled = pdfState.page >= pdfState.total;
 
     const fill = document.getElementById('progress-fill');
     if (fill) fill.style.width = `${(pdfState.page / pdfState.total) * 100}%`;
@@ -370,6 +404,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       .join('');
 
     const contentArea = document.getElementById('reader-content');
+    currentPage = paginas[0].titulo || `pagina-${paginas[0].numero}`;
     contentArea.innerHTML = paginas
       .map((pag, idx) => {
         const pageId = pag.titulo || `pagina-${pag.numero}`;
@@ -415,14 +450,58 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       `;
       })
       .join('');
+
+    const pageCount = document.getElementById('reader-page-count');
+    if (pageCount) pageCount.textContent = `1 / ${paginas.length}`;
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = `${(1 / paginas.length) * 100}%`;
+    const progressBar = document.querySelector('.reader-progress .progress-bar');
+    progressBar?.setAttribute('aria-valuenow', String(Math.round((1 / paginas.length) * 100)));
+    updateTextReaderNavigation(0);
+  }
+
+  function updateTextReaderNavigation(pageIndex) {
+    const previousButton = document.getElementById('reader-prev');
+    const nextButton = document.getElementById('reader-next');
+    if (previousButton) previousButton.disabled = pageIndex <= 0;
+    if (nextButton) {
+      nextButton.disabled = false;
+      nextButton.textContent = pageIndex >= paginas.length - 1 ? 'Finalizar ›' : 'Siguiente ›';
+    }
   }
 
   const MAX_AUDIOBOOK_CHARACTERS = 90000;
 
+  async function verifyAdminRole() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+      const response = await fetch(`${API_URL}/usuarios/perfil`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.status === 401) {
+        window.dispatchEvent(new Event('auth:expired'));
+        return false;
+      }
+      if (!response.ok) throw new Error(`No se pudo verificar el rol (${response.status}).`);
+
+      const profile = await response.json();
+      return profile?.tipo === 'admin';
+    } catch (error) {
+      console.error('No se pudo verificar el permiso para crear audiolibros:', error);
+      return false;
+    }
+  }
+
   function enableAudiobook(enabled) {
     const button = document.getElementById('btn-audiobook');
-    if (button) button.hidden = !enabled;
-    if (enabled && libro?.audiolibro_disponible) {
+    const hasStoredAudiobook = Boolean(libro?.audiolibro_disponible);
+    if (button) {
+      button.hidden = !enabled || (!canCreateAudiobook && !hasStoredAudiobook);
+      button.textContent = hasStoredAudiobook ? '🎧 Escuchar audiolibro' : '🎧 Crear audiolibro';
+    }
+    if (hasStoredAudiobook) {
       showStoredAudiobook();
     }
   }
@@ -908,21 +987,39 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     // Tamaño de fuente
     let fontSize = 17;
     const main = document.getElementById('reader-main');
+    const adjustReaderSize = (direction) => {
+      if (pdfState.doc) {
+        pdfState.scale = Math.min(2.5, Math.max(0.75, pdfState.scale + direction * 0.15));
+        queuePdfPage(pdfState.page);
+        return;
+      }
+      fontSize = Math.min(24, Math.max(13, fontSize + direction));
+      main?.style.setProperty('--reader-font-size', `${fontSize}px`);
+    };
     document.getElementById('btn-font-up')?.addEventListener('click', () => {
-      fontSize = Math.min(fontSize + 1, 24);
-      main.style.setProperty('--reader-font-size', `${fontSize}px`);
+      adjustReaderSize(1);
     });
     document.getElementById('btn-font-down')?.addEventListener('click', () => {
-      fontSize = Math.max(fontSize - 1, 13);
-      main.style.setProperty('--reader-font-size', `${fontSize}px`);
+      adjustReaderSize(-1);
     });
 
     // Tema
     let themeIdx = 0;
     const themes = ['', 'sepia', 'dark'];
-    document.getElementById('btn-theme')?.addEventListener('click', () => {
+    const themeNames = ['claro', 'sepia', 'oscuro'];
+    const themeButton = document.getElementById('btn-theme');
+    themeButton?.addEventListener('click', () => {
       themeIdx = (themeIdx + 1) % themes.length;
-      document.body.dataset.readerTheme = themes[themeIdx];
+      if (themes[themeIdx]) {
+        document.body.dataset.readerTheme = themes[themeIdx];
+        document.documentElement.dataset.readerTheme = themes[themeIdx];
+      } else {
+        delete document.body.dataset.readerTheme;
+        delete document.documentElement.dataset.readerTheme;
+      }
+      const nextThemeName = themeNames[(themeIdx + 1) % themeNames.length];
+      themeButton.setAttribute('aria-label', `Cambiar a tema ${nextThemeName}`);
+      themeButton.title = `Cambiar a tema ${nextThemeName}`;
     });
 
     document.getElementById('btn-audiobook')?.addEventListener('click', () => {
@@ -973,6 +1070,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     });
     document.getElementById('audiobook-generate')?.addEventListener('click', createAudiobook);
     document.getElementById('audiobook-save')?.addEventListener('click', saveAudiobook);
+    if (!libro?.contenido_url) {
+      document.getElementById('reader-prev')?.addEventListener('click', () => {
+        const currentIndex = paginas.findIndex((page) => (page.titulo || `pagina-${page.numero}`) === String(currentPage));
+        if (currentIndex > 0) goToPage(paginas[currentIndex - 1].titulo || `pagina-${paginas[currentIndex - 1].numero}`);
+      });
+      document.getElementById('reader-next')?.addEventListener('click', () => {
+        const currentIndex = paginas.findIndex((page) => (page.titulo || `pagina-${page.numero}`) === String(currentPage));
+        if (currentIndex < 0) return;
+        if (currentIndex >= paginas.length - 1) {
+          window.location.href = `/libro/${slug}`;
+          return;
+        }
+        const nextPage = paginas[currentIndex + 1];
+        goToPage(nextPage.titulo || `pagina-${nextPage.numero}`);
+      });
+    }
 
     // Leer página desde URL
     const params = new URLSearchParams(window.location.search);
@@ -999,7 +1112,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     // Calcular índice de página para la barra de progreso
     const pageIndex = Array.from(document.querySelectorAll('.page-section')).findIndex(el => el.dataset.page === String(pageId));
     const fill = document.getElementById('progress-fill');
-    if (fill && pageIndex >= 0) fill.style.width = `${((pageIndex + 1) / paginas.length) * 100}%`;
+    if (pageIndex >= 0) {
+      const progress = (pageIndex + 1) / paginas.length;
+      if (fill) fill.style.width = `${progress * 100}%`;
+      const pageCount = document.getElementById('reader-page-count');
+      if (pageCount) pageCount.textContent = `${pageIndex + 1} / ${paginas.length}`;
+      const progressBar = document.querySelector('.reader-progress .progress-bar');
+      progressBar?.setAttribute('aria-valuenow', String(Math.round(progress * 100)));
+      updateTextReaderNavigation(pageIndex);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1024,18 +1145,27 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     --reader-card: #ffffff;
     --reader-border: #e2d8cc;
     --reader-font-size: 17px;
+    --reader-page-bg: linear-gradient(145deg, #d3f6ef 0%, #b6e9df 100%);
+    --reader-page-text: #355064;
+    --reader-page-muted: #667f8d;
   }
   [data-reader-theme="sepia"] {
     --reader-bg: #f3e8d0;
     --reader-text: #3d2b1f;
     --reader-card: #fdf3e3;
     --reader-border: #d4b896;
+    --reader-page-bg: linear-gradient(145deg, #f7ead1 0%, #ead3ad 100%);
+    --reader-page-text: #513a29;
+    --reader-page-muted: #725b45;
   }
   [data-reader-theme="dark"] {
     --reader-bg: #1a1a2e;
     --reader-text: #e0d6cc;
     --reader-card: #16213e;
     --reader-border: #2a3a5c;
+    --reader-page-bg: linear-gradient(145deg, #202c45 0%, #172238 100%);
+    --reader-page-text: #e5edf7;
+    --reader-page-muted: #c0ccdc;
   }
 
   body { background: var(--reader-bg); color: var(--reader-text); transition: background 0.3s, color 0.3s; }
@@ -1133,6 +1263,388 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     font-size: 0.9rem;
     color: var(--reader-text);
     font-weight: 600;
+  }
+
+  body {
+    --reader-bg: #eef8f6;
+    --reader-text: #334e5d;
+    --reader-card: #fff;
+    --reader-border: #d9eae7;
+    --reader-page-bg: linear-gradient(145deg, #d3f6ef 0%, #b6e9df 100%);
+    --reader-page-text: #355064;
+    --reader-page-muted: #667f8d;
+    background: var(--reader-bg);
+    color: var(--reader-text);
+    font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  }
+
+  html {
+    background: var(--reader-bg);
+  }
+
+  body[data-reader-theme="sepia"] {
+    --reader-bg: #f3e8d0;
+    --reader-text: #3d2b1f;
+    --reader-card: #fdf3e3;
+    --reader-border: #d4b896;
+    --reader-page-bg: linear-gradient(145deg, #f7ead1 0%, #ead3ad 100%);
+    --reader-page-text: #513a29;
+    --reader-page-muted: #725b45;
+  }
+
+  body[data-reader-theme="dark"] {
+    --reader-bg: #1a1a2e;
+    --reader-text: #e0d6cc;
+    --reader-card: #16213e;
+    --reader-border: #2a3a5c;
+    --reader-page-bg: linear-gradient(145deg, #202c45 0%, #172238 100%);
+    --reader-page-text: #e5edf7;
+    --reader-page-muted: #c0ccdc;
+  }
+
+  #reader-container {
+    min-height: 100vh;
+    padding: 1rem 1.5rem 3rem;
+  }
+
+  #reader-container .reader-bar {
+    position: static;
+    max-width: 704px;
+    margin: 0 auto;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #reader-container .reader-bar-inner {
+    height: 36px;
+    padding: 0;
+    gap: 0.65rem;
+  }
+
+  #reader-container .reader-back {
+    gap: 0.3rem;
+    color: #71889a;
+    font-size: 0.72rem;
+  }
+
+  #reader-container .reader-back:hover {
+    color: #159d91;
+  }
+
+  #reader-container .reader-book-info {
+    display: none;
+  }
+
+  #reader-container .reader-bar-actions {
+    gap: 0.3rem;
+  }
+
+  #reader-container .reader-btn {
+    min-width: 32px;
+    min-height: 30px;
+    justify-content: center;
+    padding: 0.25rem 0.45rem;
+    border-color: #d9eae7;
+    border-radius: 8px;
+    color: #668092;
+    background: rgba(255, 255, 255, 0.68);
+    font-size: 0.72rem;
+  }
+
+  #reader-container .reader-btn:hover {
+    border-color: #a8dcd3;
+    color: #087d72;
+    background: #fff;
+  }
+
+  #reader-container .reader-btn[hidden] {
+    display: none;
+  }
+
+  #reader-container .reader-progress {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.8rem;
+    width: min(100%, 704px);
+    margin: 0.55rem auto 1.3rem;
+    color: #71889a;
+    font-size: 0.64rem;
+  }
+
+  #reader-container .reader-progress-title {
+    max-width: 9rem;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #reader-container .progress-bar {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #d8ebe7;
+  }
+
+  #reader-container .progress-fill {
+    border-radius: inherit;
+    background: linear-gradient(90deg, #35b7a0, #f2ce59);
+  }
+
+  #reader-container .reader-page-count {
+    color: #159d91;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  #reader-container .audiobook-panel {
+    width: min(100%, 704px);
+    margin: 0 auto 1rem;
+    border-color: #d9eae7;
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(48, 98, 99, 0.06);
+  }
+
+  #reader-container .reader-main {
+    display: block;
+    width: min(100%, 704px);
+    max-width: 704px;
+    min-height: 0;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  #reader-container .reader-toc {
+    display: none;
+  }
+
+  #reader-container .reader-content {
+    min-height: 0;
+  }
+
+  #reader-container .page-section.active {
+    position: relative;
+    min-height: min(536px, 70vh);
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem clamp(1.25rem, 6vw, 3.5rem);
+    overflow: hidden;
+    border: 1px solid var(--reader-border);
+    border-radius: 24px;
+    background: var(--reader-page-bg);
+    box-shadow: 0 20px 44px rgba(49, 109, 105, 0.1);
+    text-align: center;
+  }
+
+  #reader-container .page-header {
+    width: 100%;
+    padding: 0;
+    border: 0;
+  }
+
+  #reader-container .page-label {
+    margin: 0 0 1rem;
+    color: var(--reader-page-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+
+  #reader-container .page-titulo {
+    color: var(--reader-page-text);
+    font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+    font-size: clamp(1.7rem, 5vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.045em;
+  }
+
+  #reader-container .page-body {
+    width: 100%;
+    align-items: center;
+    gap: 1rem;
+    line-height: 1.7;
+  }
+
+  #reader-container .page-parrafo {
+    max-width: 35rem;
+    color: var(--reader-page-muted);
+    font-size: var(--reader-font-size);
+  }
+
+  #reader-container .parrafo-titulo {
+    color: var(--reader-page-text);
+    font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  #reader-container .page-quote {
+    max-width: 35rem;
+    border-color: #39b5a2;
+    color: #526e7e;
+    text-align: left;
+  }
+
+  #reader-container .page-footer,
+  #reader-container .pdf-footer {
+    display: none;
+  }
+
+  #reader-container .pdf-reader-shell {
+    min-height: min(536px, 70vh);
+    align-items: stretch;
+    justify-content: center;
+    padding: 1.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 24px;
+    background: linear-gradient(145deg, #d3f6ef 0%, #b6e9df 100%);
+    box-shadow: 0 20px 44px rgba(49, 109, 105, 0.1);
+  }
+
+  #reader-container .pdf-canvas-wrap {
+    min-height: 0;
+    padding: 0;
+    overflow: auto;
+    align-items: center;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #reader-container .pdf-canvas {
+    width: auto;
+    max-height: calc(70vh - 3rem);
+    border-radius: 4px;
+    box-shadow: 0 8px 22px rgba(39, 85, 85, 0.13);
+  }
+
+  #reader-container .reader-page-nav {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 1fr) 1fr;
+    align-items: center;
+    gap: 1rem;
+    width: min(100%, 704px);
+    margin: 1.1rem auto 0;
+  }
+
+  #reader-container .reader-page-nav p {
+    margin: 0;
+    color: #7d94a2;
+    font-size: 0.64rem;
+    text-align: center;
+  }
+
+  #reader-container .reader-page-nav-btn {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    justify-self: start;
+    gap: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #d5e8e5;
+    border-radius: 10px;
+    color: #78909e;
+    background: rgba(255, 255, 255, 0.56);
+    font: inherit;
+    font-size: 0.72rem;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  }
+
+  #reader-container .reader-page-nav-btn span {
+    font-size: 1.05rem;
+    line-height: 0.8;
+  }
+
+  #reader-container .reader-page-nav-btn:hover:not(:disabled) {
+    border-color: #88d3c8;
+    color: #087d72;
+    background: #fff;
+  }
+
+  #reader-container .reader-page-nav-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.52;
+  }
+
+  #reader-container .reader-page-nav-next {
+    justify-self: end;
+    border-color: #a9ded5;
+    color: #108f84;
+    background: #fff;
+  }
+
+  #reader-container .reader-page-nav-next:hover:not(:disabled) {
+    border-color: #74cbbd;
+    background: #f7fffd;
+  }
+
+  @media (max-width: 600px) {
+    #reader-container {
+      padding: 0.75rem 1rem 2rem;
+    }
+
+    #reader-container .reader-progress {
+      gap: 0.55rem;
+      margin: 0.45rem auto 1rem;
+    }
+
+    #reader-container .reader-progress-title {
+      max-width: 5.5rem;
+    }
+
+    #reader-container .reader-bar-actions {
+      gap: 0.2rem;
+    }
+
+    #reader-container .reader-btn {
+      min-width: 30px;
+      padding: 0.2rem 0.35rem;
+    }
+
+    #reader-container .page-section.active {
+      min-height: min(536px, 68vh);
+      padding: 1.5rem 1.1rem;
+      gap: 1.2rem;
+      border-radius: 20px;
+    }
+
+    #reader-container .pdf-reader-shell {
+      min-height: min(536px, 68vh);
+      padding: 0.75rem;
+      border-radius: 20px;
+    }
+
+    #reader-container .pdf-canvas-wrap {
+      justify-content: flex-start;
+    }
+
+    #reader-container .pdf-canvas {
+      max-width: none;
+      max-height: calc(68vh - 1.5rem);
+    }
+
+    #reader-container .reader-page-nav {
+      grid-template-columns: auto 1fr auto;
+      gap: 0.4rem;
+    }
+
+    #reader-container .reader-page-nav p {
+      font-size: 0.58rem;
+    }
+
+    #reader-container .reader-page-nav-btn {
+      min-height: 40px;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.66rem;
+    }
   }
 
   .doc-preview-unavailable {

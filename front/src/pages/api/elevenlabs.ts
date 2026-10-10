@@ -8,10 +8,10 @@ const API_URL = (
 ).replace(/\/+$/, '');
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v2/voices';
 
-async function authorizeUser(request: Request): Promise<Response | null> {
+async function authorizeAdmin(request: Request): Promise<Response | null> {
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) {
-    return Response.json({ error: 'Inicia sesión para crear un audiolibro.' }, { status: 401 });
+    return Response.json({ error: 'Inicia sesión como administrador para crear un audiolibro.' }, { status: 401 });
   }
 
   if (!API_URL) {
@@ -32,6 +32,10 @@ async function authorizeUser(request: Request): Promise<Response | null> {
       console.error(`No se pudo validar la sesión de audiolibros (status ${response.status}).`);
       return Response.json({ error: 'No se pudo validar tu sesión. Intenta de nuevo.' }, { status: 502 });
     }
+    const profile = await response.json();
+    if (profile?.tipo !== 'admin') {
+      return Response.json({ error: 'Solo los administradores pueden crear audiolibros.' }, { status: 403 });
+    }
     return null;
   } catch (error) {
     console.error('No se pudo conectar con el servicio de autenticación:', error);
@@ -45,7 +49,7 @@ function getApiKey(): string | null {
 }
 
 export async function GET({ request }: { request: Request }) {
-  const authError = await authorizeUser(request);
+  const authError = await authorizeAdmin(request);
   if (authError) return authError;
 
   const apiKey = getApiKey();
@@ -106,7 +110,7 @@ export async function GET({ request }: { request: Request }) {
 }
 
 export async function POST({ request }: { request: Request }) {
-  const authError = await authorizeUser(request);
+  const authError = await authorizeAdmin(request);
   if (authError) return authError;
 
   const apiKey = getApiKey();

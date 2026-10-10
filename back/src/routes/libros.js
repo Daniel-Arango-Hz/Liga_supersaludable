@@ -169,7 +169,7 @@ router.get('/:slug/audiolibro', async (req, res) => {
     .send(audioBuffer);
 });
 
-router.post('/:slug/audiolibro/upload-url', requireAuth, async (req, res) => {
+router.post('/:slug/audiolibro/upload-url', requireAuth, requireAdmin, async (req, res) => {
   const { data: libro, error } = await supabase
     .from('libros')
     .select('id, audiolibro')
@@ -197,7 +197,7 @@ router.post('/:slug/audiolibro/upload-url', requireAuth, async (req, res) => {
   });
 });
 
-router.post('/:slug/audiolibro', requireAuth, async (req, res) => {
+router.post('/:slug/audiolibro', requireAuth, requireAdmin, async (req, res) => {
   const { ruta } = req.body ?? {};
   const [libroId, filename, ...extraSegments] = typeof ruta === 'string' ? ruta.split('/') : [];
   if (
@@ -355,35 +355,43 @@ router.get('/:slug/paginas', async (req, res) => {
 });
 
 // ─── POST /libros/:slug/descargar ─────────────────────────────────────────────
-router.post('/:slug/descargar', optionalAuth, async (req, res) => {
-  const { data: libro } = await supabase
+router.post('/:slug/descargar', requireAuth, async (req, res) => {
+  const { data: libro, error: libroError } = await supabase
     .from('libros')
     .select('id, titulo, contenido_url')
     .eq('slug', req.params.slug)
     .single();
 
-  if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
+  if (libroError || !libro) return res.status(404).json({ error: 'Libro no encontrado' });
 
-  // Registrar descarga
-  await supabaseAdmin.from('descargas').insert({
-    libro_id: libro.id,
-    usuario_id: req.user?.id ?? null,
-  });
-
-  // Incrementar contador
-  await supabaseAdmin.rpc('incrementar_descargas', { libro_id_param: libro.id });
+  const { data: descargaRegistrada, error: descargaError } = await supabaseAdmin.rpc(
+    'registrar_descarga',
+    {
+      libro_id_param: libro.id,
+      usuario_id_param: req.user.id,
+    }
+  );
+  if (descargaError) {
+    console.error('No se pudo registrar la descarga del libro:', descargaError);
+    return res.status(500).json({ error: 'No se pudo registrar la descarga.' });
+  }
 
   // Obtener datos actualizados
-  const { data: libroActualizado } = await supabase
+  const { data: libroActualizado, error: contadorError } = await supabaseAdmin
     .from('libros')
     .select('descargas_total')
     .eq('id', libro.id)
     .single();
+  if (contadorError) {
+    console.error('No se pudo consultar el contador de descargas:', contadorError);
+    return res.status(500).json({ error: 'No se pudo consultar el contador de descargas.' });
+  }
 
-  res.json({ 
-    mensaje: 'Descarga registrada',
-    descargas_total: libroActualizado?.descargas_total || 0,
-    pdfUrl: libro.contenido_url || `/api/libros/${req.params.slug}/pdf`
+  res.json({
+    mensaje: descargaRegistrada ? 'Descarga registrada' : 'El usuario ya había descargado este libro',
+    nueva_descarga: descargaRegistrada === true,
+    descargas_total: libroActualizado.descargas_total,
+    pdfUrl: libro.contenido_url || `/api/libros/${req.params.slug}/pdf`,
   });
 });
 
