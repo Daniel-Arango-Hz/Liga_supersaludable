@@ -17,6 +17,17 @@ function normalizeCoverIcon(icon) {
   return icon;
 }
 
+router.get('/categorias', async (_req, res) => {
+  const { data, error } = await supabase
+    .from('categorias')
+    .select('id, nombre')
+    .order('nombre', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ data: data || [] });
+});
+
 // ─── GET /libros ──────────────────────────────────────────────────────────────
 // Parámetros: ?orden=destacado|nuevo|descargas|rating&categoria=&edad=&q=&page=1&limit=12
 router.get('/', optionalAuth, async (req, res) => {
@@ -80,7 +91,6 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // ─── GET /libros/:slug/pdf (endpoint para descargar PDF) ─────────────────────────────────────────────
-// DEBE ESTAR ANTES que GET /:slug para que Express lo evalúe primero
 router.get('/:slug/pdf', async (req, res) => {
   const { data: libro } = await supabase
     .from('libros')

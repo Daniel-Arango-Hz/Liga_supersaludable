@@ -2,138 +2,116 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Registrarse – liga-supersaludable" description="Crea tu cuenta en liga-supersaludable gratuitamente." minimal>
-  <main class="auth-main">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <a href="/" class="auth-logo" aria-label="Ir al inicio">
-          <span class="auth-logo-emoji">📚</span>
-          <span>liga-supersaludable</span>
+<Layout title="Registrarse – Liga Supersaludables" description="Crea tu cuenta en Liga Supersaludables." minimal>
+  <main class="auth-layout">
+    <aside class="promo-panel">
+      <a href="/" class="brand" aria-label="Liga Supersaludables, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><path d="M25.5 5.5c-9.2.5-16.6 4.2-17.8 11.3-.7 4.2 2.3 7.1 6.1 6.6 7.5-1 10.8-8.8 11.7-17.9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 27c3.4-7.5 8.1-11.2 14.5-14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        <span class="brand-copy"><strong>Liga</strong><span>SUPER SALUDABLES</span></span>
+      </a>
+
+      <div class="promo-copy">
+        <p class="eyebrow">TU AVENTURA SALUDABLE</p>
+        <h2>Pequeños pasos,<br />grandes<br /><span>superpoderes.</span></h2>
+        <p class="promo-description">Aprende, juega y crece acompañado por tu liga de héroes saludables.</p>
+        <ul class="benefits">
+          <li><span aria-hidden="true">✓</span> Actividades divertidas</li>
+          <li><span aria-hidden="true">✓</span> Hábitos para crecer</li>
+        </ul>
+      </div>
+
+      <svg class="promo-decoration" viewBox="0 0 440 440" fill="none" aria-hidden="true">
+        <circle cx="250" cy="250" r="220" /><circle cx="250" cy="250" r="165" />
+        <path d="M205 346c-19-39-1-74 31-94 36-22 43-53 25-88 46 23 66 62 54 101-13 44-59 69-95 49-24-13-32-34-26-56 5-19 20-32 38-40" />
+      </svg>
+    </aside>
+
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-content">
+        <a class="back-link" href="/" aria-label="Volver al inicio">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6-6 6 6 6M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Volver al inicio
         </a>
-        <h1 class="auth-title">✨ ¡Bienvenido! ✨</h1>
-        <p class="auth-subtitle">Únete a miles de familias que ya son parte de liga-supersaludable y descubre historias increíbles.</p>
-      </div>
 
-      <!-- Tipos de cuenta -->
-      <div class="account-type" role="group" aria-labelledby="tipo-label">
-        <p id="tipo-label" class="form-label">¿Cómo quieres participar?</p>
-        <div class="type-options">
-          <label class="type-option">
-            <input type="radio" name="tipo" value="familia" class="type-radio" checked />
-            <div class="type-box">
-              <span class="type-emoji">👨‍👩‍👧‍👦</span>
-              <span>Familia</span>
+        <header class="auth-brand">
+          <span class="lock-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor"/></svg>
+          </span>
+          <p class="auth-eyebrow">LIGA SUPER SALUDABLE</p>
+          <h1 id="auth-title" class="auth-title">Crea tu cuenta</h1>
+          <p class="auth-subtitle">Únete a la aventura y empieza a cuidar de ti.</p>
+        </header>
+
+        <div id="error-message" class="message error-message" style="display: none;" role="alert"></div>
+        <div id="success-message" class="message success-message" style="display: none;" role="status"></div>
+
+        <form class="auth-form" id="registro-form" novalidate>
+          
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre" class="form-label">Nombre</label>
+              <div class="input-wrapper">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                <input id="nombre" type="text" name="nombre" class="form-input" placeholder="Tu nombre" autocomplete="given-name" required />
+              </div>
             </div>
-          </label>
-          <label class="type-option">
-            <input type="radio" name="tipo" value="autor" class="type-radio" />
-            <div class="type-box">
-              <span class="type-emoji">✍️</span>
-              <span>Autor</span>
+            <div class="form-group">
+              <label for="apellido" class="form-label">Apellido</label>
+              <div class="input-wrapper">
+                <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                <input id="apellido" type="text" name="apellido" class="form-input" placeholder="Tu apellido" autocomplete="family-name" required />
+              </div>
             </div>
-          </label>
-        </div>
-      </div>
+          </div>
 
-      <div id="error-message" class="error-message" style="display: none;"></div>
-      <div id="success-message" class="success-message" style="display: none;"></div>
-
-      <form class="auth-form" id="registro-form" novalidate>
-        <div class="form-row">
           <div class="form-group">
-            <label for="nombre" class="form-label">Nombre</label>
-            <input
-              id="nombre"
-              type="text"
-              name="nombre"
-              class="form-input"
-              placeholder="Tu nombre"
-              autocomplete="given-name"
-              required
-            />
+            <label for="email" class="form-label">Correo electrónico</label>
+            <div class="input-wrapper">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <input id="email" type="email" name="email" class="form-input" placeholder="tu@email.com" autocomplete="email" required />
+            </div>
           </div>
+
           <div class="form-group">
-            <label for="apellido" class="form-label">Apellido</label>
-            <input
-              id="apellido"
-              type="text"
-              name="apellido"
-              class="form-input"
-              placeholder="Tu apellido"
-              autocomplete="family-name"
-              required
-            />
+            <label for="password" class="form-label">Contraseña</label>
+            <div class="input-wrapper">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1" fill="currentColor"/></svg>
+              <input id="password" type="password" name="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="new-password" required minlength="8" />
+              <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <p class="form-hint">Usa al menos 8 caracteres con letras y números.</p>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="email" class="form-label">Correo electrónico</label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            class="form-input"
-            placeholder="tucorreo@ejemplo.com"
-            autocomplete="email"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="password" class="form-label">Contraseña</label>
-          <div class="input-wrapper">
-            <input
-              id="password"
-              type="password"
-              name="password"
-              class="form-input"
-              placeholder="Mínimo 8 caracteres"
-              autocomplete="new-password"
-              required
-              minlength="8"
-            />
-            <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
-          <p class="form-hint">Usa al menos 8 caracteres con letras y números.</p>
-        </div>
-
-        <div class="form-check">
           <label class="check-label">
             <input type="checkbox" name="terminos" class="check-input" required />
-            Acepto los
-            <a href="/terminos" class="form-link">Términos de uso</a>
-            y la
-            <a href="/privacidad" class="form-link">Política de privacidad</a>
+            <span>Acepto los <a href="/terminos" class="form-link">términos de uso</a> y la <a href="/privacidad" class="form-link">política de privacidad</a>.</span>
           </label>
+
+          <button type="submit" class="btn-submit" id="submit-btn">Crear mi cuenta</button>
+        </form>
+
+        <div class="divider"><span>o regístrate con</span></div>
+        <div class="social-auth">
+          <button class="btn-social" id="google-auth-btn" type="button" aria-label="Registrarse con Google">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Registrarse con Google
+          </button>
         </div>
 
-        <button type="submit" class="btn-submit" id="submit-btn">🌟 ¡Crear mi cuenta! 🌟</button>
-      </form>
-
-      <p class="auth-footer-text">
-        ¿Ya tienes cuenta?
-        <a href="/auth/login" class="form-link">Ingresar</a>
-      </p>
-
-      <div class="divider"><span>o</span></div>
-
-      <div class="social-auth">
-        <button class="btn-social" id="google-auth-btn" type="button" aria-label="Registrarse con Google">
-          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-          </svg>
-          Registrarse con Google
-        </button>
+        <p class="auth-footer-text">¿Ya tienes una cuenta? <a href="/auth/login" class="form-link">Inicia sesión</a></p>
+        <p class="legal-note">Al continuar aceptas nuestros <a href="/terminos">términos de uso</a> y <a href="/privacidad">política de privacidad</a>.</p>
       </div>
-    </div>
+    </section>
   </main>
 </Layout>
 
@@ -636,6 +614,186 @@ import Layout from '../../layouts/Layout.astro';
   @media (max-width: 480px) {
     .auth-main { padding: 1.5rem 1rem; }
     .auth-card { padding: 1.75rem 1.25rem; }
+  }
+
+  .auth-layout {
+    min-height: 100vh;
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: minmax(420px, 45%) minmax(0, 1fr);
+    background: #fff;
+  }
+
+  .promo-panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 2.4rem clamp(2.5rem, 6vw, 5rem);
+    color: #fff;
+    background: linear-gradient(145deg, #159c97 0%, #22ada0 48%, #75d3ae 100%);
+  }
+
+  .brand {
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: fit-content;
+    color: #fff;
+  }
+
+  .brand-mark {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 14px 14px 14px 5px;
+    color: #fff;
+    background: #ffc957;
+    transform: rotate(-4deg);
+  }
+
+  .brand-mark svg { width: 27px; height: 27px; }
+  .brand-copy { display: grid; gap: 0.15rem; }
+  .brand-copy strong { font-size: 1rem; font-weight: 700; }
+  .brand-copy span { font-size: 0.7rem; letter-spacing: 0.13em; }
+
+  .promo-copy { z-index: 1; width: min(100%, 510px); margin: 3rem 0 4rem; }
+  .eyebrow,
+  .auth-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; }
+  .eyebrow { margin-bottom: 1.45rem; color: rgba(255, 255, 255, 0.88); }
+
+  .promo-copy h2 {
+    margin: 0;
+    font-size: clamp(3.2rem, 5.2vw, 4.45rem);
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: -0.065em;
+  }
+
+  .promo-copy h2 span { color: #ffdc70; }
+  .promo-description { max-width: 445px; margin-top: 1.4rem; color: rgba(255, 255, 255, 0.88); font-size: 1.06rem; line-height: 1.7; }
+  .benefits { display: grid; gap: 0.8rem; margin: 2rem 0 0; padding: 0; list-style: none; font-size: 0.87rem; font-weight: 500; }
+  .benefits li { display: flex; align-items: center; gap: 0.7rem; }
+  .benefits li span { color: #ffe06c; font-weight: 700; }
+  .promo-decoration { position: absolute; z-index: -1; right: -120px; bottom: -90px; width: min(75%, 520px); color: rgba(255, 255, 255, 0.17); }
+  .promo-decoration circle,
+  .promo-decoration path { stroke: currentColor; stroke-width: 1; }
+  .promo-decoration path { stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+
+  .auth-panel { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 1.5rem clamp(2rem, 5vw, 5rem); background: #fff; }
+  .auth-content { display: flex; flex-direction: column; width: min(100%, 456px); gap: 0.85rem; }
+  .back-link { display: inline-flex; align-items: center; align-self: flex-end; gap: 0.6rem; color: #7d8da3; font-size: 0.82rem; font-weight: 600; transition: color 0.2s ease; }
+  .back-link:hover { color: #139d91; }
+  .back-link svg { width: 17px; height: 17px; }
+
+  .auth-brand { display: flex; flex-direction: column; align-items: center; margin: 1rem 0 0.2rem; text-align: center; }
+  .lock-badge { display: grid; width: 50px; height: 50px; margin-bottom: 1rem; place-items: center; border-radius: 16px; color: #12a293; background: #e6f8f4; }
+  .lock-badge svg { width: 25px; height: 25px; }
+  .auth-eyebrow { margin-bottom: 0.75rem; color: #119d91; }
+  .auth-title { margin: 0; color: #26334c; font-size: clamp(1.8rem, 2.5vw, 2.15rem); font-weight: 500; letter-spacing: -0.055em; line-height: 1.2; }
+  .auth-subtitle { margin-top: 0.65rem; color: #8291a7; font-size: 0.91rem; line-height: 1.5; }
+
+  .auth-form { display: flex; flex-direction: column; gap: 0.85rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.45rem; }
+  .form-label { color: #40546d; font-size: 0.79rem; font-weight: 600; }
+  .input-wrapper { position: relative; display: flex; align-items: center; }
+
+  .field-icon { position: absolute; left: 0.85rem; width: 18px; height: 18px; color: #94a9bd; pointer-events: none; }
+
+  .auth-content .form-input {
+    width: 100%;
+    min-height: 47px;
+    padding: 0.75rem 2.7rem;
+    border: 1px solid #d9e5ef;
+    border-radius: 11px;
+    outline: none;
+    color: #304157;
+    background: #fbfcfd;
+    font: inherit;
+    font-size: 0.84rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .auth-content .form-input::placeholder { color: #8d99aa; opacity: 1; }
+  .auth-content .form-input:focus { border-color: #40b7aa; outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(64, 183, 170, 0.14); }
+  .toggle-pw { position: absolute; right: 0.8rem; display: flex; align-items: center; padding: 0.25rem; color: #94a9bd; }
+  .toggle-pw:hover { color: #139d91; }
+  .form-hint { color: #8797a8; font-size: 0.7rem; line-height: 1.4; }
+
+  .account-type { display: grid; gap: 0.45rem; }
+  .account-type > .form-label { margin: 0; }
+  .type-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .type-option { position: relative; cursor: pointer; }
+  .type-radio { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .type-box { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.5rem; min-height: 38px; padding: 0.4rem; border: 1px solid #d9e5ef; border-radius: 10px; color: #60748a; background: #fbfcfd; font-size: 0.78rem; font-weight: 600; transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease; }
+  .type-box > span { font-size: 1rem; }
+  .type-radio:checked + .type-box { border-color: #40b7aa; color: #087d72; background: #effaf7; box-shadow: inset 0 0 0 1px rgba(70, 185, 174, 0.14); }
+  .type-option:hover .type-box { border-color: #46b9ae; }
+  .type-radio:focus-visible + .type-box { outline: 3px solid rgba(70, 185, 174, 0.45); outline-offset: 2px; }
+
+  .check-label { display: flex; align-items: flex-start; gap: 0.55rem; color: #8190a5; cursor: pointer; font-size: 0.72rem; line-height: 1.5; }
+  .check-input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: #159f93; }
+  .form-link { color: #119d91; font-size: inherit; font-weight: 600; transition: color 0.2s ease; }
+  .form-link:hover,
+  .legal-note a:hover { color: #08796f; }
+
+  .btn-submit { width: 100%; min-height: 50px; margin-top: 0.1rem; border-radius: 12px; color: #fff; background: linear-gradient(110deg, #20b39f, #109b98); box-shadow: 0 9px 20px rgba(24, 155, 145, 0.17); font: inherit; font-size: 0.88rem; font-weight: 700; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 22px rgba(24, 155, 145, 0.23); }
+  .btn-submit:disabled { cursor: not-allowed; opacity: 0.65; }
+  .divider { display: flex; align-items: center; gap: 0.85rem; color: #9aa7b6; font-size: 0.7rem; }
+  .divider::before,
+  .divider::after { height: 1px; flex: 1; background: #e5ebef; content: ''; }
+  .social-auth { display: flex; flex-direction: column; gap: 0.75rem; }
+  .btn-social { display: flex; align-items: center; justify-content: center; gap: 0.7rem; width: 100%; min-height: 42px; padding: 0.5rem; border: 1px solid #dce6ed; border-radius: 11px; color: #40546d; background: #fff; font: inherit; font-size: 0.8rem; font-weight: 600; transition: border-color 0.2s ease, background 0.2s ease; }
+  .btn-social:hover { border-color: #48b9ad; background: #f7fcfb; }
+  .auth-footer-text { color: #8291a7; font-size: 0.78rem; text-align: center; }
+  .legal-note { margin-top: 0.15rem; color: #9aa6b5; font-size: 0.65rem; line-height: 1.5; text-align: center; }
+  .legal-note a { color: #159b90; font-weight: 600; }
+  .message { padding: 0.7rem; border: 1px solid; border-radius: 10px; font-size: 0.82rem; text-align: center; }
+  .error-message { border-color: #f3c4c4; color: #a83232; background: #fff5f5; }
+  .success-message { border-color: #bcecdf; color: #087d72; background: #effaf6; }
+  .btn-submit:focus-visible,
+  .btn-social:focus-visible,
+  .form-link:focus-visible,
+  .back-link:focus-visible,
+  .toggle-pw:focus-visible { outline: 3px solid rgba(70, 185, 174, 0.45); outline-offset: 3px; }
+
+  @media (max-width: 1000px) {
+    .auth-layout { grid-template-columns: minmax(350px, 42%) minmax(0, 1fr); }
+    .promo-panel { padding-inline: 2.5rem; }
+    .promo-copy h2 { font-size: clamp(2.85rem, 5vw, 3.7rem); }
+    .auth-panel { padding-inline: 2rem; }
+    .auth-content { gap: 0.65rem; }
+    .auth-form { gap: 0.65rem; }
+  }
+
+  @media (max-width: 760px) {
+    .auth-layout { display: flex; flex-direction: column; }
+    .promo-panel { min-height: auto; padding: 1.1rem 1.4rem; }
+    .brand-mark { width: 40px; height: 40px; }
+    .promo-copy { display: none; }
+    .promo-decoration { right: -70px; bottom: -210px; width: 280px; }
+    .auth-panel { flex: 1; align-items: flex-start; padding: 1.2rem 1.35rem 2rem; }
+    .auth-content { width: min(100%, 456px); margin: 0 auto; gap: 0.85rem; }
+    .back-link { align-self: flex-start; }
+    .auth-brand { margin: 0.5rem 0 0.1rem; }
+    .lock-badge { width: 44px; height: 44px; margin-bottom: 0.8rem; }
+    .form-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .auth-panel { padding-inline: 1.1rem; }
+    .auth-title { font-size: 1.75rem; }
+    .form-row { grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+    .auth-content .form-input { padding-inline: 2.35rem 2rem; font-size: 0.8rem; }
+    .field-icon { left: 0.7rem; }
   }
 </style>
 

@@ -70,17 +70,10 @@ import Layout from '../layouts/Layout.astro';
 
             <div class="form-group">
               <label for="categoria">Categoría *</label>
-              <select id="categoria" required>
-                <option value="">Selecciona una categoría</option>
-                <option value="Biblia">Biblia</option>
-                <option value="Ficción">Ficción</option>
-                <option value="Educativo">Educativo</option>
-                <option value="Aventura">Aventura</option>
-                <option value="Drama">Drama</option>
-                <option value="Poesía">Poesía</option>
-                <option value="Historia">Historia</option>
-                <option value="Otro">Otro</option>
+              <select id="categoria" required disabled>
+                <option value="">Cargando categorías...</option>
               </select>
+              <small id="categoryStatus" class="input-help" aria-live="polite"></small>
             </div>
 
             <div class="form-group">
@@ -138,6 +131,8 @@ import Layout from '../layouts/Layout.astro';
     const coverInput = document.getElementById('coverInput');
     const coverPreview = document.getElementById('coverPreview');
     const coverPreviewImage = document.getElementById('coverPreviewImage');
+    const categorySelect = document.getElementById('categoria');
+    const categoryStatus = document.getElementById('categoryStatus');
 
     let selectedFile = null;
     let selectedCover = null;
@@ -157,6 +152,43 @@ import Layout from '../layouts/Layout.astro';
       if (msgEl) msgEl.textContent = 'Debes iniciar sesión para publicar contenido.';
       if (modal) modal.classList.add('active');
     }
+
+    async function loadCategories() {
+      categorySelect.disabled = true;
+      categoryStatus.textContent = '';
+
+      try {
+        const response = await fetch(`${API_URL}/libros/categorias`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'No fue posible cargar las categorías.');
+        }
+
+        if (!Array.isArray(result.data)) {
+          throw new Error('La respuesta de categorías no tiene un formato válido.');
+        }
+
+        categorySelect.replaceChildren(new Option('Selecciona una categoría', ''));
+        result.data.forEach((category) => {
+          if (category?.nombre) {
+            categorySelect.add(new Option(category.nombre, category.nombre));
+          }
+        });
+
+        if (categorySelect.options.length === 1) {
+          categoryStatus.textContent = 'No hay categorías disponibles.';
+          return;
+        }
+
+        categorySelect.disabled = false;
+      } catch (error) {
+        categorySelect.replaceChildren(new Option('No se pudieron cargar las categorías', ''));
+        categoryStatus.textContent = error.message || 'Error al cargar las categorías.';
+      }
+    }
+
+    loadCategories();
 
     // Click to upload
     dropZone.addEventListener('click', () => {

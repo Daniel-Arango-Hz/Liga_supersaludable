@@ -2,573 +2,473 @@
 import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Ingresar – FamiliaLee" description="Accede a tu cuenta en FamiliaLee." minimal>
-  <main class="auth-main">
-    <div class="auth-card">
-      <div class="auth-brand">
-        <a href="/" class="auth-logo" aria-label="Ir al inicio">
-          <span class="auth-logo-emoji">📚</span>
-          <span>FamiliaLee</span>
-        </a>
-        <h1 class="auth-title">🔑 ¡Bienvenido de vuelta! 🔑</h1>
-        <p class="auth-subtitle">Ingresa a tu cuenta para descubrir historias increíbles.</p>
+<Layout title="Ingresar – Liga Supersaludables" description="Accede a tu cuenta en Liga Supersaludables." minimal>
+  <main class="auth-layout">
+    <aside class="promo-panel">
+      <a href="/" class="brand" aria-label="Liga Supersaludables, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M25.5 5.5c-9.2.5-16.6 4.2-17.8 11.3-.7 4.2 2.3 7.1 6.1 6.6 7.5-1 10.8-8.8 11.7-17.9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M7 27c3.4-7.5 8.1-11.2 14.5-14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="brand-copy"><strong>Liga</strong><span>SUPER SALUDABLES</span></span>
+      </a>
+
+      <div class="promo-copy">
+        <p class="eyebrow">TU AVENTURA SALUDABLE</p>
+        <h2>Pequeños pasos,<br />grandes<br /><span>superpoderes.</span></h2>
+        <p class="promo-description">Aprende, juega y crece acompañado por tu liga de héroes saludables.</p>
+        <ul class="benefits">
+          <li><span aria-hidden="true">✓</span> Actividades divertidas</li>
+          <li><span aria-hidden="true">✓</span> Hábitos para crecer</li>
+        </ul>
       </div>
 
-      <div id="error-message" class="error-message" style="display: none;"></div>
-      <div id="success-message" class="success-message" style="display: none;"></div>
+      <svg class="promo-decoration" viewBox="0 0 440 440" fill="none" aria-hidden="true">
+        <circle cx="250" cy="250" r="220" />
+        <circle cx="250" cy="250" r="165" />
+        <path d="M205 346c-19-39-1-74 31-94 36-22 43-53 25-88 46 23 66 62 54 101-13 44-59 69-95 49-24-13-32-34-26-56 5-19 20-32 38-40" />
+      </svg>
+    </aside>
 
-      <form class="auth-form" id="login-form" novalidate>
-        <div class="form-group">
-          <label for="email" class="form-label">Correo electrónico</label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            class="form-input"
-            placeholder="tucorreo@ejemplo.com"
-            autocomplete="email"
-            required
-          />
-        </div>
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-content">
+        <a class="back-link" href="/" aria-label="Volver al inicio">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m10 6-6 6 6 6M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Volver al inicio
+        </a>
 
-        <div class="form-group">
-          <div class="form-label-row">
+        <header class="auth-brand">
+          <span class="lock-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor"/></svg>
+          </span>
+          <p class="auth-eyebrow">LIGA SUPER SALUDABLE</p>
+          <h1 id="auth-title" class="auth-title">¡Qué bueno verte!</h1>
+          <p class="auth-subtitle">Inicia sesión para continuar tu aventura.</p>
+        </header>
+
+        <div id="error-message" class="message error-message" style="display: none;" role="alert"></div>
+        <div id="success-message" class="message success-message" style="display: none;" role="status"></div>
+
+        <form class="auth-form" id="login-form" novalidate>
+          <div class="form-group">
+            <label for="email" class="form-label">Correo electrónico</label>
+            <div class="input-wrapper">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <input id="email" type="email" name="email" class="form-input" placeholder="tu@email.com" autocomplete="email" required />
+            </div>
+          </div>
+
+          <div class="form-group">
             <label for="password" class="form-label">Contraseña</label>
+            <div class="input-wrapper">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.5" r="1" fill="currentColor"/></svg>
+              <input id="password" type="password" name="password" class="form-input" placeholder="Mínimo 8 caracteres" autocomplete="current-password" required minlength="8" />
+              <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-options">
+            <label class="check-label"><input type="checkbox" name="remember" class="check-input" /> <span>Recordarme</span></label>
             <a href="/auth/recuperar" class="form-link">¿Olvidaste tu contraseña?</a>
           </div>
-          <div class="input-wrapper">
-            <input
-              id="password"
-              type="password"
-              name="password"
-              class="form-input"
-              placeholder="Tu contraseña"
-              autocomplete="current-password"
-              required
-              minlength="8"
-            />
-            <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-            </button>
-          </div>
+
+          <button type="submit" class="btn-submit" id="submit-btn">Iniciar sesión</button>
+        </form>
+
+        <div class="divider"><span>o continúa con</span></div>
+        <div class="social-auth">
+          <button class="btn-social" id="google-auth-btn" type="button" aria-label="Continuar con Google">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Continuar con Google
+          </button>
         </div>
 
-        <div class="form-check">
-          <label class="check-label">
-            <input type="checkbox" name="remember" class="check-input" />
-            Recordarme en este dispositivo
-          </label>
-        </div>
-
-        <button type="submit" class="btn-submit" id="submit-btn">✨ ¡Ingresar! ✨</button>
-      </form>
-
-      <p class="auth-footer-text">
-        ¿Aún no tienes cuenta?
-        <a href="/auth/registro" class="form-link">Registrarse gratis</a>
-      </p>
-
-      <div class="divider"><span>o</span></div>
-
-      <div class="social-auth">
-        <button class="btn-social" id="google-auth-btn" type="button" aria-label="Continuar con Google">
-          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-          </svg>
-          Continuar con Google
-        </button>
+        <p class="auth-footer-text">¿Aún no tienes una cuenta? <a href="/auth/registro" class="form-link">Regístrate gratis</a></p>
+        <p class="legal-note">Al continuar aceptas nuestros <a href="/terminos">términos de uso</a> y <a href="/privacidad">política de privacidad</a>.</p>
       </div>
-    </div>
+    </section>
   </main>
 </Layout>
 
 <style>
-  .auth-main {
-    min-height: calc(100vh - 64px);
-    background: var(--color-cream);
+  .auth-layout {
+    min-height: 100vh;
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: minmax(420px, 45%) minmax(0, 1fr);
+    background: #fff;
+  }
+
+  .promo-panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 2.4rem clamp(2.5rem, 6vw, 5rem);
+    color: #fff;
+    background: linear-gradient(145deg, #159c97 0%, #22ada0 48%, #75d3ae 100%);
+  }
+
+  .brand {
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: fit-content;
+    color: #fff;
+  }
+
+  .brand-mark {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 14px 14px 14px 5px;
+    color: #fff;
+    background: #ffc957;
+    transform: rotate(-4deg);
+  }
+
+  .brand-mark svg { width: 27px; height: 27px; }
+  .brand-copy { display: grid; gap: 0.15rem; }
+  .brand-copy strong { font-size: 1rem; font-weight: 700; }
+  .brand-copy span { font-size: 0.7rem; letter-spacing: 0.13em; }
+
+  .promo-copy {
+    z-index: 1;
+    width: min(100%, 510px);
+    margin: 3rem 0 4rem;
+  }
+
+  .eyebrow,
+  .auth-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+
+  .eyebrow { margin-bottom: 1.45rem; color: rgba(255, 255, 255, 0.88); }
+
+  .promo-copy h2 {
+    margin: 0;
+    font-size: clamp(3.2rem, 5.2vw, 4.45rem);
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: -0.065em;
+  }
+
+  .promo-copy h2 span { color: #ffdc70; }
+
+  .promo-description {
+    max-width: 445px;
+    margin-top: 1.4rem;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 1.06rem;
+    line-height: 1.7;
+  }
+
+  .benefits {
+    display: grid;
+    gap: 0.8rem;
+    margin-top: 2rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.87rem;
+    font-weight: 500;
+  }
+
+  .benefits li { display: flex; align-items: center; gap: 0.7rem; }
+  .benefits li span { color: #ffe06c; font-weight: 700; }
+
+  .promo-decoration {
+    position: absolute;
+    z-index: -1;
+    right: -120px;
+    bottom: -90px;
+    width: min(75%, 520px);
+    color: rgba(255, 255, 255, 0.17);
+  }
+
+  .promo-decoration circle,
+  .promo-decoration path {
+    stroke: currentColor;
+    stroke-width: 1;
+  }
+
+  .promo-decoration path { stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+
+  .auth-panel {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1.5rem;
+    min-width: 0;
+    padding: 2rem clamp(2rem, 5vw, 5rem);
+    background: #fff;
   }
 
-  .auth-card {
-    width: 100%;
-    max-width: 420px;
-    background: var(--color-white);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 2.5rem;
-    box-shadow: var(--shadow-md);
+  .auth-content {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    width: min(100%, 456px);
+    gap: 1.15rem;
   }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-end;
+    gap: 0.6rem;
+    color: #7d8da3;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+
+  .back-link:hover { color: #139d91; }
+  .back-link svg { width: 17px; height: 17px; }
 
   .auth-brand {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    margin: 1.8rem 0 1rem;
     text-align: center;
   }
 
-  .auth-logo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
+  .lock-badge {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 1.45rem;
+    place-items: center;
+    border-radius: 16px;
+    color: #12a293;
+    background: #e6f8f4;
   }
 
-  .auth-logo-emoji {
-    font-size: 2rem;
-  }
-
-  .auth-logo span {
-    font-family: var(--font-serif);
-    font-size: 1.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--color-navy-light), var(--color-primary-pink));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+  .lock-badge svg { width: 25px; height: 25px; }
+  .auth-eyebrow { margin-bottom: 0.9rem; color: #119d91; }
 
   .auth-title {
-    font-family: var(--font-serif);
-    font-size: 1.7rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin: 0.5rem 0;
+    margin: 0;
+    color: #26334c;
+    font-size: clamp(1.8rem, 2.5vw, 2.15rem);
+    font-weight: 500;
+    letter-spacing: -0.055em;
+    line-height: 1.2;
   }
 
   .auth-subtitle {
-    font-size: 0.95rem;
-    color: var(--color-text);
-    font-weight: 500;
+    margin-top: 0.8rem;
+    color: #8291a7;
+    font-size: 0.91rem;
+    line-height: 1.5;
+  }
+
+  .auth-form { display: flex; flex-direction: column; gap: 1.15rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.62rem; }
+
+  .form-label {
+    color: #40546d;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .input-wrapper { position: relative; display: flex; align-items: center; }
+  .field-icon {
+    position: absolute;
+    left: 0.9rem;
+    width: 19px;
+    height: 19px;
+    color: #94a9bd;
+    pointer-events: none;
   }
 
   .form-input {
     width: 100%;
-    padding: 0.8rem 1rem;
-    border: 2.5px solid var(--color-primary-blue);
-    border-radius: var(--radius-md);
-    font-size: 0.95rem;
-    font-family: var(--font-sans);
-    color: var(--color-text);
-    background: var(--color-white);
-    transition: all 0.3s;
+    min-height: 50px;
+    padding: 0.85rem 2.8rem;
+    border: 1px solid #d9e5ef;
+    border-radius: 12px;
     outline: none;
+    color: #304157;
+    background: #fbfcfd;
+    font: inherit;
+    font-size: 0.87rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
+
+  .form-input::placeholder { color: #8d99aa; opacity: 1; }
+
   .form-input:focus {
-    border-color: var(--color-primary-purple);
-    box-shadow: 0 0 0 4px rgba(184, 45, 181, 0.15);
-    transform: scale(1.02);
-  }
-
-  .btn-submit {
-    width: 100%;
-    padding: 0.9rem;
-    background: linear-gradient(135deg, var(--color-primary-pink), var(--color-primary-red));
-    color: var(--color-white);
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: var(--font-sans);
-    transition: all 0.3s;
-    margin-top: 0.25rem;
-    box-shadow: var(--shadow-md);
-  }
-  .btn-submit:hover { 
-    transform: scale(1.05);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.1rem;
-  }
-
-  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-  .form-label { font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
-
-  .form-label-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 0.7rem 0.9rem;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    font-family: var(--font-sans);
-    color: var(--color-text);
-    background: var(--color-white);
-    transition: border-color 0.2s, box-shadow 0.2s;
+    border-color: #40b7aa;
     outline: none;
-  }
-  .form-input:focus {
-    border-color: var(--color-navy);
-    box-shadow: 0 0 0 3px rgba(13,34,64,0.08);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(64, 183, 170, 0.14);
   }
 
-  .input-wrapper { position: relative; }
-  .input-wrapper .form-input { padding-right: 2.75rem; }
   .toggle-pw {
     position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    padding: 0.2rem;
+    right: 0.8rem;
     display: flex;
     align-items: center;
+    padding: 0.25rem;
+    color: #94a9bd;
   }
-  .toggle-pw:hover { color: var(--color-navy); }
 
-  .form-check { display: flex; align-items: center; }
-  .check-label {
+  .toggle-pw:hover { color: #139d91; }
+
+  .form-options {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: -0.15rem;
+  }
+
+  .check-label {
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.88rem;
-    color: var(--color-text-muted);
+    color: #8190a5;
     cursor: pointer;
-  }
-  .check-input {
-    width: 16px; height: 16px;
-    accent-color: var(--color-navy);
-    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 500;
   }
 
+  .check-input { width: 15px; height: 15px; margin: 0; accent-color: #159f93; }
+
   .form-link {
-    font-size: 0.88rem;
-    color: var(--color-navy);
-    font-weight: 500;
-    transition: opacity 0.2s;
+    color: #119d91;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: color 0.2s ease;
   }
-  .form-link:hover { opacity: 0.7; }
+
+  .form-link:hover,
+  .legal-note a:hover { color: #08796f; }
 
   .btn-submit {
     width: 100%;
-    padding: 0.8rem;
-    background: var(--color-navy);
-    color: var(--color-white);
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.98rem;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: var(--font-sans);
-    transition: background 0.2s;
+    min-height: 52px;
     margin-top: 0.25rem;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(110deg, #20b39f, #109b98);
+    box-shadow: 0 9px 20px rgba(24, 155, 145, 0.17);
+    font: inherit;
+    font-size: 0.91rem;
+    font-weight: 700;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   }
-  .btn-submit:hover { background: var(--color-navy-light); }
 
-  .auth-footer-text {
-    text-align: center;
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-  }
+  .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 22px rgba(24, 155, 145, 0.23); }
+  .btn-submit:disabled { cursor: not-allowed; opacity: 0.65; }
 
   .divider {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    color: var(--color-border);
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--color-border);
+    gap: 0.85rem;
+    color: #9aa7b6;
+    font-size: 0.72rem;
   }
 
-  .social-auth { display: flex; flex-direction: column; gap: 0.75rem; }
+  .divider::before,
+  .divider::after { height: 1px; flex: 1; background: #e5ebef; content: ''; }
+
   .btn-social {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.7rem;
     width: 100%;
-    padding: 0.7rem;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 0.92rem;
-    font-weight: 500;
-    color: var(--color-text);
-    background: var(--color-white);
-    cursor: pointer;
-    font-family: var(--font-sans);
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .btn-social:hover { border-color: var(--color-navy); background: var(--color-cream); }
-
-  .error-message {
-    padding: 0.75rem;
-    background: #fee;
-    border: 1px solid #fcc;
-    border-radius: var(--radius-sm);
-    color: #c33;
-    font-size: 0.9rem;
-    text-align: center;
-  }
-
-  .success-message {
-    padding: 0.75rem;
-    background: #efe;
-    border: 1px solid #cfc;
-    border-radius: var(--radius-sm);
-    color: #3c3;
-    font-size: 0.9rem;
-    text-align: center;
-  }
-
-  .btn-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 768px) {
-    .auth-main {
-      padding: 2rem 1rem;
-    }
-
-    .auth-card {
-      max-width: 100%;
-      padding: 2rem 1.5rem;
-      gap: 1.25rem;
-    }
-
-    .auth-title {
-      font-size: 1.5rem;
-    }
-
-    .form-input {
-      padding: 1rem 1.1rem;
-      font-size: 1rem;
-    }
-
-    .btn-submit {
-      padding: 1rem;
-      font-size: 1rem;
-      margin-top: 0.5rem;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .auth-main {
-      padding: 1.5rem 1rem;
-    }
-
-    .auth-card {
-      padding: 1.75rem 1.25rem;
-      gap: 1.25rem;
-      border-radius: var(--radius-md);
-    }
-
-    .auth-logo-emoji {
-      font-size: 1.5rem;
-    }
-
-    .auth-logo span {
-      font-size: 1.25rem;
-    }
-
-    .auth-title {
-      font-size: 1.35rem;
-      margin: 0.35rem 0;
-    }
-
-    .auth-subtitle {
-      font-size: 0.9rem;
-    }
-
-    .form-group {
-      gap: 0.35rem;
-    }
-
-    .form-label {
-      font-size: 0.85rem;
-    }
-
-    .form-input {
-      padding: 0.95rem 1rem;
-      font-size: 1rem;
-      border-radius: var(--radius-md);
-    }
-
-    .btn-submit {
-      padding: 0.95rem;
-      font-size: 0.95rem;
-      border-radius: var(--radius-md);
-    }
-
-    .check-label {
-      font-size: 0.85rem;
-    }
-
-    .form-link {
-      font-size: 0.85rem;
-    }
-
-    .form-label-row {
-      flex-direction: column;
-      gap: 0.5rem;
-      align-items: flex-start;
-    }
-
-    .divider {
-      margin: 1rem 0;
-    }
-
-    .btn-social {
-      padding: 0.8rem;
-      font-size: 0.9rem;
-    }
-
-    .auth-footer-text {
-      font-size: 0.85rem;
-      margin-top: 0.5rem;
-    }
-  }
-
-  .auth-main {
-    min-height: calc(100svh - 64px);
-    padding: 3rem 1.25rem;
-    background:
-      radial-gradient(circle at 8% 12%, rgba(140, 224, 211, 0.35), transparent 28rem),
-      radial-gradient(circle at 92% 88%, rgba(255, 195, 103, 0.24), transparent 25rem),
-      #f5fbfa;
-  }
-
-  .auth-card {
-    max-width: 440px;
-    padding: 2.5rem;
-    gap: 1.5rem;
-    border: 1px solid #d8ece9;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 20px 48px rgba(42, 101, 102, 0.12);
-  }
-
-  .auth-brand { gap: 0.55rem; }
-
-  .auth-logo span {
-    background: linear-gradient(135deg, #168f83, #e57650);
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
-
-  .auth-title {
-    color: #2e405e;
-    background: none;
-    -webkit-text-fill-color: currentColor;
-    font-size: 1.65rem;
-    letter-spacing: -0.035em;
-  }
-
-  .auth-subtitle {
-    color: #607889;
-    font-weight: 400;
-    line-height: 1.6;
-  }
-
-  .form-label { color: #2c465c; }
-
-  .form-input {
-    border: 1px solid #d5e7e4;
-    border-radius: 12px;
-    background: #fcfefd;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-
-  .form-input::placeholder { color: #91a3ad; }
-
-  .form-input:focus {
-    border-color: #46b9ae;
+    min-height: 44px;
+    border: 1px solid #dce6ed;
+    border-radius: 11px;
+    color: #40546d;
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(70, 185, 174, 0.15);
-    transform: none;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
 
-  .toggle-pw:hover { color: #168f83; }
+  .btn-social:hover { border-color: #48b9ad; background: #f7fcfb; }
 
-  .check-input { accent-color: #168f83; }
-
-  .form-link {
-    color: #168f83;
-    font-weight: 700;
+  .auth-footer-text {
+    color: #8291a7;
+    font-size: 0.82rem;
+    text-align: center;
   }
 
-  .form-link:hover { color: #e57650; opacity: 1; }
-
-  .btn-submit {
-    border-radius: 13px;
-    background: linear-gradient(135deg, #46b9ae, #168f83);
-    box-shadow: 0 9px 18px rgba(42, 147, 137, 0.2);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  .legal-note {
+    margin-top: 0.5rem;
+    color: #9aa6b5;
+    font-size: 0.68rem;
+    line-height: 1.6;
+    text-align: center;
   }
 
-  .btn-submit:hover {
-    background: linear-gradient(135deg, #39aa9f, #087d72);
-    transform: translateY(-2px);
-    box-shadow: 0 13px 22px rgba(42, 147, 137, 0.24);
+  .legal-note a { color: #159b90; font-weight: 600; }
+
+  .message {
+    padding: 0.75rem;
+    border: 1px solid;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    text-align: center;
   }
+
+  .error-message { border-color: #f3c4c4; color: #a83232; background: #fff5f5; }
+  .success-message { border-color: #bcecdf; color: #087d72; background: #effaf6; }
 
   .btn-submit:focus-visible,
   .btn-social:focus-visible,
   .form-link:focus-visible,
+  .back-link:focus-visible,
   .toggle-pw:focus-visible {
     outline: 3px solid rgba(70, 185, 174, 0.45);
     outline-offset: 3px;
   }
 
-  .auth-footer-text { color: #607889; }
-
-  .divider::before,
-  .divider::after { background: #d8ece9; }
-
-  .btn-social {
-    border-color: #d8ece9;
-    border-radius: 12px;
-    background: #fff;
+  @media (max-width: 1000px) {
+    .auth-layout { grid-template-columns: minmax(350px, 42%) minmax(0, 1fr); }
+    .promo-panel { padding-inline: 2.5rem; }
+    .promo-copy h2 { font-size: clamp(2.85rem, 5vw, 3.7rem); }
+    .auth-panel { padding-inline: 2rem; }
   }
 
-  .btn-social:hover {
-    border-color: #46b9ae;
-    background: #f1faf8;
+  @media (max-width: 760px) {
+    .auth-layout { display: flex; flex-direction: column; }
+    .promo-panel { min-height: auto; padding: 1.1rem 1.4rem; }
+    .brand-mark { width: 40px; height: 40px; }
+    .promo-copy { display: none; }
+    .promo-decoration { right: -70px; bottom: -210px; width: 280px; }
+    .auth-panel { flex: 1; align-items: flex-start; padding: 1.4rem 1.35rem 2.5rem; }
+    .auth-content { width: min(100%, 456px); margin: 0 auto; gap: 1rem; }
+    .back-link { align-self: flex-start; }
+    .auth-brand { margin: 0.8rem 0 0.4rem; }
+    .lock-badge { width: 46px; height: 46px; margin-bottom: 1rem; }
   }
 
-  .success-message {
-    border-color: #bcecdf;
-    background: #effaf6;
-    color: #087d72;
-  }
-
-  @media (max-width: 480px) {
-    .auth-main { padding: 1.5rem 1rem; }
-    .auth-card { padding: 1.75rem 1.25rem; }
+  @media (max-width: 420px) {
+    .auth-panel { padding-inline: 1.1rem; }
+    .auth-title { font-size: 1.75rem; }
+    .form-options { align-items: flex-start; }
+    .form-link { text-align: right; }
   }
 </style>
 

@@ -31,18 +31,35 @@ try {
   console.error('Error al obtener libros:', error);
 }
 
-let librosFiltrados = respuesta.data || [];
+const catalogoLibros: any[] = catalogoCompleto.length ? catalogoCompleto : (respuesta.data || []);
+const normalizarTexto = (texto: string) =>
+  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
+const textoBusqueda = normalizarTexto(q.trim());
 
-// Filtrado adicional del lado del cliente si es necesario
-if (q) {
-  const query = q.toLowerCase();
-  librosFiltrados = librosFiltrados.filter(
-    (l: any) =>
-      l.titulo.toLowerCase().includes(query) ||
-      l.autor_nombre?.toLowerCase().includes(query) ||
-      l.categorias?.some((c: string) => c.toLowerCase().includes(query))
-  );
+let librosFiltrados = [...catalogoLibros];
+if (orden === 'nuevo') {
+  librosFiltrados = librosFiltrados.filter((libro: any) => libro.nuevo);
+} else if (orden === 'destacado') {
+  librosFiltrados.sort((a: any, b: any) => Number(Boolean(b.destacado)) - Number(Boolean(a.destacado)));
+} else if (orden === 'descargas') {
+  librosFiltrados.sort((a: any, b: any) => (b.descargas_total || 0) - (a.descargas_total || 0));
+} else if (orden === 'rating') {
+  librosFiltrados.sort((a: any, b: any) => (b.rating_promedio || 0) - (a.rating_promedio || 0));
 }
+
+librosFiltrados = librosFiltrados.filter((libro: any) => {
+  const categoriasLibro = (libro.categorias || []).map((categoria: string) => normalizarTexto(categoria));
+  const coincideCategoria = !filtroCategoria || categoriasLibro.includes(normalizarTexto(filtroCategoria));
+  const coincideEdad = !filtroEdad || libro.edad_rango === filtroEdad;
+  const textoLibro = normalizarTexto([
+    libro.titulo,
+    libro.autor_nombre,
+    libro.descripcion,
+    ...(libro.categorias || []),
+  ].filter(Boolean).join(' '));
+  return coincideCategoria && coincideEdad && (!textoBusqueda || textoLibro.includes(textoBusqueda));
+});
+const slugsVisiblesIniciales = new Set(librosFiltrados.map((libro: any) => libro.slug));
 
 // Obtener categorías únicas del backend
 const categorias: string[] = Array.from(
@@ -72,102 +89,111 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
   <main class="app-content">
       <section class="page-hero">
         <div class="hero-content">
-          <p class="hero-kicker">BIBLIOTECA FAMILIAR</p>
-          <h1 class="page-title">Descubre historias increíbles</h1>
-          <p class="page-desc">Explora libros llenos de aventuras, valores y diversión para toda la familia.</p>
+          <p class="hero-kicker">UN MUNDO DE AVENTURAS</p>
+          <h1 class="page-title">Cuentos Super Saludables</h1>
+          <p class="page-desc">Conoce a nuestros superhéroes y descubre historias que te enseñan a cuidar tu cuerpo, tus emociones y el planeta.</p>
           <a class="publish-book-button" href="/subir-libro">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Publicar libro
           </a>
         </div>
+        <div class="hero-illustration" aria-hidden="true">
+          <svg viewBox="0 0 260 220" fill="none">
+            <circle class="illustration-orbit" cx="132" cy="116" r="86" />
+            <path class="illustration-page-left" d="M47 92c26-11 51-7 77 8v77c-26-15-51-19-77-8V92Z" />
+            <path class="illustration-page-right" d="M201 92c-26-11-51-7-77 8v77c26-15 51-19 77-8V92Z" />
+            <path class="illustration-spine" d="M124 100v77" />
+            <path class="illustration-line" d="M62 110c17-5 34-2 49 5M62 127c17-5 34-2 49 5M62 144c17-5 34-2 49 5M186 110c-17-5-34-2-49 5M186 127c-17-5-34-2-49 5M186 144c-17-5-34-2-49 5" />
+            <path class="illustration-star" d="m177 29 7 14 15 2-11 11 3 15-14-7-13 7 2-15-11-11 15-2 7-14Z" />
+            <circle class="illustration-spark" cx="67" cy="54" r="5" />
+            <circle class="illustration-spark" cx="204" cy="76" r="4" />
+          </svg>
+        </div>
       </section>
 
       <section class="catalog-section">
-      <div class="biblioteca-layout">
-        <aside class="filters-panel" aria-label="Filtros de libros">
-          <div class="sidebar-section">
-            <h2 class="sidebar-title">Ordenar por</h2>
-            <ul class="filter-list">
+      <form class="book-toolbar" id="book-search-form" action="/biblioteca" method="get">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7.5" stroke="currentColor" stroke-width="1.8"/><path d="m16.5 16.5 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span class="visually-hidden">Buscar un cuento</span>
+          <input type="search" name="q" value={q} placeholder="Buscar un cuento..." />
+          <input id="active-order" type="hidden" name="orden" value={orden} />
+          <input id="active-category" type="hidden" name="categoria" value={filtroCategoria} />
+          <input id="active-age" type="hidden" name="edad" value={filtroEdad} />
+        </label>
+
+        <div class="toolbar-filters">
+          <label class="filter-label" for="book-filter">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 5.5h17l-6.6 7.4v5.5l-3.8 2v-7.5L3.5 5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <span>Filtrar por:</span>
+          </label>
+          <div class="select-wrap book-filter-wrap">
+            <label class="select-label" for="book-filter">Orden o categoría</label>
+            <button
+              id="book-filter"
+              class="filter-menu-button"
+              type="button"
+              aria-label="Filtrar por orden o categoría"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="book-filter-menu"
+            >
+              <span id="book-filter-current">{filtroCategoria || (orden === 'todos' ? 'Todos' : ({ destacado: 'Destacados', nuevo: 'Nuevos', descargas: 'Más descargados', rating: 'Mejor valorados' }[orden] || 'Todos'))}</span>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="filter-menu" id="book-filter-menu" role="menu" aria-label="Filtrar libros" hidden>
+              <button type="button" role="menuitemradio" aria-checked={!filtroCategoria && orden === 'todos'} data-filter-kind="reset" data-filter-value="">Todos</button>
+              <div class="filter-menu-heading" role="presentation">Ordenar por</div>
               {[
-                { value: 'todos', label: 'Todos' },
                 { value: 'destacado', label: 'Destacados' },
                 { value: 'nuevo', label: 'Nuevos' },
                 { value: 'descargas', label: 'Más descargados' },
                 { value: 'rating', label: 'Mejor valorados' },
               ].map(({ value, label }) => (
-                <li>
-                  <a
-                    href={buildBibliotecaUrl({ orden: value })}
-                    data-filter-kind="orden"
-                    data-filter-value={value}
-                    class={`filter-link ${orden === value ? 'active' : ''}`}
-                  >
-                    {label}
-                  </a>
-                </li>
+                <button type="button" role="menuitemradio" aria-checked={!filtroCategoria && orden === value} data-filter-kind="orden" data-filter-value={value}>{label}</button>
               ))}
-            </ul>
-          </div>
-
-          <div class="sidebar-section">
-            <h2 class="sidebar-title">Categoría</h2>
-            <ul class="filter-list">
-              <li>
-                <a href={buildBibliotecaUrl({ categoria: '' })} data-filter-kind="categoria" data-filter-value="" class={`filter-link ${!filtroCategoria ? 'active' : ''}`}>
-                  Todas
-                </a>
-              </li>
+              <div class="filter-menu-heading" role="presentation">Categoría</div>
+              <button type="button" role="menuitemradio" aria-checked={!filtroCategoria} data-filter-kind="categoria" data-filter-value="">Todas las categorías</button>
               {categorias.map((cat) => (
-                <li>
-                  <a
-                    href={buildBibliotecaUrl({ categoria: cat })}
-                    data-filter-kind="categoria"
-                    data-filter-value={cat}
-                    class={`filter-link ${filtroCategoria === cat ? 'active' : ''}`}
-                  >
-                    {cat}
-                  </a>
-                </li>
+                <button type="button" role="menuitemradio" aria-checked={filtroCategoria === cat} data-filter-kind="categoria" data-filter-value={cat}>{cat}</button>
               ))}
-            </ul>
+            </div>
           </div>
-
-          <div class="sidebar-section">
-            <h2 class="sidebar-title">Edad</h2>
-            <ul class="filter-list">
-              <li>
-                <a href={buildBibliotecaUrl({ edad: '' })} data-filter-kind="edad" data-filter-value="" class={`filter-link ${!filtroEdad ? 'active' : ''}`}>
-                  Todas las edades
-                </a>
-              </li>
+          <div class="select-wrap age-select-wrap">
+            <span class="select-label">Edad</span>
+            <button
+              id="age-filter"
+              class="age-filter-button"
+              type="button"
+              aria-label="Filtrar por edad"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="age-filter-menu"
+            >
+              <span id="age-filter-current">{filtroEdad || 'Todas las edades'}</span>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 6 5 5 5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="age-filter-menu" id="age-filter-menu" role="menu" aria-label="Filtrar por edad" hidden>
+              <button type="button" role="menuitemradio" aria-checked={!filtroEdad} data-age="">Todas las edades</button>
               {edades.map((edad) => (
-                <li>
-                  <a
-                    href={buildBibliotecaUrl({ edad })}
-                    data-filter-kind="edad"
-                    data-filter-value={edad}
-                    class={`filter-link ${filtroEdad === edad ? 'active' : ''}`}
-                  >
-                    {edad}
-                  </a>
-                </li>
+                <button type="button" role="menuitemradio" aria-checked={filtroEdad === edad} data-age={edad}>{edad}</button>
               ))}
-            </ul>
+            </div>
           </div>
-        </aside>
+        </div>
+      </form>
 
-        <!-- Grid de libros -->
+      <div class="biblioteca-layout">
         <div class="main-content">
           <div class="results-header">
             <p class="results-count">
-              <strong>{librosFiltrados.length}</strong> {librosFiltrados.length === 1 ? 'libro encontrado' : 'libros encontrados'}
-              {q && <span> para "<em>{q}</em>"</span>}
+              <strong id="results-count">{librosFiltrados.length}</strong> <span id="results-label">{librosFiltrados.length === 1 ? 'libro encontrado' : 'libros encontrados'}</span>
+              <span id="results-query" hidden={!q}> para "<em>{q}</em>"</span>
             </p>
           </div>
 
-          {librosFiltrados.length > 0 ? (
-            <div class="books-grid">
-              {librosFiltrados.map((libro: any) => {
+          <div class="books-grid" id="books-grid">
+              {catalogoLibros.map((libro: any, index: number) => {
                 // Adaptar datos del backend al formato esperado por BookCard
                 const libroAdaptado = {
                   slug: libro.slug,
@@ -191,21 +217,41 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
                   anio: libro.anio || new Date().getFullYear(),
                   paginasContenido: Array.isArray(libro.paginas) ? libro.paginas : [],
                 };
-                return <BookCard libro={libroAdaptado} variante="catalogo" />;
+                const categoriasLibro = libro.categorias || [];
+                const textoLibro = [
+                  libro.titulo,
+                  libro.autor_nombre,
+                  libro.descripcion,
+                  ...categoriasLibro,
+                ].filter(Boolean).join(' ');
+                return (
+                  <div
+                    class="book-result"
+                    data-search={textoLibro}
+                    data-categories={JSON.stringify(categoriasLibro)}
+                    data-age={libro.edad_rango || ''}
+                    data-new={String(Boolean(libro.nuevo))}
+                    data-featured={String(Boolean(libro.destacado))}
+                    data-downloads={String(libro.descargas_total || 0)}
+                    data-rating={String(libro.rating_promedio || 0)}
+                    data-original-order={String(index)}
+                    hidden={!slugsVisiblesIniciales.has(libro.slug)}
+                  >
+                    <BookCard libro={libroAdaptado} variante="catalogo" />
+                  </div>
+                );
               })}
-            </div>
-          ) : (
-            <div class="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                <rect x="3" y="4" width="13" height="16" rx="2"/>
-                <path d="M7 8h5M7 12h5M7 16h3" stroke-linecap="round"/>
-                <circle cx="18" cy="18" r="4"/>
-                <line x1="20.83" y1="20.83" x2="22.5" y2="22.5"/>
-              </svg>
-              <p>No se encontraron libros con los filtros seleccionados.</p>
-              <a href="/biblioteca" class="btn-reset">Ver todos los libros</a>
-            </div>
-          )}
+          </div>
+          <div class="empty-state" id="empty-results" hidden={librosFiltrados.length > 0}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="3" y="4" width="13" height="16" rx="2"/>
+              <path d="M7 8h5M7 12h5M7 16h3" stroke-linecap="round"/>
+              <circle cx="18" cy="18" r="4"/>
+              <line x1="20.83" y1="20.83" x2="22.5" y2="22.5"/>
+            </svg>
+            <p>No se encontraron libros con los filtros seleccionados.</p>
+            <a href="/biblioteca" class="btn-reset">Ver todos los libros</a>
+          </div>
         </div>
       </div>
       </section>
@@ -415,14 +461,20 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
   }
 
   .page-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
+    align-items: center;
+    gap: clamp(1rem, 3vw, 2.5rem);
     margin-top: 14px;
-    padding: 30px 34px;
+    padding: clamp(24px, 3.5vw, 38px) clamp(24px, 3.5vw, 42px);
     border-radius: 24px;
     color: #2c465c;
     background: linear-gradient(135deg, #d8f4ee 0%, #e1f2f7 100%);
   }
 
   .hero-content {
+    width: 100%;
     max-width: 760px;
   }
 
@@ -443,10 +495,26 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     max-width: 600px;
   }
 
+  .hero-illustration {
+    display: grid;
+    width: 100%;
+    place-items: center;
+    color: #168f83;
+  }
+
+  .hero-illustration svg { display: block; width: min(100%, 250px); overflow: visible; }
+  .illustration-orbit { fill: rgba(255, 255, 255, 0.3); stroke: rgba(22, 143, 131, 0.12); stroke-width: 2; }
+  .illustration-page-left { fill: #fffaf0; stroke: #e49a66; stroke-width: 4; stroke-linejoin: round; }
+  .illustration-page-right { fill: #fff; stroke: #e49a66; stroke-width: 4; stroke-linejoin: round; }
+  .illustration-spine { stroke: #e49a66; stroke-width: 4; stroke-linecap: round; }
+  .illustration-line { stroke: #82c7bb; stroke-width: 3; stroke-linecap: round; }
+  .illustration-star { fill: #ffc957; stroke: #e59b3a; stroke-width: 3; stroke-linejoin: round; }
+  .illustration-spark { fill: #f28a61; }
+
   .publish-book-button {
     width: fit-content;
     min-height: 44px;
-    margin-top: 18px;
+    margin: 18px auto 0;
     padding: 10px 16px;
     display: inline-flex;
     align-items: center;
@@ -538,6 +606,8 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     justify-content: start;
     gap: 1.5rem;
   }
+
+  .book-result { min-width: 0; }
 
   @media (max-width: 760px) {
     .liga-shell { flex-direction: column; }
@@ -662,7 +732,8 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     }
 
     .app-content { padding: 14px 18px 28px; }
-    .page-hero { padding: 24px 20px; }
+    .page-hero { grid-template-columns: minmax(0, 1fr) minmax(120px, 180px); gap: 0.75rem; padding: 24px 20px; }
+    .hero-illustration svg { width: min(100%, 170px); }
     .topbar-actions { gap: 8px; }
     .account-greeting { font-size: 0.82rem; }
     .account-name { max-width: 90px; }
@@ -671,8 +742,19 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
 
   @media (max-width: 480px) {
     .page-hero {
-      padding: 20px 16px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.5rem;
+      padding: 22px 18px 24px;
+      text-align: center;
     }
+
+    .hero-illustration { grid-row: 1; height: 104px; }
+    .hero-illustration svg { width: 126px; max-width: 100%; }
+    .hero-content { grid-row: 2; }
+    .hero-kicker { font-size: 0.66rem; }
+    .page-title { font-size: clamp(1.4rem, 7vw, 1.75rem); }
+    .page-desc { margin-inline: auto; font-size: 0.87rem; }
+    .publish-book-button { position: relative; z-index: 1; margin-top: 16px; }
 
     .sidebar-section {
       padding: 1rem;
@@ -694,6 +776,14 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     }
   }
 
+  @media (max-width: 360px) {
+    .page-hero { padding-inline: 14px; }
+    .hero-illustration { height: 92px; }
+    .hero-illustration svg { width: 112px; }
+    .page-title { font-size: 1.35rem; }
+    .page-desc { font-size: 0.82rem; }
+  }
+
   .empty-state {
     display: flex;
     flex-direction: column;
@@ -702,6 +792,11 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     padding: 4rem 2rem;
     text-align: center;
     color: var(--color-text-muted);
+  }
+
+  .empty-state[hidden],
+  .book-result[hidden] {
+    display: none;
   }
 
   .btn-reset {
@@ -720,4 +815,357 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     .app-sidebar, .sidebar-toggle { transition: none; }
   }
 
+  .biblioteca-layout { display: block; }
+
+  .book-toolbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(0, auto);
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1rem, 2.5vw, 2.25rem);
+    width: 100%;
+    min-height: 0;
+    margin: 0 0 1.25rem;
+    padding: 0.8rem clamp(1rem, 2vw, 1.5rem);
+    border: 1px solid #dfe8f1;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(44, 70, 92, 0.035);
+  }
+
+  .search-box {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
+    gap: 0.75rem;
+    color: #9aa9ba;
+  }
+
+  .search-box > svg { flex: 0 0 27px; width: 27px; height: 27px; }
+  .search-box input[type="search"] { width: 100%; min-width: 0; border: 0; outline: 0; color: #40546d; background: transparent; font: inherit; font-size: 1rem; }
+  .search-box input[type="search"]::placeholder { color: #929eae; opacity: 1; }
+  .search-box input[type="search"]:focus-visible { outline: 2px solid #40b7aa; outline-offset: 5px; border-radius: 4px; }
+  .search-box input[type="hidden"] { display: none; }
+
+  .toolbar-filters { display: grid; grid-template-columns: auto repeat(2, minmax(160px, 220px)); align-items: center; gap: 0.75rem; }
+  .filter-label { display: inline-flex; align-items: center; gap: 0.5rem; color: #7f8da0; font-size: 0.88rem; font-weight: 700; white-space: nowrap; }
+  .filter-label svg { width: 21px; height: 21px; color: #8293a7; }
+
+  .select-wrap { position: relative; width: 100%; min-width: 0; }
+  .select-wrap::after { display: none; }
+
+  .filter-menu-button,
+  .age-filter-button {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 2.4rem 0 1rem;
+    border: 1px solid #dfe8f1;
+    border-radius: 12px;
+    color: #5a6c84;
+    background: #f9fbfe;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+
+  .filter-menu-button > span,
+  .age-filter-button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-menu-button svg,
+  .age-filter-button svg { position: absolute; top: 50%; right: 0.85rem; width: 16px; height: 16px; color: #60748a; pointer-events: none; transform: translateY(-50%); }
+  .filter-menu-button:focus-visible,
+  .age-filter-button:focus-visible { outline: 0; border-color: #40b7aa; box-shadow: 0 0 0 3px rgba(64, 183, 170, 0.14); }
+  .select-label { display: none; }
+
+  .filter-menu,
+  .age-filter-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 6px);
+    right: 0;
+    left: 0;
+    max-height: min(14rem, 35vh);
+    overflow-y: auto;
+    padding: 0.35rem;
+    border: 1px solid #dfe8f1;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(44, 70, 92, 0.16);
+  }
+
+  .filter-menu[hidden],
+  .age-filter-menu[hidden] { display: none; }
+
+  .filter-menu button,
+  .age-filter-menu button { display: block; width: 100%; padding: 0.65rem 0.75rem; border: 0; border-radius: 8px; color: #5a6c84; background: transparent; font: inherit; font-size: 0.84rem; text-align: left; cursor: pointer; }
+  .filter-menu-heading { padding: 0.55rem 0.75rem 0.3rem; color: #8291a3; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .filter-menu button:hover,
+  .filter-menu button[aria-checked="true"],
+  .age-filter-menu button:hover,
+  .age-filter-menu button[aria-checked="true"] { color: #087d72; background: #eaf8f4; }
+  .filter-menu button:focus-visible,
+  .age-filter-menu button:focus-visible { outline: 2px solid #40b7aa; outline-offset: -2px; }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+  @media (max-width: 1100px) {
+    .book-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; padding: 0.75rem 1rem; }
+    .search-box { min-height: 38px; }
+    .toolbar-filters { grid-template-columns: auto repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+    .select-wrap { width: 100%; }
+    .filter-menu-button,
+    .age-filter-button { min-height: 42px; }
+  }
+
+  @media (max-width: 680px) {
+    .book-toolbar { gap: 0.8rem; padding: 0.8rem; border-radius: 14px; }
+    .search-box { min-height: 46px; gap: 0.55rem; padding: 0 0.7rem; border: 1px solid #dfe8f1; border-radius: 10px; background: #f9fbfe; }
+    .search-box > svg { flex-basis: 23px; width: 23px; height: 23px; }
+    .search-box input[type="search"] { font-size: 0.9rem; }
+    .toolbar-filters { grid-template-columns: minmax(0, 1fr); gap: 0.55rem; }
+    .filter-label { gap: 0.35rem; font-size: 0.76rem; }
+    .filter-label svg { width: 18px; height: 18px; }
+    .select-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
+    .select-label { display: block; color: #60748a; font-size: 0.76rem; font-weight: 600; }
+    .age-select-wrap::after { display: none; }
+    .age-filter-button { display: flex; min-height: 46px; padding-inline: 0.8rem 2rem; border-radius: 10px; font-size: 0.84rem; }
+    .age-filter-button svg { right: 0.8rem; }
+    .age-filter-menu { max-height: min(14rem, 35vh); }
+    .filter-menu-button,
+    .age-filter-button { min-height: 46px; padding-inline: 0.8rem 2rem; border-radius: 10px; font-size: 0.84rem; }
+    .filter-menu-button svg,
+    .age-filter-button svg { right: 0.8rem; }
+  }
+
+  @media (max-width: 380px) {
+    .book-toolbar { padding: 0.7rem; }
+    .toolbar-filters { gap: 0.65rem; }
+    .filter-menu-button,
+    .age-filter-button { font-size: 0.8rem; }
+  }
+
 </style>
+
+<script>
+  const searchForm = document.getElementById('book-search-form') as HTMLFormElement;
+  const searchInput = searchForm?.querySelector('input[name="q"]') as HTMLInputElement;
+  const bookFilter = document.getElementById('book-filter') as HTMLButtonElement;
+  const bookFilterMenu = document.getElementById('book-filter-menu') as HTMLDivElement;
+  const bookFilterCurrent = document.getElementById('book-filter-current') as HTMLSpanElement;
+  const ageFilter = document.getElementById('age-filter') as HTMLButtonElement;
+  const ageFilterMenu = document.getElementById('age-filter-menu') as HTMLDivElement;
+  const ageFilterCurrent = document.getElementById('age-filter-current') as HTMLSpanElement;
+  const activeAge = document.getElementById('active-age') as HTMLInputElement;
+  const activeOrder = document.getElementById('active-order') as HTMLInputElement;
+  const activeCategory = document.getElementById('active-category') as HTMLInputElement;
+  const booksGrid = document.getElementById('books-grid') as HTMLDivElement;
+  const resultCount = document.getElementById('results-count') as HTMLElement;
+  const resultLabel = document.getElementById('results-label') as HTMLElement;
+  const resultQuery = document.getElementById('results-query') as HTMLElement;
+  const emptyResults = document.getElementById('empty-results') as HTMLDivElement;
+  const bookResults = Array.from(document.querySelectorAll<HTMLElement>('.book-result'));
+
+  function normalizeSearch(value: string) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
+  }
+
+  function getSelectedOrder() {
+    return activeOrder.value || 'todos';
+  }
+
+  function updateBookFilters() {
+    const url = new URL(window.location.href);
+    const query = searchInput.value.trim();
+    if (activeOrder.value && activeOrder.value !== 'todos') url.searchParams.set('orden', activeOrder.value);
+    else url.searchParams.delete('orden');
+    if (activeCategory.value) url.searchParams.set('categoria', activeCategory.value);
+    else url.searchParams.delete('categoria');
+    if (activeAge.value) url.searchParams.set('edad', activeAge.value);
+    else url.searchParams.delete('edad');
+    if (query) url.searchParams.set('q', query);
+    else url.searchParams.delete('q');
+
+    window.history.replaceState({}, '', url);
+    applyBookFilters();
+  }
+
+  function setMenuOpen(button: HTMLButtonElement, menu: HTMLDivElement, open: boolean) {
+    button.setAttribute('aria-expanded', String(open));
+    menu.hidden = !open;
+    if (open) {
+      menu.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
+    }
+  }
+
+  bookFilter?.addEventListener('click', () => {
+    const open = bookFilter.getAttribute('aria-expanded') !== 'true';
+    setMenuOpen(bookFilter, bookFilterMenu, open);
+    if (open) setMenuOpen(ageFilter, ageFilterMenu, false);
+  });
+
+  bookFilterMenu?.addEventListener('click', (event) => {
+    const option = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-filter-kind]');
+    if (!option) return;
+
+    const kind = option.dataset.filterKind;
+    if (kind === 'reset') {
+      activeOrder.value = 'todos';
+      activeCategory.value = '';
+    } else if (kind === 'orden') {
+      activeOrder.value = option.dataset.filterValue || 'todos';
+      activeCategory.value = '';
+    } else if (kind === 'categoria') {
+      activeCategory.value = option.dataset.filterValue || '';
+    }
+
+    bookFilterMenu.querySelectorAll<HTMLButtonElement>('[data-filter-kind]').forEach((item) => {
+      const selected =
+        (item.dataset.filterKind === 'reset' && !activeCategory.value && activeOrder.value === 'todos') ||
+        (item.dataset.filterKind === 'orden' && !activeCategory.value && item.dataset.filterValue === activeOrder.value) ||
+        (item.dataset.filterKind === 'categoria' && item.dataset.filterValue === activeCategory.value);
+      item.setAttribute('aria-checked', String(selected));
+    });
+
+    const orderLabels: Record<string, string> = {
+      todos: 'Todos',
+      destacado: 'Destacados',
+      nuevo: 'Nuevos',
+      descargas: 'Más descargados',
+      rating: 'Mejor valorados',
+    };
+    bookFilterCurrent.textContent = activeCategory.value || orderLabels[activeOrder.value] || 'Todos';
+    setMenuOpen(bookFilter, bookFilterMenu, false);
+    updateBookFilters();
+    bookFilter.focus();
+  });
+
+  ageFilter?.addEventListener('click', () => {
+    const open = ageFilter.getAttribute('aria-expanded') !== 'true';
+    setMenuOpen(ageFilter, ageFilterMenu, open);
+    if (open) setMenuOpen(bookFilter, bookFilterMenu, false);
+  });
+
+  ageFilterMenu?.addEventListener('click', (event) => {
+    const option = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-age]');
+    if (!option) return;
+
+    activeAge.value = option.dataset.age || '';
+    ageFilterCurrent.textContent = option.textContent?.trim() || 'Todas las edades';
+    ageFilterMenu.querySelectorAll<HTMLButtonElement>('[data-age]').forEach((item) => {
+      item.setAttribute('aria-checked', String(item === option));
+    });
+    setMenuOpen(ageFilter, ageFilterMenu, false);
+    updateBookFilters();
+    ageFilter.focus();
+  });
+
+  function handleMenuKeyboard(
+    event: KeyboardEvent,
+    button: HTMLButtonElement,
+    menu: HTMLDivElement,
+  ) {
+    const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMenuOpen(button, menu, false);
+      button.focus();
+      return;
+    }
+    if (button === document.activeElement && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      setMenuOpen(button, menu, true);
+      return;
+    }
+    if (!items.includes(document.activeElement as HTMLButtonElement)) return;
+
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = event.key === 'ArrowDown'
+      ? (currentIndex + 1) % items.length
+      : event.key === 'ArrowUp'
+        ? (currentIndex - 1 + items.length) % items.length
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? items.length - 1
+            : -1;
+    if (nextIndex >= 0) {
+      event.preventDefault();
+      items[nextIndex].focus();
+    }
+  }
+
+  [bookFilter, ageFilter].forEach((button) => {
+    const menu = button === bookFilter ? bookFilterMenu : ageFilterMenu;
+    button.addEventListener('keydown', (event) => handleMenuKeyboard(event, button, menu));
+    menu.addEventListener('keydown', (event) => handleMenuKeyboard(event, button, menu));
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Node)) return;
+    if (!ageFilterMenu.contains(event.target) && !ageFilter.contains(event.target)) {
+      setMenuOpen(ageFilter, ageFilterMenu, false);
+    }
+    if (!bookFilterMenu.contains(event.target) && !bookFilter.contains(event.target)) {
+      setMenuOpen(bookFilter, bookFilterMenu, false);
+    }
+  });
+
+  searchInput?.addEventListener('input', () => {
+    updateBookFilters();
+  });
+
+  searchForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    updateBookFilters();
+  });
+
+  function applyBookFilters() {
+    if (!booksGrid) return;
+    const query = normalizeSearch(searchInput.value);
+    const category = normalizeSearch(activeCategory.value || '');
+    const order = getSelectedOrder();
+    let visibleCount = 0;
+
+    const matchingBooks = bookResults.filter((book) => {
+      const matchesQuery = !query || normalizeSearch(book.dataset.search || '').includes(query);
+      const matchesCategory = !category || normalizeSearch(book.dataset.categories || '').includes(`"${category}"`);
+      const matchesAge = !activeAge.value || book.dataset.age === activeAge.value;
+      const matchesNew = order !== 'nuevo' || book.dataset.new === 'true';
+      return matchesQuery && matchesCategory && matchesAge && matchesNew;
+    });
+
+    matchingBooks.sort((a, b) => {
+      if (order === 'destacado') {
+        const featuredDifference = Number(b.dataset.featured === 'true') - Number(a.dataset.featured === 'true');
+        if (featuredDifference) return featuredDifference;
+      } else if (order === 'descargas') {
+        const downloadDifference = Number(b.dataset.downloads) - Number(a.dataset.downloads);
+        if (downloadDifference) return downloadDifference;
+      } else if (order === 'rating') {
+        const ratingDifference = Number(b.dataset.rating) - Number(a.dataset.rating);
+        if (ratingDifference) return ratingDifference;
+      }
+      return Number(a.dataset.originalOrder) - Number(b.dataset.originalOrder);
+    });
+
+    for (const book of bookResults) book.hidden = true;
+    for (const book of matchingBooks) {
+      book.hidden = false;
+      booksGrid.append(book);
+      visibleCount += 1;
+    }
+
+    resultCount.textContent = String(visibleCount);
+    resultLabel.textContent = visibleCount === 1 ? 'libro encontrado' : 'libros encontrados';
+    resultQuery.hidden = !query;
+    resultQuery.textContent = query ? ` para "${searchInput.value.trim()}"` : '';
+    emptyResults.hidden = visibleCount > 0;
+  }
+
+  applyBookFilters();
+</script>
