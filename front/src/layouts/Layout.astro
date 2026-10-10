@@ -50,7 +50,14 @@ const activeSection = Astro.url.pathname === '/'
     )}
 
     <script>
-      function onReady(callback) {
+      interface BookUpdateDetail {
+        slug?: string;
+        descargas_total?: number;
+        rating_promedio?: number;
+        total_valoraciones?: number;
+      }
+
+      function onReady(callback: () => void) {
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', callback);
         } else {
@@ -58,14 +65,14 @@ const activeSection = Astro.url.pathname === '/'
         }
       }
 
-      function updateCardCounts(detail) {
+      function updateCardCounts(detail: BookUpdateDetail | undefined) {
         if (!detail?.slug) return;
         const cards = document.querySelectorAll(`[data-libro-slug="${detail.slug}"]`);
         cards.forEach((card) => {
           if (detail.descargas_total !== undefined) {
             const descNode = card.querySelector('[data-book-count="descargas"]');
             if (descNode) {
-              descNode.textContent = String(detail.descargas_total).toLocaleString('es');
+              descNode.textContent = detail.descargas_total.toLocaleString('es');
             }
           }
 
@@ -86,8 +93,30 @@ const activeSection = Astro.url.pathname === '/'
       }
 
       onReady(() => {
+        window.addEventListener('auth:expired', () => {
+          localStorage.removeItem('token');
+          localStorage.removeItem('usuario');
+        });
+
+        document.addEventListener('click', (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const link = target.closest<HTMLAnchorElement>('a[href]');
+          if (!link) return;
+
+          const destination = new URL(link.href, window.location.href);
+          if (destination.origin !== window.location.origin ||
+              !['/auth/login', '/auth/registro'].includes(destination.pathname) ||
+              window.location.pathname.startsWith('/auth/')) return;
+
+          sessionStorage.setItem(
+            'auth:returnTo',
+            `${window.location.pathname}${window.location.search}${window.location.hash}`,
+          );
+        });
+
         window.addEventListener('book:update', (event) => {
-          updateCardCounts(event.detail);
+          updateCardCounts((event as CustomEvent<BookUpdateDetail>).detail);
         });
       });
     </script>

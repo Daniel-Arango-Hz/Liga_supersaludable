@@ -473,7 +473,7 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-  import { completeGoogleAuth, login, setAuth, startGoogleAuth } from '../../utils/api';
+  import { completeGoogleAuth, getAuthReturnPath, login, setAuth, startGoogleAuth } from '../../utils/api';
 
   const form = document.getElementById('login-form') as HTMLFormElement;
   const emailInput = document.getElementById('email') as HTMLInputElement;
@@ -534,9 +534,8 @@ import Layout from '../../layouts/Layout.astro';
       successDiv.textContent = '¡Login exitoso! Redirigiendo...';
       successDiv.style.display = 'block';
 
-      // Redirect to home page after 1 second
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.replace(getAuthReturnPath());
       }, 1000);
     } catch (error: any) {
       errorDiv.textContent = error.message || 'Error en el login. Intenta de nuevo.';

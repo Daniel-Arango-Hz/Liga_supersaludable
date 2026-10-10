@@ -277,8 +277,9 @@ import Layout from '../layouts/Layout.astro';
       avatarEl.textContent = (usuario.nombre?.charAt(0) || 'U').toUpperCase();
     }
   } else {
-    // Redirect to login if not authenticated
-    window.location.href = '/auth/login';
+    window.dispatchEvent(new CustomEvent('auth:required', {
+      detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para consultar tu perfil.' },
+    }));
   }
 
   // Edit profile button

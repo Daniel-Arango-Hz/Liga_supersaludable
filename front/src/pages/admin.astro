@@ -438,7 +438,14 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
           headers: buildHeaders(),
         });
 
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
+          window.dispatchEvent(new Event('auth:expired'));
+          setStatus('Tu sesión ha caducado. Inicia sesión nuevamente.', true);
+          listContainer.innerHTML = '';
+          return;
+        }
+
+        if (res.status === 403) {
           setStatus('Acceso denegado. Inicia sesión como admin.', true);
           listContainer.innerHTML = '';
           return;

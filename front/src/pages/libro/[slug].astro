@@ -4,40 +4,17 @@ import BookActions from '../../components/BookActions.astro';
 import BookRating from '../../components/BookRating.astro';
 import { obtenerLibro, obtenerLibros } from '../../utils/api';
 
-export async function getStaticPaths() {
-  try {
-    const librosResponse = await obtenerLibros({ limite: 500 });
-    const libros = Array.isArray(librosResponse) ? librosResponse : (librosResponse.data || []);
-    
-    return libros.map((libro: any) => ({
-      params: { slug: libro.slug },
-      props: { libro },
-    }));
-  } catch (error) {
-    console.error('Error getting static paths for books:', error);
-    return [];
-  }
-}
-
-interface Props {
-  libro?: any;
-}
-
-export const prerender = true;
+export const prerender = false;
 
 const { slug } = Astro.params;
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
-const { libro: initialLibro } = Astro.props;
 
-let libro = initialLibro;
+let libro: any;
 let relacionados: any[] = [];
 let error = false;
-const isImageCover = typeof libro?.portada_icono === 'string' && /^https?:\/\//i.test(libro.portada_icono);
 
 try {
-  if (!libro && slug) {
-    libro = await obtenerLibro(slug);
-  }
+  if (slug) libro = await obtenerLibro(slug);
   
   if (libro && libro.categorias && libro.categorias.length > 0) {
     const allLibros = await obtenerLibros({ categoria: libro.categorias[0], limite: 8 });
@@ -49,33 +26,63 @@ try {
   console.error('Error al obtener libro:', err);
   error = true;
 }
+
+const isImageCover = typeof libro?.portada_icono === 'string' && /^https?:\/\//i.test(libro.portada_icono);
+const totalPaginasValue = Number(
+  libro?.paginas_total ||
+  (Array.isArray(libro?.paginas) ? libro.paginas.length : libro?.paginas) ||
+  1,
+);
+const totalPaginas = Number.isFinite(totalPaginasValue) && totalPaginasValue > 0
+  ? totalPaginasValue
+  : 1;
+const minutosLectura = Math.max(1, Math.ceil(totalPaginas * 1.25));
+const edadLabel = libro?.edad_rango
+  ? /\b(años?|adultos?)\b/i.test(String(libro.edad_rango))
+    ? libro.edad_rango
+    : `Para ${libro.edad_rango} años`
+  : 'Para toda la familia';
 ---
 
 <Layout title={!error && libro ? `${libro.titulo} – FamiliaLee` : 'Libro no encontrado'} description={!error && libro ? libro.descripcion : 'Explora libros y recursos para familias'}>
-  <main>
+  <main class="book-detail-page">
     {!error && libro ? (
       <>
         <section class="libro-hero">
-          <div class="container">
+          <div class="container detail-container">
             <a href="/biblioteca" class="breadcrumb">← Volver a Biblioteca</a>
             <div class="libro-detail">
               <div class="libro-cover-wrap">
-                <div class="libro-cover" style={`background: ${libro.portada_gradiente || 'linear-gradient(135deg, #00a8e8, #b82db5)'}`} aria-hidden="true">
+                <div class="libro-cover" style={`background: ${libro.portada_gradiente || 'linear-gradient(135deg, #00a8e8, #b82db5)'}`}>
                   {isImageCover ? (
                     <img class="cover-image" src={libro.portada_icono} alt={`Portada de ${libro.titulo}`} loading="lazy" />
                   ) : (
                     <span class="cover-icon">{libro.portada_icono || '📖'}</span>
                   )}
                   {libro.destacado && <span class="badge badge-destacado">⭐ Destacado</span>}
-                  {libro.nuevo && <span class="badge badge-nuevo">✨ Nuevo</span>}
+                  {libro.categorias?.[0] && <span class="cover-category">{libro.categorias[0]}</span>}
                 </div>
               </div>
 
               <div class="libro-info">
-                <div class="libro-tags">
-                  {libro.categorias?.map((cat: string) => <span class="badge">{cat}</span>)}
+                <div class="book-overline">
+                  <span>
+                    <svg class="meta-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                    {minutosLectura} min de lectura
+                  </span>
+                  <span>
+                    <svg class="meta-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="3.5" />
+                      <path d="M5 20a7 7 0 0 1 14 0" />
+                    </svg>
+                    {edadLabel}
+                  </span>
                 </div>
                 <h1 class="libro-titulo">{libro.titulo}</h1>
+                <p class="libro-desc">{libro.descripcion || 'No hay descripción disponible.'}</p>
                 <a href={`/autor/${libro.autor_slug || libro.autor_nombre?.toLowerCase().replace(/\s+/g, '-')}`} class="libro-autor">
                   por <strong>{libro.autor_nombre || 'Anónimo'}</strong>
                 </a>
@@ -84,31 +91,39 @@ try {
                     ⭐ <span id="hero-rating-promedio">{libro.rating_promedio?.toFixed(1) || '0'}</span>/5
                     <span id="hero-rating-votos">({libro.total_valoraciones || 0} votos)</span>
                   </div>
-                  <span class="dot">·</span>
-                  <span>{libro.edad_rango || 'N/A'}</span>
-                  <span class="dot">·</span>
-                  <span>{libro.paginas_total || (Array.isArray(libro.paginas) ? libro.paginas.length : (libro.paginas || 'N/A'))} páginas</span>
-                  <span class="dot">·</span>
-                  <span>{libro.anio || 'N/A'}</span>
+                  <div class="stat-item">
+                    <strong id="descargas-count">{(libro.descargas_total || 0).toLocaleString('es')}</strong>
+                    <span>Descargas</span>
+                  </div>
+                  <div class="stat-item">
+                    <strong id="valoraciones-count">{libro.total_valoraciones || 0}</strong>
+                    <span>Valoraciones</span>
+                  </div>
                 </div>
-
-                <p class="libro-desc">{libro.descripcion || 'No hay descripción disponible.'}</p>
 
                 <BookActions libroSlug={slug || ''} libroTitulo={libro.titulo} />
 
                 <BookRating libroSlug={slug || ''} currentRating={libro.rating_promedio || 0} totalVotes={libro.total_valoraciones || 0} />
 
-                <div class="libro-stats">
-                  <div class="stat-item">
-                    <strong id="descargas-count">{(libro.descargas_total || 0).toLocaleString('es')}</strong>
-                    <p>Descargas</p>
-                  </div>
-                  <div class="stat-item">
-                    <strong id="valoraciones-count">{libro.total_valoraciones || 0}</strong>
-                    <p>Valoraciones</p>
-                  </div>
-                </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="book-preview-section" aria-labelledby="preview-title">
+          <div class="container detail-container">
+            <div class="preview-heading">
+              <h2 id="preview-title">Vista previa</h2>
+              <span>Página 1 de {totalPaginas}</span>
+            </div>
+            <div class="preview-page">
+              <span class="preview-sparkle" aria-hidden="true">★</span>
+              <span class="preview-book-mark" aria-hidden="true">📖</span>
+              <h3>Una nueva aventura comienza...</h3>
+              <p>Abre este libro y descubre su historia, página a página.</p>
+              <a class="preview-read-link" href={`/libro/${slug}/leer`}>
+                Comenzar lectura <span aria-hidden="true">›</span>
+              </a>
             </div>
           </div>
         </section>
@@ -612,6 +627,541 @@ try {
 
     .relacionados-grid {
       grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<style is:global>
+  .book-detail-page {
+    color: #26344b;
+    background: #f7f9fc;
+    padding: 0 0 3rem;
+  }
+
+  .book-detail-page .detail-container {
+    width: min(100% - 2rem, 980px);
+    max-width: 980px;
+    padding: 0;
+  }
+
+  .book-detail-page .libro-hero {
+    padding: 0.25rem 0 0;
+    background: transparent;
+    color: #26344b;
+  }
+
+  .book-detail-page .breadcrumb {
+    margin: 0 0 1rem;
+    color: #66809a;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+
+  .book-detail-page .breadcrumb:hover {
+    color: #159d91;
+  }
+
+  .book-detail-page .libro-detail {
+    grid-template-columns: minmax(220px, 292px) minmax(0, 1fr);
+    gap: clamp(2rem, 4vw, 2.75rem);
+    align-items: start;
+  }
+
+  .book-detail-page .libro-cover-wrap {
+    gap: 0;
+  }
+
+  .book-detail-page .libro-cover {
+    width: 100%;
+    max-width: none;
+    aspect-ratio: 0.71;
+    border: 0;
+    border-radius: 24px;
+    background: linear-gradient(145deg, #6ad0bf, #34aaa7);
+    box-shadow: 0 16px 32px rgba(45, 91, 108, 0.12);
+  }
+
+  .book-detail-page .cover-image {
+    object-fit: cover;
+  }
+
+  .book-detail-page .cover-category {
+    position: absolute;
+    bottom: 16px;
+    left: 18px;
+    max-width: calc(100% - 36px);
+    padding: 0.42rem 0.75rem;
+    border-radius: 999px;
+    overflow: hidden;
+    color: #fff;
+    background: rgba(26, 112, 108, 0.78);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .book-detail-page .libro-info {
+    gap: 0.85rem;
+    padding: 1.1rem 0 0;
+  }
+
+  .book-detail-page .book-overline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    color: #71839a;
+    font-size: 0.72rem;
+  }
+
+  .book-detail-page .book-overline > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .book-detail-page .meta-icon {
+    width: 13px;
+    height: 13px;
+    color: #149f93;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
+  .book-detail-page .libro-titulo {
+    color: #26344b;
+    font-family: var(--font-sans);
+    font-size: clamp(2rem, 4.2vw, 2.9rem);
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: -0.055em;
+  }
+
+  .book-detail-page .libro-desc {
+    color: #6c7f96;
+    font-size: 0.88rem;
+    line-height: 1.65;
+  }
+
+  .book-detail-page .libro-autor {
+    color: #68809a;
+    font-size: 0.8rem;
+  }
+
+  .book-detail-page .libro-autor strong {
+    color: #159d91;
+  }
+
+  .book-detail-page .libro-meta-row {
+    display: flex;
+    align-items: center;
+    gap: clamp(1rem, 3vw, 2rem);
+    margin: 0.35rem 0 0.4rem;
+    padding: 1rem 0 1.15rem;
+    border-top: 1px solid #e6ebf1;
+    border-bottom: 1px solid #e1e7ef;
+    color: #26344b;
+  }
+
+  .book-detail-page .star-rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem;
+    color: #26344b;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .book-detail-page .star-rating span {
+    color: #26344b;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .book-detail-page #hero-rating-votos {
+    display: none;
+  }
+
+  .book-detail-page .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-width: 4.8rem;
+    text-align: left;
+  }
+
+  .book-detail-page .stat-item strong {
+    color: #26344b;
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .book-detail-page .libro-detail .libro-info .libro-meta-row .stat-item strong {
+    color: #26344b;
+    font-size: 1rem;
+  }
+
+  .book-detail-page .stat-item span {
+    color: #8492a4;
+    font-size: 0.65rem;
+  }
+
+  .book-detail-page .libro-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.3rem;
+  }
+
+  .book-detail-page .btn-leer-lg,
+  .book-detail-page .btn-dl-lg,
+  .book-detail-page .btn-save-lg,
+  .book-detail-page .btn-share-lg {
+    min-height: 44px;
+    padding: 0.72rem 0.9rem;
+    border: 1px solid #dce6e9;
+    border-radius: 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .book-detail-page .btn-leer-lg,
+  .book-detail-page .btn-dl-lg {
+    color: #fff;
+    background: #1bb19f;
+    box-shadow: 0 6px 12px rgba(27, 177, 159, 0.16);
+  }
+
+  .book-detail-page .btn-leer-lg:hover,
+  .book-detail-page .btn-dl-lg:hover {
+    background: #139d8d;
+    transform: translateY(-1px);
+  }
+
+  .book-detail-page .btn-leer-lg {
+    display: none;
+  }
+
+  .book-detail-page .btn-save-lg {
+    width: auto;
+    height: 44px;
+    color: #159d91;
+    background: #fff;
+  }
+
+  .book-detail-page .btn-share-lg {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    flex: 0 0 44px;
+    align-items: center;
+    justify-content: center;
+    color: #159d91;
+    background: #fff;
+  }
+
+  .book-detail-page .btn-share-lg svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .book-detail-page .btn-save-lg:hover {
+    border-color: #8ed8ce;
+    background: #f1fbf9;
+  }
+
+  .book-detail-page .btn-save-lg.guardado {
+    background: #effbf8;
+  }
+
+  .book-detail-page .book-rating-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    min-height: 64px;
+    margin: 0.2rem 0 0;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid #f1e4a8;
+    border-radius: 12px;
+    background: #fff9df;
+  }
+
+  .book-detail-page .rating-header {
+    display: block;
+    margin: 0;
+  }
+
+  .book-detail-page .rating-header h3 {
+    color: #5c5745;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .book-detail-page .rating-value {
+    display: none;
+  }
+
+  .book-detail-page .stars-container {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-items: flex-end;
+    gap: 0;
+  }
+
+  .book-detail-page .stars-interactive {
+    gap: 0.1rem;
+  }
+
+  .book-detail-page .star-btn {
+    padding: 0.12rem;
+    color: #d9ab2e;
+    font-size: 1.15rem;
+    opacity: 0.85;
+  }
+
+  .book-detail-page .star-btn:hover {
+    filter: none;
+  }
+
+  .book-detail-page .rating-hint {
+    color: #948b6c;
+    font-size: 0.62rem;
+    font-weight: 400;
+    text-align: right;
+  }
+
+  .book-detail-page .libro-detail .libro-info .libro-actions-row {
+    margin: 0.3rem 0 0;
+  }
+
+  .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-leer-lg,
+  .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-dl-lg,
+  .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-save-lg {
+    min-width: 0;
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+  }
+
+  .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-leer-lg {
+    display: none;
+  }
+
+  .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-save-lg {
+    border-width: 1px;
+  }
+
+  .book-detail-page .libro-detail .libro-info .book-rating-container {
+    margin: 0.2rem 0 0;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid #f1e4a8;
+    border-radius: 12px;
+    background: #fff9df;
+  }
+
+  .book-detail-page .libro-detail .libro-info .book-rating-container .rating-header h3 {
+    color: #5c5745;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .book-detail-page .libro-detail .libro-info .book-rating-container .rating-hint {
+    color: #948b6c;
+    font-size: 0.62rem;
+    font-weight: 400;
+  }
+
+  .book-detail-page .libro-detail .libro-info .book-rating-container {
+    position: relative;
+  }
+
+  .book-detail-page .libro-detail .libro-info .book-rating-container .rating-hint {
+    position: absolute;
+    bottom: 0.55rem;
+    left: 0.9rem;
+    text-align: left;
+  }
+
+  .book-detail-page .book-preview-section {
+    padding: 2.6rem 0 0;
+  }
+
+  .book-detail-page .preview-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .book-detail-page .preview-heading h2 {
+    color: #91a1b5;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .book-detail-page .preview-heading span {
+    color: #91a1b5;
+    font-size: 0.68rem;
+  }
+
+  .book-detail-page .preview-page {
+    position: relative;
+    display: flex;
+    min-height: 230px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow: hidden;
+    border: 1px solid #f1e8c9;
+    border-radius: 16px;
+    background: #fffdf3;
+    box-shadow: 0 8px 22px rgba(50, 64, 79, 0.035);
+    text-align: center;
+  }
+
+  .book-detail-page .preview-sparkle {
+    position: absolute;
+    top: 18px;
+    left: 27%;
+    color: #f2bd3d;
+    font-size: 1.25rem;
+  }
+
+  .book-detail-page .preview-book-mark {
+    margin-bottom: 0.9rem;
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+
+  .book-detail-page .preview-page h3 {
+    margin: 0 0 0.55rem;
+    color: #455a70;
+    font-size: 1.2rem;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+  }
+
+  .book-detail-page .preview-page p {
+    max-width: 470px;
+    color: #8392a5;
+    font-size: 0.75rem;
+    line-height: 1.65;
+  }
+
+  .book-detail-page .preview-read-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 1.15rem;
+    color: #119c8f;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .book-detail-page .preview-read-link:hover {
+    color: #087d72;
+  }
+
+  .book-detail-page .preview-read-link span {
+    font-size: 1.1rem;
+    line-height: 0.8;
+  }
+
+  @media (max-width: 1024px) {
+    .book-detail-page .libro-detail {
+      grid-template-columns: minmax(200px, 270px) minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 760px) {
+    .book-detail-page {
+      padding-bottom: 2rem;
+    }
+
+    .book-detail-page .detail-container {
+      width: min(100% - 2rem, 560px);
+    }
+
+    .book-detail-page .libro-detail {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.4rem;
+    }
+
+    .book-detail-page .libro-cover {
+      width: min(100%, 260px);
+      margin: 0 auto;
+      aspect-ratio: 0.78;
+    }
+
+    .book-detail-page .libro-info {
+      padding-top: 0;
+    }
+
+    .book-detail-page .libro-titulo {
+      font-size: clamp(1.8rem, 8vw, 2.4rem);
+    }
+
+    .book-detail-page .libro-meta-row {
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .book-detail-page .libro-actions-row {
+      flex-direction: row;
+    }
+
+    .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-leer-lg {
+      display: inline-flex;
+    }
+
+    .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-leer-lg,
+    .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-dl-lg {
+      width: auto;
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+
+    .book-detail-page .libro-detail .libro-info .libro-actions-row .btn-save-lg {
+      flex: 0 0 auto;
+    }
+
+    .book-detail-page .book-preview-section {
+      padding-top: 2rem;
+    }
+
+    .book-detail-page .preview-page {
+      min-height: 220px;
+      padding: 2rem 1.25rem;
+    }
+
+    .book-detail-page .preview-sparkle {
+      left: 12%;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .book-detail-page .libro-detail .libro-info .libro-actions-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .book-detail-page .book-rating-container {
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 0.7rem;
+    }
+
+    .book-detail-page .rating-header h3 {
+      font-size: 0.66rem;
     }
   }
 </style>

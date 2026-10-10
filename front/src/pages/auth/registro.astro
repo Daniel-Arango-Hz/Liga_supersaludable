@@ -798,7 +798,7 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-  import { completeGoogleAuth, registro, setAuth, startGoogleAuth } from '../../utils/api';
+  import { completeGoogleAuth, getAuthReturnPath, registro, setAuth, startGoogleAuth } from '../../utils/api';
 
   const form = document.getElementById('registro-form') as HTMLFormElement;
   const nombreInput = document.getElementById('nombre') as HTMLInputElement;
@@ -896,9 +896,8 @@ import Layout from '../../layouts/Layout.astro';
       successDiv.textContent = '¡Cuenta creada exitosamente! Redirigiendo...';
       successDiv.style.display = 'block';
 
-      // Redirect a login después de 1.5 segundos
       setTimeout(() => {
-        window.location.href = '/auth/login';
+        window.location.replace(getAuthReturnPath());
       }, 1500);
     } catch (error: any) {
       errorDiv.textContent = error.message || 'Error al crear la cuenta. Intenta de nuevo.';

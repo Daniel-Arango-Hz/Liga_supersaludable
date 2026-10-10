@@ -10,15 +10,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 ---
 
 <div class="libro-actions-row">
-  <button class="btn-leer-lg" id="btn-leer" data-libro-slug={libroSlug} data-libro-titulo={libroTitulo}>
-    📖 Leer en línea
-  </button>
+ 
   <button class="btn-dl-lg" id="btn-descargar" data-libro-slug={libroSlug} data-pdf-url={pdfUrl || ''}>
-    ⬇️ Descargar PDF
+    ⬇️ Descargar libro
   </button>
   <button class="btn-save-lg" id="btn-guardar" data-libro-slug={libroSlug} aria-label="Guardar">
     ❤️
   </button>
+  <button class="btn-share-lg" id="btn-compartir" type="button" aria-label="Compartir libro" title="Compartir libro">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="m8.2 10.9 7.6-4.8M8.2 13.1l7.6 4.8" />
+    </svg>
+  </button>
+  <span class="share-status" id="share-status" role="status" aria-live="polite"></span>
 </div>
 
 <script define:vars={{ libroSlug, libroTitulo, apiUrl }}>
@@ -38,6 +45,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     const btnLeer = document.getElementById('btn-leer');
     const btnDescargar = document.getElementById('btn-descargar');
     const btnGuardar = document.getElementById('btn-guardar');
+    const btnCompartir = document.getElementById('btn-compartir');
+    const shareStatus = document.getElementById('share-status');
 
     // Obtener token del localStorage
     function getToken() {
@@ -99,11 +108,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     }
 
     // Leer en línea
-    if (btnLeer) {
-      btnLeer.addEventListener('click', async () => {
-        window.location.href = `/libro/${libroSlug}/leer`;
-      });
-    }
+    
 
     // Descargar PDF
     if (btnDescargar) {
@@ -122,7 +127,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
               if (titleEl) titleEl.textContent = 'Descargar libros';
               if (msgEl) msgEl.textContent = 'Debes iniciar sesión para descargar libros. 📚';
               btnDescargar.disabled = false;
-              btnDescargar.textContent = '⬇️ Descargar PDF';
+              btnDescargar.textContent = '⬇️ Descargar libro';
             }
             return;
           }
@@ -134,16 +139,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           });
 
           if (response.status === 401) {
-            const modal = document.getElementById('loginModalOverlay');
-            if (modal) {
-              modal.classList.add('active');
-              const titleEl = document.getElementById('modalTitle');
-              const msgEl = document.getElementById('modalMessage');
-              if (titleEl) titleEl.textContent = 'Sesión expirada';
-              if (msgEl) msgEl.textContent = 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo. 🔐';
-            }
+            window.dispatchEvent(new Event('auth:expired'));
             btnDescargar.disabled = false;
-            btnDescargar.textContent = '⬇️ Descargar PDF';
+            btnDescargar.textContent = '⬇️ Descargar libro';
             return;
           }
 
@@ -170,7 +168,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
           btnDescargar.textContent = '✓ Descargado';
           setTimeout(() => {
-            btnDescargar.textContent = '⬇️ Descargar PDF';
+            btnDescargar.textContent = '⬇️ Descargar libro';
             btnDescargar.disabled = false;
           }, 2000);
         } catch (error) {
@@ -183,7 +181,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
             if (titleEl) titleEl.textContent = 'Error';
             if (msgEl) msgEl.textContent = 'Error al descargar. Intenta de nuevo.';
           }
-          btnDescargar.textContent = '⬇️ Descargar PDF';
+          btnDescargar.textContent = '⬇️ Descargar libro';
           btnDescargar.disabled = false;
         }
       });
@@ -221,14 +219,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           });
 
           if (response.status === 401) {
-            const modal = document.getElementById('loginModalOverlay');
-            if (modal) {
-              modal.classList.add('active');
-              const titleEl = document.getElementById('modalTitle');
-              const msgEl = document.getElementById('modalMessage');
-              if (titleEl) titleEl.textContent = 'Sesión expirada';
-              if (msgEl) msgEl.textContent = 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo. 🔐';
-            }
+            window.dispatchEvent(new Event('auth:expired'));
             btnGuardar.disabled = false;
             return;
           }
@@ -254,6 +245,26 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         }
       });
     }
+
+    btnCompartir?.addEventListener('click', async () => {
+      try {
+        const shareData = { title: libroTitulo, url: window.location.href };
+        if (typeof navigator.share === 'function') {
+          await navigator.share(shareData);
+          return;
+        }
+        if (!navigator.clipboard?.writeText) {
+          throw new Error('Este navegador no permite compartir ni copiar el enlace.');
+        }
+
+        await navigator.clipboard.writeText(shareData.url);
+        if (shareStatus) shareStatus.textContent = 'Enlace copiado';
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        console.error('No se pudo compartir el libro:', error);
+        if (shareStatus) shareStatus.textContent = 'No se pudo compartir el libro.';
+      }
+    });
   });
 </script>
 
@@ -318,6 +329,36 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   .btn-save-lg.guardado {
     background: var(--color-primary-pink, #ff006e);
     color: white;
+  }
+
+  .btn-share-lg {
+    width: 45px;
+    height: 45px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(48, 130, 125, 0.2);
+    border-radius: 10px;
+    color: #159d91;
+    background: #fff;
+  }
+
+  .btn-share-lg svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .share-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
   }
 
   .btn-leer-lg:disabled,

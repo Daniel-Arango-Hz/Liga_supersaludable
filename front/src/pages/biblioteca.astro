@@ -92,7 +92,7 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
           <p class="hero-kicker">UN MUNDO DE AVENTURAS</p>
           <h1 class="page-title">Cuentos Super Saludables</h1>
           <p class="page-desc">Conoce a nuestros superhéroes y descubre historias que te enseñan a cuidar tu cuerpo, tus emociones y el planeta.</p>
-          <a class="publish-book-button" href="/subir-libro">
+          <a class="publish-book-button" id="publish-book-button" href="/subir-libro">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Publicar libro
           </a>
@@ -952,6 +952,19 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
 </style>
 
 <script>
+  const publishBookButton = document.getElementById('publish-book-button') as HTMLAnchorElement;
+  publishBookButton?.addEventListener('click', (event) => {
+    if (window.localStorage.getItem('token')) return;
+
+    event.preventDefault();
+    const modal = document.getElementById('loginModalOverlay');
+    const title = document.getElementById('modalTitle');
+    const message = document.getElementById('modalMessage');
+    if (title) title.textContent = 'Inicio de sesión requerido';
+    if (message) message.textContent = 'Debes iniciar sesión para publicar un libro.';
+    modal?.classList.add('active');
+  });
+
   const searchForm = document.getElementById('book-search-form') as HTMLFormElement;
   const searchInput = searchForm?.querySelector('input[name="q"]') as HTMLInputElement;
   const bookFilter = document.getElementById('book-filter') as HTMLButtonElement;

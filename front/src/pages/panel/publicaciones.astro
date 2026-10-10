@@ -76,6 +76,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 <script define:vars={{ apiUrl }}>
   // @ts-nocheck
   const API_URL = apiUrl;
+  const requestLogin = () => window.dispatchEvent(new CustomEvent('auth:required', {
+    detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para administrar tus publicaciones.' },
+  }));
   let isDeleting = false;
 
   function showDeleteConfirmModal(titulo) {
@@ -210,7 +213,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   async function deletePublishedBook(slug, titulo) {
     const token = localStorage.getItem('token');
     if (!token) {
-      window.location.href = '/auth/login';
+      requestLogin();
       return;
     }
 
@@ -230,7 +233,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       });
 
       if (res.status === 401) {
-        window.location.href = '/auth/login';
+        window.dispatchEvent(new Event('auth:expired'));
         return;
       }
 
@@ -277,7 +280,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   async function loadPublishedBooks() {
     const token = localStorage.getItem('token');
     if (!token) {
-      window.location.href = '/auth/login';
+      requestLogin();
       return;
     }
 
@@ -289,7 +292,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       });
 
       if (res.status === 401) {
-        window.location.href = '/auth/login';
+        window.dispatchEvent(new Event('auth:expired'));
         return;
       }
 

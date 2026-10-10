@@ -282,7 +282,9 @@ function formatFecha(raw: string) {
           if (!button) return;
           const token = window.localStorage.getItem('token');
           if (!token) {
-            window.location.href = '/auth/login';
+            window.dispatchEvent(new CustomEvent('auth:required', {
+              detail: { title: 'Inicio de sesión requerido', message: 'Debes iniciar sesión para indicar que te gusta.' },
+            }));
             return;
           }
 

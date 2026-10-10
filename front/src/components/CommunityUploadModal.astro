@@ -268,9 +268,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
       if (!token) {
         setStatus('Debes iniciar sesión para publicar contenido.', true);
-        window.setTimeout(() => {
-          window.location.href = '/auth/login';
-        }, 700);
+        window.dispatchEvent(new CustomEvent('auth:required', {
+          detail: { title: 'Inicio de sesión requerido', message: 'Debes iniciar sesión para publicar contenido.' },
+        }));
         return;
       }
 

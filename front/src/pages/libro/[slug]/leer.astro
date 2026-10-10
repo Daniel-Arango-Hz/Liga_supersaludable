@@ -668,6 +668,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       const data = await response.json();
       if (response.status === 401) {
         document.getElementById('audiobook-login').hidden = false;
+        window.dispatchEvent(new Event('auth:expired'));
       }
       if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las voces.');
       if (!Array.isArray(data.voices) || data.voices.length === 0) {

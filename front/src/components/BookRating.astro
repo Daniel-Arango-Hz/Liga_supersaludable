@@ -11,7 +11,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
 <div class="book-rating-container">
   <div class="rating-header">
-    <h3>⭐ Valoración</h3>
+    <h3>¿Te ha gustado este cuento?</h3>
     <span class="rating-value">{currentRating.toFixed(1)}/5 ({totalVotes} votos)</span>
   </div>
   
@@ -24,11 +24,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           title={`Valorar ${star} estrella${star > 1 ? 's' : ''}`}
           aria-label={`Valorar ${star} estrella${star > 1 ? 's' : ''}`}
         >
-          ⭐
+          ☆
         </button>
       ))}
     </div>
-    <p class="rating-hint" id="rating-hint">Haz click para valorar 🌟</p>
+    <p class="rating-hint" id="rating-hint">Tu valoración ayuda a otras familias a encontrarlo.</p>
   </div>
 </div>
 
@@ -208,14 +208,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           });
 
           if (response.status === 401) {
-            const modal = document.getElementById('loginModalOverlay');
-            if (modal) {
-              modal.classList.add('active');
-              const titleEl = document.getElementById('modalTitle');
-              const msgEl = document.getElementById('modalMessage');
-              if (titleEl) titleEl.textContent = 'Sesión expirada';
-              if (msgEl) msgEl.textContent = 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo. 🔐';
-            }
+            window.dispatchEvent(new Event('auth:expired'));
             return;
           }
 
@@ -258,7 +251,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           });
 
           setTimeout(() => {
-            ratingHint.textContent = 'Haz click para valorar 🌟';
+            ratingHint.textContent = 'Tu valoración ayuda a otras familias a encontrarlo.';
             ratingHint.style.color = '#b82db5';
           }, 2500);
         } catch (error) {
@@ -266,7 +259,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           ratingHint.textContent = '❌ Error al guardar valoración. Intenta de nuevo.';
           ratingHint.style.color = '#ff4757';
           setTimeout(() => {
-            ratingHint.textContent = 'Haz click para valorar 🌟';
+            ratingHint.textContent = 'Tu valoración ayuda a otras familias a encontrarlo.';
             ratingHint.style.color = '#b82db5';
           }, 2000);
         }

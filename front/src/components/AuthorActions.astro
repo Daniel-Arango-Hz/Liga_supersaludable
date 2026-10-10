@@ -109,7 +109,7 @@ let autorEmail = initialAutorEmail || '';
           });
 
           if (response.status === 401) {
-            showLoginModal('Sesión expirada', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo. 🔐');
+            window.dispatchEvent(new Event('auth:expired'));
             return;
           }
 

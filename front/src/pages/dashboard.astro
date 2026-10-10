@@ -324,6 +324,8 @@ import Layout from '../layouts/Layout.astro';
 
   // Proteger la página - solo usuarios logueados
   if (!isAuthenticated()) {
-    window.location.href = '/auth/login';
+    window.dispatchEvent(new CustomEvent('auth:required', {
+      detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para consultar tu panel.' },
+    }));
   }
 </script>

@@ -178,27 +178,35 @@
     }
   }
 
-  // Event listeners para cerrar el modal
   if (typeof window !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', () => {
-      const closeBtn = document.getElementById('modalCloseBtn');
-      const closeButton = document.getElementById('modalCloseButton');
-      const overlay = document.getElementById('loginModalOverlay');
+    const closeBtn = document.getElementById('modalCloseBtn');
+    const closeButton = document.getElementById('modalCloseButton');
+    const overlay = document.getElementById('loginModalOverlay');
 
-      closeBtn?.addEventListener('click', () => {
-        overlay?.classList.remove('active');
-      });
+    window.addEventListener('auth:required', (event) => {
+      const { title, message } = (event as CustomEvent<{ title?: string; message?: string }>).detail || {};
+      showLoginModal(message || 'Inicia sesión para continuar.', title || 'Inicio de sesión requerido');
+    });
 
-      closeButton?.addEventListener('click', () => {
-        overlay?.classList.remove('active');
-      });
+    window.addEventListener('auth:expired', () => {
+      showLoginModal(
+        'Tu sesión ha caducado. Inicia sesión nuevamente para continuar.',
+        'Sesión expirada',
+      );
+    });
 
-      // Cerrar modal al hacer click fuera de él
-      overlay?.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-          overlay.classList.remove('active');
-        }
-      });
+    closeBtn?.addEventListener('click', () => {
+      overlay?.classList.remove('active');
+    });
+
+    closeButton?.addEventListener('click', () => {
+      overlay?.classList.remove('active');
+    });
+
+    overlay?.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove('active');
+      }
     });
   }
 </script>

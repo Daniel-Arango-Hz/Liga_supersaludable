@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.PUBLIC_API_URL || 'https://liga-supersaludable.vercel.app/api';
+const AUTH_RETURN_PATH_KEY = 'auth:returnTo';
 
 interface AuthResponse {
   token: string;
@@ -22,7 +23,7 @@ interface Usuario {
   apellido: string;
   tipo: string;
   avatar_url?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -68,6 +69,29 @@ export async function login(email: string, password: string): Promise<AuthRespon
 export function startGoogleAuth(page: GoogleAuthPage, tipo: AccountType = 'familia'): void {
   const params = new URLSearchParams({ page, tipo });
   window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
+}
+
+export function getAuthReturnPath(): string {
+  const returnPath = sessionStorage.getItem(AUTH_RETURN_PATH_KEY);
+  sessionStorage.removeItem(AUTH_RETURN_PATH_KEY);
+  if (!returnPath) return '/';
+
+  try {
+    const url = new URL(returnPath, window.location.origin);
+    if (url.origin !== window.location.origin || url.pathname.startsWith('/auth/')) return '/';
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return '/';
+  }
+}
+
+export function requestLogin(title = 'Inicio de sesión requerido', message = 'Inicia sesión para continuar.'): void {
+  window.dispatchEvent(new CustomEvent('auth:required', { detail: { title, message } }));
+}
+
+export function handleSessionExpired(): void {
+  logout();
+  window.dispatchEvent(new CustomEvent('auth:expired'));
 }
 
 export async function completeGoogleAuth(): Promise<boolean> {
@@ -119,7 +143,7 @@ export async function completeGoogleAuth(): Promise<boolean> {
 
   const response: AuthResponse = await res.json();
   setAuth(response.token, response.usuario);
-  window.location.replace('/');
+  window.location.replace(getAuthReturnPath());
   return true;
 }
 
@@ -164,8 +188,7 @@ async function fetchAuth(endpoint: string, options: RequestInit = {}) {
   });
 
   if (!res.ok && res.status === 401) {
-    logout();
-    window.location.href = '/auth/login';
+    handleSessionExpired();
   }
 
   return res;

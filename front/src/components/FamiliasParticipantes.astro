@@ -450,9 +450,7 @@ const textos = participantes.filter((item) => !item.imagen);
             btn.dataset.liked = currentlyLiked ? '1' : '0';
             if (svg) svg.style.opacity = currentlyLiked ? '0.9' : '';
             if (countSpan) countSpan.textContent = String(Number(countSpan.textContent || 0));
-            if (res.status === 401) {
-              window.location.href = '/auth/login';
-            }
+            if (res.status === 401) window.dispatchEvent(new Event('auth:expired'));
           } else {
             const payload = await res.json();
             if (payload.total_likes !== undefined) {

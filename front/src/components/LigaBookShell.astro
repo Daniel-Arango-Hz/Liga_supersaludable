@@ -118,6 +118,11 @@ const { activeSection } = Astro.props;
   const drawerClose = document.getElementById('drawer-close');
   const usuario = getUsuario();
 
+  window.addEventListener('auth:expired', () => {
+    if (loginLink) loginLink.hidden = false;
+    if (accountMenu) accountMenu.style.display = 'none';
+  });
+
   function closeSidebar() {
     sidebar?.classList.remove('is-open');
     if (sidebarBackdrop) sidebarBackdrop.hidden = true;
@@ -228,7 +233,7 @@ const { activeSection } = Astro.props;
 
     document.getElementById('account-logout')?.addEventListener('click', () => {
       logout();
-      window.location.href = '/';
+      window.location.reload();
     });
   }
 </script>
