@@ -1,13 +1,70 @@
 # CBI Personitas Biblioteca
 
-## Aportes con PSE
+Proyecto de biblioteca digital para CBI Personitas, pensado para poner al alcance de familias recursos educativos, lectura y contenidos digitales en un entorno accesible y sencillo.
 
-La página `/apoyar` recibe aportes voluntarios en COP mediante el Checkout Web alojado de Wompi. El visitante elige PSE y su banco dentro de Wompi; la aplicación no recibe datos bancarios.
+## Descripción general
 
-1. Ejecuta el esquema de `back/database/schema.sql` en Supabase para crear la tabla `donaciones`.
-2. Copia `back/.env.example` a `back/.env` y configura Supabase y las llaves de prueba de Wompi (`WOMPI_ENVIRONMENT=sandbox`). Las llaves públicas, el secreto de integridad y el secreto de eventos se obtienen en el dashboard de comercios de Wompi; nunca publiques los secretos.
-3. Configura `WOMPI_REDIRECT_URL` con la URL absoluta de `/apoyar/resultado` y permite el origen del frontend en `CORS_ORIGINS`.
-4. En el dashboard de Wompi registra `https://<dominio-api>/api/pagos/wompi/eventos` como URL de eventos y habilita `transaction.updated`.
-5. Para producción usa las llaves productivas, `WOMPI_ENVIRONMENT=production`, HTTPS y la URL pública correspondiente.
+- Frontend: Astro + TypeScript para la experiencia web.
+- Backend: Express + Supabase para APIs y gestión de datos.
+- Funcionalidades principales: catálogo de libros, lectura de contenidos, panel de gestión y flujo de apoyo a la biblioteca.
 
-Los estados se actualizan desde eventos firmados de Wompi y se verifican contra la transacción del proveedor antes de mostrarse al usuario. Para ejecutar las pruebas del backend: `cd back && npm test`.
+## Estructura del repositorio
+
+```text
+/
+├── README.md
+├── front/              # aplicación web
+│   ├── src/
+│   ├── public/
+│   └── package.json
+├── back/               # API y servicios del backend
+│   ├── src/
+│   ├── database/
+│   └── package.json
+├── reports/            # reportes y documentación operativa
+└── .gitignore
+```
+
+## Requisitos
+
+- Node.js 22+ recomendado
+- npm
+- acceso a Supabase para la base de datos y configuración del backend
+
+## Configuración local
+
+### 1) Frontend
+
+```bash
+cd front
+npm install
+npm run dev
+```
+
+La aplicación quedará disponible normalmente en `http://localhost:4321`.
+
+### 2) Backend
+
+```bash
+cd back
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Asegúrate de configurar las variables de entorno de Supabase antes de iniciar la API.
+
+## Variables de entorno
+
+Crea en `back/.env` los valores necesarios para la conexión con Supabase y otras configuraciones del entorno local. Mantén los secretos fuera del control de versiones.
+
+## Scripts útiles
+
+- Frontend: `cd front && npm run build`
+- Preview del frontend: `cd front && npm run preview`
+- Backend: `cd back && npm run dev`
+- Pruebas del backend: `cd back && npm test`
+
+## Notas
+
+Este repositorio está orientado a la biblioteca digital y a la experiencia de lectura de la comunidad CBI Personitas. La documentación del proyecto debe mantenerse alineada con la funcionalidad actual y sin referencias a procesos o integraciones que no formen parte del flujo vigente.

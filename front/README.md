@@ -1,43 +1,40 @@
-# Astro Starter Kit: Minimal
+# Frontend CBI Personitas Biblioteca
 
-```sh
-npm create astro@latest -- --template minimal
-```
+Aplicación web del proyecto de biblioteca digital de CBI Personitas, desarrollada con Astro.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Objetivo
 
-## 🚀 Project Structure
+Presentar la biblioteca, los contenidos disponibles, la experiencia de lectura y las páginas de apoyo de la iniciativa.
 
-Inside of your Astro project, you'll see the following folders and files:
+## Estructura principal
 
 ```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+src/
+├── components/
+├── layouts/
+├── pages/
+├── styles/
+├── data/
+└── utils/
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Comandos
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+Ejecuta estos comandos desde `front/`:
 
-Any static assets, like images, can be placed in the `public/` directory.
+```bash
+npm install
+npm run dev
+npm run build
+npm run preview
+```
 
-## 🧞 Commands
+## Desarrollo local
 
-All commands are run from the root of the project, from a terminal:
+- La aplicación corre en `http://localhost:4321`
+- Los cambios en `src/` se reflejan en caliente durante el desarrollo
+- Los assets estáticos se ubican en `public/`
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Notas
 
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Esta documentación está enfocada en el frontend del proyecto y mantiene la descripción general del sitio sin incluir detalles operativos específicos de integraciones o procesos internos.
