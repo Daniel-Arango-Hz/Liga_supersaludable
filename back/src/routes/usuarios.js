@@ -71,14 +71,23 @@ router.patch(
   validate,
   async (req, res) => {
     const { nombre, apellido, avatar_url } = req.body;
-    const { data, error } = await supabase
-      .from('usuarios')
-      .update({ nombre, apellido, avatar_url, updated_at: new Date().toISOString() })
-      .eq('id', req.user.id)
-      .select()
-      .single();
+    const updates = { updated_at: new Date().toISOString() };
+    if (nombre !== undefined) updates.nombre = nombre;
+    if (apellido !== undefined) updates.apellido = apellido;
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
-    if (error) return res.status(400).json({ error: error.message });
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .update(updates)
+      .eq('id', req.user.id)
+      .select('id, email, nombre, apellido, tipo, avatar_url, created_at')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error al actualizar el perfil del usuario:', error);
+      return res.status(500).json({ error: 'No se pudo actualizar el perfil.' });
+    }
+    if (!data) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(data);
   }
 );
