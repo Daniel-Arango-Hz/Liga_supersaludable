@@ -891,7 +891,7 @@ import Layout from '../../layouts/Layout.astro';
       });
 
       // Store auth data
-      setAuth(response.token, response.usuario);
+      setAuth(response.token, response.usuario, response.refresh_token);
 
       successDiv.textContent = '¡Cuenta creada exitosamente! Redirigiendo...';
       successDiv.style.display = 'block';

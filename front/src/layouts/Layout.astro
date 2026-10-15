@@ -24,8 +24,14 @@ const activeSection = Astro.url.pathname === '/'
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/logos/logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1d294a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Liga Supersaludable" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <title>{title}</title>
@@ -48,6 +54,22 @@ const activeSection = Astro.url.pathname === '/'
         <CtaFooter />
       </>
     )}
+
+    <script>
+      import { maintainAuthSession } from '../utils/api';
+
+      maintainAuthSession();
+    </script>
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
+            console.error('No se pudo registrar el service worker de la PWA.', error);
+          });
+        });
+      }
+    </script>
 
     <script>
       interface BookUpdateDetail {
@@ -95,6 +117,8 @@ const activeSection = Astro.url.pathname === '/'
       onReady(() => {
         window.addEventListener('auth:expired', () => {
           localStorage.removeItem('token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('session:expiresAt');
           localStorage.removeItem('usuario');
         });
 

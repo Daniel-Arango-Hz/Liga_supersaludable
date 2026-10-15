@@ -1,5 +1,9 @@
 const API_URL = import.meta.env.PUBLIC_API_URL || 'https://liga-supersaludable.vercel.app/api';
 const AUTH_RETURN_PATH_KEY = 'auth:returnTo';
+const SESSION_EXPIRES_AT_KEY = 'session:expiresAt';
+const REFRESH_TOKEN_KEY = 'refresh_token';
+const SESSION_DURATION_MS = 2 * 24 * 60 * 60 * 1000;
+const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 interface AuthResponse {
   token: string;
@@ -98,6 +102,7 @@ export async function completeGoogleAuth(): Promise<boolean> {
   const callbackUrl = new URL(window.location.href);
   const hash = new URLSearchParams(callbackUrl.hash.slice(1));
   const accessToken = hash.get('access_token');
+  const refreshToken = hash.get('refresh_token');
   const providerError =
     hash.get('error_description') ||
     hash.get('error') ||
@@ -131,6 +136,7 @@ export async function completeGoogleAuth(): Promise<boolean> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       access_token: accessToken,
+      refresh_token: refreshToken,
       page: page === 'registro' ? 'registro' : 'login',
       tipo,
     }),
@@ -142,13 +148,15 @@ export async function completeGoogleAuth(): Promise<boolean> {
   }
 
   const response: AuthResponse = await res.json();
-  setAuth(response.token, response.usuario);
+  setAuth(response.token, response.usuario, response.refresh_token);
   window.location.replace(getAuthReturnPath());
   return true;
 }
 
 export function logout(): void {
   localStorage.removeItem('token');
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(SESSION_EXPIRES_AT_KEY);
   localStorage.removeItem('usuario');
 }
 
@@ -161,17 +169,130 @@ export function getUsuario(): Usuario | null {
   return data ? JSON.parse(data) : null;
 }
 
-export function setAuth(token: string, usuario: Usuario): void {
+export function setAuth(token: string, usuario: Usuario, refreshToken?: string): void {
   localStorage.setItem('token', token);
   localStorage.setItem('usuario', JSON.stringify(usuario));
+  localStorage.setItem(SESSION_EXPIRES_AT_KEY, String(Date.now() + SESSION_DURATION_MS));
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
 }
 
 export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
+let refreshInProgress: Promise<boolean> | undefined;
+let refreshTimer: number | undefined;
+
+async function refreshAuthSession(): Promise<boolean> {
+  if (refreshInProgress) return refreshInProgress;
+
+  refreshInProgress = (async () => {
+    const expiresAt = Number(localStorage.getItem(SESSION_EXPIRES_AT_KEY));
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+    if (!expiresAt || Date.now() >= expiresAt || !refreshToken) {
+      handleSessionExpired();
+      return false;
+    }
+
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (res.status === 401) {
+      handleSessionExpired();
+      return false;
+    }
+    if (!res.ok) {
+      throw new Error(`No se pudo renovar la sesión (HTTP ${res.status})`);
+    }
+
+    const session: { token: string; refresh_token: string } = await res.json();
+    localStorage.setItem('token', session.token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, session.refresh_token);
+    return true;
+  })();
+
+  try {
+    return await refreshInProgress;
+  } finally {
+    refreshInProgress = undefined;
+  }
+}
+
+function getAccessTokenExpiresAt(token: string): number | undefined {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return undefined;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(base64)) as { exp?: number };
+    return typeof decoded.exp === 'number' ? decoded.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function refreshIfNeeded(): Promise<void> {
+  const expiresAt = Number(localStorage.getItem(SESSION_EXPIRES_AT_KEY));
+  if (!expiresAt) return;
+  if (Date.now() >= expiresAt) {
+    handleSessionExpired();
+    return;
+  }
+
+  const token = getToken();
+  const accessTokenExpiresAt = token ? getAccessTokenExpiresAt(token) : undefined;
+  if (accessTokenExpiresAt && accessTokenExpiresAt - Date.now() <= TOKEN_REFRESH_BUFFER_MS) {
+    await refreshAuthSession();
+  }
+}
+
+export function maintainAuthSession(): void {
+  const scheduleRefresh = () => {
+    if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+    const expiresAt = Number(localStorage.getItem(SESSION_EXPIRES_AT_KEY));
+    const token = getToken();
+    if (!expiresAt || !token) return;
+    const accessTokenExpiresAt = getAccessTokenExpiresAt(token);
+    const refreshAt = accessTokenExpiresAt
+      ? Math.min(accessTokenExpiresAt - TOKEN_REFRESH_BUFFER_MS, expiresAt)
+      : expiresAt;
+    refreshTimer = window.setTimeout(async () => {
+      refreshTimer = undefined;
+      try {
+        await refreshIfNeeded();
+        scheduleRefresh();
+      } catch (error: unknown) {
+        console.error('No se pudo renovar la sesión.', error);
+        refreshTimer = window.setTimeout(scheduleRefresh, 60_000);
+      }
+    }, Math.max(0, refreshAt - Date.now()));
+  };
+
+  void refreshIfNeeded()
+    .catch((error: unknown) => {
+      console.error('No se pudo comprobar la sesión.', error);
+    })
+    .finally(scheduleRefresh);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void refreshIfNeeded().catch((error: unknown) => {
+        console.error('No se pudo renovar la sesión al volver a la página.', error);
+      });
+    }
+  });
+}
+
 // ─── Fetch con autenticación ──────────────────────────────────────────────────
 async function fetchAuth(endpoint: string, options: RequestInit = {}) {
+  await refreshIfNeeded();
   const token = getToken();
   const headers = {
     'Content-Type': 'application/json',

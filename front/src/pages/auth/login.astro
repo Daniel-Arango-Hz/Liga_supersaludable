@@ -529,7 +529,7 @@ import Layout from '../../layouts/Layout.astro';
       const response = await login(email, password);
       
       // Store auth data
-      setAuth(response.token, response.usuario);
+      setAuth(response.token, response.usuario, response.refresh_token);
 
       successDiv.textContent = '¡Login exitoso! Redirigiendo...';
       successDiv.style.display = 'block';
