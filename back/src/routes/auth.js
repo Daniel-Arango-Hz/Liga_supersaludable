@@ -76,13 +76,14 @@ router.post(
   '/google/session',
   [
     body('access_token').isString().notEmpty().withMessage('Token de Google requerido'),
+    body('refresh_token').isString().notEmpty().withMessage('Token de renovación requerido'),
     body('page').isIn(['login', 'registro']).withMessage('Flujo de autenticación inválido'),
     body('tipo').isIn(['familia', 'autor']).withMessage('Tipo de cuenta inválido'),
   ],
   validate,
   async (req, res) => {
     try {
-      const { access_token: accessToken, page, tipo } = req.body;
+      const { access_token: accessToken, refresh_token: refreshToken, page, tipo } = req.body;
       const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
 
       if (authError || !authData.user?.email) {
@@ -90,6 +91,13 @@ router.post(
       }
 
       const authUser = authData.user;
+      const { data: refreshedAuth, error: refreshError } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+      if (refreshError || refreshedAuth.session?.user.id !== authUser.id) {
+        return res.status(401).json({ error: 'La sesión de Google no es válida. Inicia sesión nuevamente.' });
+      }
+
       const metadata = authUser.user_metadata || {};
       const fullName = metadata.full_name || metadata.name || '';
       const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -172,7 +180,8 @@ router.post(
       }
 
       return res.json({
-        token: accessToken,
+        token: refreshedAuth.session.access_token,
+        refresh_token: refreshedAuth.session.refresh_token,
         usuario: finalProfile,
       });
     } catch (error) {

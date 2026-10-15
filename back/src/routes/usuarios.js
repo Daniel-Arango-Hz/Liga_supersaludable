@@ -1,10 +1,23 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { body } from 'express-validator';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 
 const router = Router();
+const AVATAR_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'libros';
+const AVATAR_TYPES = new Map([
+  ['image/jpeg', { extension: 'jpg', signature: (buffer) => buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff }],
+  ['image/png', { extension: 'png', signature: (buffer) => buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
+  ['image/webp', { extension: 'webp', signature: (buffer) => buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP' }],
+]);
+
+function extractBase64Payload(raw) {
+  if (typeof raw !== 'string') return '';
+  const commaIndex = raw.indexOf(',');
+  return commaIndex >= 0 ? raw.slice(commaIndex + 1) : raw;
+}
 
 function normalizeCoverIcon(icon) {
   if (!icon || typeof icon !== 'string') return icon;
@@ -69,6 +82,60 @@ router.patch(
     res.json(data);
   }
 );
+
+// ─── POST /usuarios/perfil/avatar ────────────────────────────────────────────
+router.post('/perfil/avatar', requireAuth, async (req, res) => {
+  const { fileName, mimeType, fileBase64 } = req.body || {};
+  const imageType = AVATAR_TYPES.get(mimeType);
+  if (!imageType || typeof fileName !== 'string' || !fileName.trim() || typeof fileBase64 !== 'string') {
+    return res.status(400).json({ error: 'Selecciona una imagen JPG, PNG o WEBP válida.' });
+  }
+
+  const base64Payload = extractBase64Payload(fileBase64);
+  if (!base64Payload || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Payload)) {
+    return res.status(400).json({ error: 'El archivo de imagen no tiene un formato válido.' });
+  }
+
+  const imageBuffer = Buffer.from(base64Payload, 'base64');
+  if (!imageBuffer.length || imageBuffer.length > 2 * 1024 * 1024 || !imageType.signature(imageBuffer)) {
+    return res.status(400).json({ error: 'La imagen debe ser JPG, PNG o WEBP y pesar menos de 2 MB.' });
+  }
+
+  const storagePath = `avatares/${req.user.id}/${randomUUID()}.${imageType.extension}`;
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(AVATAR_BUCKET)
+    .upload(storagePath, imageBuffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error('Error al subir el avatar a Supabase Storage:', uploadError);
+    return res.status(500).json({ error: 'No se pudo subir la imagen. Intenta de nuevo.' });
+  }
+
+  const { data: publicUrlData } = supabaseAdmin.storage
+    .from(AVATAR_BUCKET)
+    .getPublicUrl(storagePath);
+  const avatarUrl = publicUrlData?.publicUrl;
+  if (!avatarUrl) {
+    return res.status(500).json({ error: 'No se pudo obtener la URL de la imagen.' });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('usuarios')
+    .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+    .eq('id', req.user.id)
+    .select('id, email, nombre, apellido, tipo, avatar_url, created_at')
+    .single();
+
+  if (error) {
+    console.error('Error al guardar el avatar del usuario:', error);
+    return res.status(500).json({ error: 'La imagen se subió, pero no se pudo guardar en el perfil.' });
+  }
+
+  res.json(data);
+});
 
 // ─── GET /usuarios/guardados ──────────────────────────────────────────────────
 router.get('/guardados', requireAuth, async (req, res) => {
