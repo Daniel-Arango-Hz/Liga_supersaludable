@@ -4,6 +4,15 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="Mi perfil – Liga Supersaludables" description="Consulta tu actividad y administra tu perfil en Liga Supersaludables.">
   <main class="profile-page">
+    <div class="profile-toast" id="profile-toast" role="status" aria-live="polite" hidden>
+      <span class="toast-icon" id="toast-icon" aria-hidden="true"></span>
+      <span class="toast-copy">
+        <strong class="toast-title" id="toast-title"></strong>
+        <span class="toast-message" id="toast-message"></span>
+      </span>
+      <button class="toast-close" id="toast-close" type="button" aria-label="Cerrar notificación">×</button>
+    </div>
+
     <div class="profile-container">
       <section class="profile-hero" aria-labelledby="profile-name">
         <div class="avatar-wrap">
@@ -133,7 +142,6 @@ import Layout from '../layouts/Layout.astro';
             <small>Descarga 5 cuentos</small>
           </article>
         </div>
-        <p class="profile-status" id="profile-status" role="status" aria-live="polite"></p>
       </section>
     </div>
 
@@ -152,7 +160,6 @@ import Layout from '../layouts/Layout.astro';
         <input id="last-name" name="apellido" type="text" maxlength="80" autocomplete="family-name" required />
         <label for="email">Correo electrónico</label>
         <input id="email" name="email" type="email" autocomplete="email" readonly />
-        <p class="dialog-status" id="dialog-status" role="status" aria-live="polite"></p>
         <div class="dialog-actions">
           <button class="cancel-button" id="cancel-dialog-button" type="button">Cancelar</button>
           <button class="save-button" id="save-profile-button" type="submit">Guardar cambios</button>
@@ -192,10 +199,14 @@ import Layout from '../layouts/Layout.astro';
   const avatarFallback = document.getElementById('avatar-fallback');
   const editDialog = document.getElementById('edit-dialog') as HTMLDialogElement | null;
   const editForm = document.getElementById('edit-profile-form') as HTMLFormElement | null;
-  const profileStatus = document.getElementById('profile-status');
-  const dialogStatus = document.getElementById('dialog-status');
   const saveButton = document.getElementById('save-profile-button') as HTMLButtonElement | null;
+  const profileToast = document.getElementById('profile-toast') as HTMLDivElement | null;
+  const toastIcon = document.getElementById('toast-icon');
+  const toastTitle = document.getElementById('toast-title');
+  const toastMessage = document.getElementById('toast-message');
   let currentUser: ProfileUser | null = getUsuario();
+  let toastTimer: number | undefined;
+  let toastDismissTimer: number | undefined;
 
   function renderAvatar(user: ProfileUser) {
     const initial = user.nombre?.trim().charAt(0).toLocaleUpperCase('es') || 'U';
@@ -232,10 +243,42 @@ import Layout from '../layouts/Layout.astro';
     renderAvatar(user);
   }
 
-  function setProfileStatus(message: string, isError = false) {
-    if (!profileStatus) return;
-    profileStatus.textContent = message;
-    profileStatus.classList.toggle('is-error', isError);
+  function showToast(
+    title: string,
+    message: string,
+    type: 'success' | 'error' | 'loading' = 'success',
+  ) {
+    if (toastTimer !== undefined) window.clearTimeout(toastTimer);
+    if (toastDismissTimer !== undefined) window.clearTimeout(toastDismissTimer);
+    toastDismissTimer = undefined;
+    if (!profileToast) return;
+
+    profileToast.className = `profile-toast is-${type}`;
+    profileToast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    profileToast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    if (toastTitle) toastTitle.textContent = title;
+    if (toastMessage) toastMessage.textContent = message;
+    if (toastIcon) {
+      toastIcon.textContent = type === 'error' ? '!' : type === 'loading' ? '…' : '';
+    }
+    profileToast.hidden = false;
+    (editDialog?.open ? editDialog : document.querySelector('main'))?.append(profileToast);
+    if (type !== 'loading') {
+      toastTimer = window.setTimeout(dismissToast, type === 'error' ? 6000 : 4000);
+    }
+  }
+
+  function dismissToast() {
+    if (toastTimer !== undefined) window.clearTimeout(toastTimer);
+    toastTimer = undefined;
+    if (!profileToast) return;
+    if (toastDismissTimer !== undefined) window.clearTimeout(toastDismissTimer);
+    profileToast.classList.add('is-leaving');
+    toastDismissTimer = window.setTimeout(() => {
+      profileToast.hidden = true;
+      profileToast.classList.remove('is-leaving');
+      toastDismissTimer = undefined;
+    }, 180);
   }
 
   async function loadProfile() {
@@ -243,7 +286,6 @@ import Layout from '../layouts/Layout.astro';
       window.dispatchEvent(new CustomEvent('auth:required', {
         detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para consultar y editar tu perfil.' },
       }));
-      setProfileStatus('Inicia sesión para cargar la actividad de tu cuenta.', true);
       return;
     }
 
@@ -270,7 +312,7 @@ import Layout from '../layouts/Layout.astro';
     } else {
       const failedActivity = results.slice(1).find((result) => result.status === 'rejected');
       console.error('No se pudo cargar toda la actividad del perfil.', failedActivity?.status === 'rejected' ? failedActivity.reason : undefined);
-      setProfileStatus('No pudimos cargar tu actividad. Intenta recargar la página.', true);
+      showToast('No se pudo cargar tu actividad', 'Intenta recargar la página.', 'error');
     }
   }
 
@@ -315,7 +357,6 @@ import Layout from '../layouts/Layout.astro';
     (editForm.elements.namedItem('nombre') as HTMLInputElement).value = currentUser.nombre || '';
     (editForm.elements.namedItem('apellido') as HTMLInputElement).value = currentUser.apellido || '';
     (editForm.elements.namedItem('email') as HTMLInputElement).value = currentUser.email || '';
-    if (dialogStatus) dialogStatus.textContent = '';
     editDialog.showModal();
   });
 
@@ -325,24 +366,29 @@ import Layout from '../layouts/Layout.astro';
 
   document.getElementById('close-dialog-button')?.addEventListener('click', closeDialog);
   document.getElementById('cancel-dialog-button')?.addEventListener('click', closeDialog);
+  document.getElementById('toast-close')?.addEventListener('click', dismissToast);
 
   editForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!currentUser || !saveButton || !editForm) return;
     const formData = new FormData(editForm);
     saveButton.disabled = true;
-    if (dialogStatus) dialogStatus.textContent = 'Guardando tus cambios…';
+    showToast('Guardando cambios', 'Estamos actualizando tu perfil.', 'loading');
     try {
       const updatedUser = await actualizarPerfil({
         nombre: String(formData.get('nombre') || '').trim(),
         apellido: String(formData.get('apellido') || '').trim(),
       });
       renderUser(updatedUser);
-      setProfileStatus('Tu perfil se actualizó correctamente.');
       closeDialog();
+      showToast('Perfil actualizado', 'Tus cambios se guardaron correctamente.');
     } catch (error) {
       console.error('No se pudo actualizar el perfil.', error);
-      if (dialogStatus) dialogStatus.textContent = error instanceof Error ? error.message : 'No se pudieron guardar los cambios. Intenta de nuevo.';
+      showToast(
+        'No se pudo actualizar el perfil',
+        error instanceof Error ? error.message : 'Intenta guardar los cambios de nuevo.',
+        'error',
+      );
     } finally {
       saveButton.disabled = false;
     }
@@ -355,26 +401,30 @@ import Layout from '../layouts/Layout.astro';
     if (!file) return;
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setProfileStatus('Elige una imagen JPG, PNG o WEBP.', true);
+      showToast('Formato de imagen no compatible', 'Elige una imagen JPG, PNG o WEBP.', 'error');
       avatarInput.value = '';
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setProfileStatus('La imagen debe pesar menos de 2 MB.', true);
+      showToast('La imagen es demasiado grande', 'Elige una imagen de menos de 2 MB.', 'error');
       avatarInput.value = '';
       return;
     }
     if (!currentUser || !avatarButton) return;
 
     avatarButton.disabled = true;
-    setProfileStatus('Subiendo tu foto de perfil…');
+    showToast('Subiendo foto de perfil', 'Estamos guardando tu nueva imagen.', 'loading');
     try {
       const updatedUser = await actualizarAvatar(file);
       renderUser(updatedUser);
-      setProfileStatus('Tu foto de perfil se actualizó correctamente.');
+      showToast('Foto de perfil actualizada', 'Tu nueva imagen se guardó correctamente.');
     } catch (error) {
       console.error('No se pudo actualizar la foto de perfil.', error);
-      setProfileStatus(error instanceof Error ? error.message : 'No se pudo subir la imagen. Intenta de nuevo.', true);
+      showToast(
+        'No se pudo actualizar la foto',
+        error instanceof Error ? error.message : 'Intenta subir la imagen de nuevo.',
+        'error',
+      );
     } finally {
       avatarButton.disabled = false;
       avatarInput.value = '';
@@ -557,9 +607,6 @@ import Layout from '../layouts/Layout.astro';
   .badge-yellow { background: #fff6d9; }
   .badge-blue { background: #eaf6fc; }
   .badge-peach { background: #fff0e9; }
-  .profile-status { min-height: 1rem; margin: 0.8rem 0 0; color: #179d8d; font-size: 0.75rem; }
-  .profile-status.is-error { color: #bc5147; }
-
   .edit-dialog {
     width: min(100% - 2rem, 440px);
     max-width: none;
@@ -581,12 +628,48 @@ import Layout from '../layouts/Layout.astro';
   .edit-dialog input { min-height: 42px; padding: 0.65rem 0.75rem; border: 1px solid #dce6eb; border-radius: 9px; color: #2a3a50; font: inherit; font-size: 0.85rem; }
   .edit-dialog input:focus { border-color: #20b8a7; outline: 2px solid rgba(32, 184, 167, 0.16); }
   .edit-dialog input[readonly] { background: #f5f8f9; color: #8593a7; }
-  .dialog-status { min-height: 1rem; margin: 0.6rem 0 0; color: #bc5147; font-size: 0.75rem; }
   .dialog-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.7rem; }
   .cancel-button, .save-button { min-height: 40px; padding: 0.6rem 0.9rem; border-radius: 9px; font-size: 0.8rem; font-weight: 600; }
   .cancel-button { border: 1px solid #dce6eb; color: #63758a; }
   .save-button { background: #1bb6a4; color: #fff; }
   .save-button:disabled { cursor: wait; opacity: 0.65; }
+
+  .profile-toast {
+    position: fixed;
+    z-index: 1000;
+    top: max(1.25rem, env(safe-area-inset-top));
+    right: max(1.25rem, env(safe-area-inset-right));
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: min(384px, calc(100vw - 2rem));
+    min-height: 100px;
+    padding: 1.1rem 1.15rem;
+    border: 1px solid #e3ebf0;
+    border-radius: 20px;
+    background: #fff;
+    color: #436276;
+    box-shadow: 0 16px 42px rgba(36, 66, 83, 0.14);
+    animation: toast-enter 180ms ease-out both;
+  }
+  .profile-toast[hidden] { display: none; }
+  .profile-toast.is-error { border-color: #f1d1ca; }
+  .profile-toast.is-loading { border-color: #d5e7ed; }
+  .profile-toast.is-leaving { animation: toast-leave 180ms ease-in both; }
+  .toast-icon { position: relative; display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #24b8a5; color: #fff; }
+  .toast-icon::after { width: 11px; height: 19px; border: solid currentColor; border-width: 0 3px 3px 0; content: ""; transform: translateY(-2px) rotate(45deg); }
+  .is-error .toast-icon { background: #d96557; }
+  .is-error .toast-icon::after { width: auto; height: auto; border: 0; content: "!"; font-size: 1.3rem; font-weight: 700; transform: none; }
+  .is-loading .toast-icon { background: #edf6fa; color: #4388a2; }
+  .is-loading .toast-icon::after { width: auto; height: auto; border: 0; content: "…"; font-size: 1.4rem; transform: none; }
+  .toast-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 0.35rem; }
+  .toast-title { color: #29384e; font-size: 0.96rem; font-weight: 700; line-height: 1.3; }
+  .toast-message { color: #73849a; font-size: 0.83rem; line-height: 1.45; }
+  .toast-close { display: grid; flex: 0 0 auto; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #8190a1; font-size: 1.25rem; line-height: 1; }
+  .toast-close:hover { background: #f2f6f7; color: #41566a; }
+
+  @keyframes toast-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toast-leave { to { opacity: 0; transform: translateY(-6px); } }
 
   @media (max-width: 740px) {
     .profile-page { padding: 1rem 0.8rem 1.5rem; }
@@ -607,5 +690,6 @@ import Layout from '../layouts/Layout.astro';
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    .profile-toast { animation: none; }
   }
 </style>
