@@ -332,12 +332,51 @@ export async function actualizarPerfil(data: {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Error al actualizar perfil');
-  return res.json();
+  const usuario: Usuario = await res.json();
+  localStorage.setItem('usuario', JSON.stringify(usuario));
+  return usuario;
+}
+
+export async function actualizarAvatar(file: File): Promise<Usuario> {
+  const fileBase64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('No se pudo leer la imagen seleccionada.'));
+        return;
+      }
+      resolve(reader.result);
+    });
+    reader.addEventListener('error', () => reject(new Error('No se pudo leer la imagen seleccionada.')));
+    reader.readAsDataURL(file);
+  });
+
+  const res = await fetchAuth('/usuarios/perfil/avatar', {
+    method: 'POST',
+    body: JSON.stringify({
+      fileName: file.name,
+      mimeType: file.type,
+      fileBase64,
+    }),
+  });
+  if (!res.ok) {
+    const error: { error?: string } = await res.json();
+    throw new Error(error.error || 'No se pudo actualizar la foto de perfil.');
+  }
+  const usuario: Usuario = await res.json();
+  localStorage.setItem('usuario', JSON.stringify(usuario));
+  return usuario;
 }
 
 export async function obtenerGuardados() {
   const res = await fetchAuth('/usuarios/guardados');
   if (!res.ok) throw new Error('Error al obtener guardados');
+  return res.json();
+}
+
+export async function obtenerPublicaciones() {
+  const res = await fetchAuth('/usuarios/publicaciones');
+  if (!res.ok) throw new Error('Error al obtener publicaciones');
   return res.json();
 }
 
