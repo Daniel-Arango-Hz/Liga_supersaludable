@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
+    "@google/genai": "^2.30.0",
     "@supabase/supabase-js": "^2.110.9",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
