@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 const router = Router();
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const MAX_TEXT_LENGTH = 6000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -42,6 +42,10 @@ router.post('/formatear-cuento', async (req, res) => {
     (page !== undefined && (!Number.isInteger(page) || page < 1 || page > 2000))
   ) {
     return res.status(400).json({ error: 'Los datos de página no son válidos.' });
+  }
+  if (!/^[a-zA-Z0-9._-]{1,100}$/.test(GEMINI_MODEL)) {
+    console.error('GEMINI_MODEL tiene un formato no válido.');
+    return res.status(503).json({ error: 'La configuración del modelo Gemini no es válida.' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -97,12 +101,22 @@ router.post('/formatear-cuento', async (req, res) => {
     });
 
     if (!response.ok) {
-      console.error(`Gemini rechazó la solicitud para formatear texto (status ${response.status}).`);
+      const providerPayload = await response.json().catch(() => null);
+      const providerStatus = providerPayload?.error?.status;
+      const providerMessage = typeof providerPayload?.error?.message === 'string'
+        ? providerPayload.error.message.replace(/AIza[\w-]{20,}|AQ\.[\w.-]{20,}/g, '[redacted]').slice(0, 500)
+        : 'No se recibió detalle del proveedor.';
+      console.error(
+        `Gemini rechazó la solicitud (model=${GEMINI_MODEL}, http=${response.status}, status=${providerStatus || 'unknown'}): ${providerMessage}`,
+      );
       if (response.status === 429) {
         return res.status(429).json({ error: 'Gemini alcanzó su cuota gratuita temporal. Intenta de nuevo más tarde.' });
       }
-      if (response.status === 400 || response.status === 403) {
-        return res.status(503).json({ error: 'Gemini no aceptó la configuración del servicio. Revisa GEMINI_API_KEY en el backend.' });
+      if (response.status === 400 || response.status === 401 || response.status === 403) {
+        return res.status(503).json({ error: 'Gemini rechazó la solicitud. Verifica GEMINI_API_KEY y los permisos de Gemini API para su proyecto.' });
+      }
+      if (response.status === 404) {
+        return res.status(503).json({ error: `Gemini no encontró el modelo "${GEMINI_MODEL}". Comprueba GEMINI_MODEL y que esté disponible para esta API key.` });
       }
       return res.status(502).json({ error: 'Gemini no pudo mejorar el texto de esta página.' });
     }
