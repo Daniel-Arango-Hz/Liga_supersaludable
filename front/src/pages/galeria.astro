@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import CommunityUploadModal from '../components/CommunityUploadModal.astro';
 
 const apiCandidates = [
   import.meta.env.PUBLIC_API_URL,
@@ -125,6 +126,21 @@ function formatFecha(raw: string) {
           ))}
         </div>
 
+        <div class="galeria-upload-actions" aria-label="Publicar contenido en la galería">
+          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="video">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 7 8 5-8 5V7Z" /><rect x="3" y="4" width="18" height="16" rx="3" /></svg>
+            Subir video
+          </button>
+          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="foto">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+            Subir imagen
+          </button>
+          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="comentario">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>
+            Subir comentario
+          </button>
+        </div>
+
         {errorMessage ? (
           <div class="error-box">
             <p>{errorMessage}</p>
@@ -231,9 +247,12 @@ function formatFecha(raw: string) {
       </div>
     </div>
 
+    <CommunityUploadModal apiUrl={API_URL} />
+
     <script>
       // @ts-nocheck
       (() => {
+        window.addEventListener('community:uploaded', () => window.location.reload());
         const modal = document.getElementById('videoPlayerModal');
         const backdrop = modal?.querySelector('.vplayer-backdrop');
         const closeBtn = document.getElementById('vplayerClose');
@@ -443,6 +462,11 @@ function formatFecha(raw: string) {
   .cat-btn { padding: 0.6rem 1.1rem; border: 1.5px solid var(--color-border); border-radius: 100px; font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted); transition: all 0.2s; }
   .cat-btn:hover { border-color: var(--color-navy); color: var(--color-navy); }
   .cat-btn.active { background: var(--color-navy); border-color: var(--color-navy); color: var(--color-white); }
+  .galeria-upload-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: -0.65rem 0 2rem; }
+  .galeria-upload-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 44px; padding: 0.7rem 1rem; border: 1px solid transparent; border-radius: 999px; background: #ff6c3f; color: #fff; font: inherit; font-weight: 700; cursor: pointer; transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+  .galeria-upload-btn:hover { transform: translateY(-1px); background: #e5562f; box-shadow: 0 5px 14px rgba(229, 86, 47, 0.2); }
+  .galeria-upload-btn:focus-visible { outline: 3px solid rgba(21, 101, 192, 0.35); outline-offset: 3px; }
+  .galeria-upload-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .videos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
   .galeria-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
   .video-card, .galeria-card { background: var(--color-white); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); transition: box-shadow 0.25s, transform 0.25s; }
@@ -510,5 +534,5 @@ function formatFecha(raw: string) {
   .video-card-link:hover .video-play { opacity: 1; }
   .empty-state, .error-box { padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); text-align: center; }
   @media (max-width: 900px) { .videos-grid, .galeria-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 680px) { .videos-grid, .galeria-grid { grid-template-columns: 1fr; } .page-hero { padding: 2.5rem 0; } }
+  @media (max-width: 680px) { .videos-grid, .galeria-grid { grid-template-columns: 1fr; } .page-hero { padding: 2.5rem 0; } .galeria-upload-actions { display: grid; grid-template-columns: 1fr; } }
 </style>

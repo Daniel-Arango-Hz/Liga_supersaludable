@@ -1,5 +1,9 @@
 ---
-const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
+interface Props {
+  apiUrl?: string;
+}
+
+const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' } = Astro.props;
 ---
 
 <div id="communityUploadModal" class="upload-modal" hidden aria-hidden="true">

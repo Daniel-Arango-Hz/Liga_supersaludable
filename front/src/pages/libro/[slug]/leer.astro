@@ -128,6 +128,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   let audiobookUrl = null;
   let pendingAudiobook = null;
   let ocrWorkerPromise = null;
+  let ocrProgressHandler = null;
   let canCreateAudiobook = false;
   const pdfState = {
     doc: null,
@@ -136,6 +137,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     rendering: false,
     pendingPage: null,
     scale: 1.25,
+    mode: 'text',
+    imageUrl: null,
+    fingerprint: null,
   };
 
   async function loadBook() {
@@ -259,16 +263,38 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
     contentArea.innerHTML = `
       <section class="pdf-reader-shell">
-        <div class="pdf-canvas-wrap">
-          <canvas id="pdf-canvas" class="pdf-canvas" aria-label="Vista de página PDF"></canvas>
+        <header class="pdf-story-header">
+          <span class="page-label" id="pdf-page-label">Página 1</span>
+          <h1 class="page-titulo">${escapeHtml(libro.titulo || 'Cuento')}</h1>
+        </header>
+        <div class="pdf-mode-switch" role="group" aria-label="Modo de lectura">
+          <button class="pdf-mode-button active" id="pdf-text-mode" type="button" aria-pressed="true">
+            Lectura adaptable
+          </button>
+          <button class="pdf-mode-button" id="pdf-image-mode" type="button" aria-pressed="false">
+            Página original
+          </button>
         </div>
-        <footer class="page-footer pdf-footer">
-          <div class="page-nav pdf-nav">
-            <button id="pdf-prev" class="page-nav-btn" type="button">Anterior</button>
-            <span id="pdf-page-indicator" class="pdf-page-indicator">Página 1 de 1</span>
-            <button id="pdf-next" class="page-nav-btn page-nav-next" type="button">Siguiente</button>
-          </div>
-        </footer>
+        <section class="pdf-mode-view" id="pdf-text-view" role="region" aria-label="Texto extraído del cuento" aria-live="polite">
+          <figure class="pdf-adaptive-artwork">
+            <img class="pdf-adaptive-image" id="pdf-adaptive-image" alt="" />
+            <figcaption>Vista de la página original</figcaption>
+          </figure>
+          <div class="pdf-story-text" id="pdf-story-text"></div>
+          <p class="pdf-empty-text" id="pdf-empty-text" hidden>
+            Esta página no contiene texto seleccionable. Puedes verla en su formato original o usar el audiolibro si está disponible.
+          </p>
+        </section>
+        <section class="pdf-mode-view" id="pdf-image-view" role="region" aria-label="Imagen de la página original" hidden>
+          <figure class="pdf-image-wrap">
+            <img class="pdf-page-image" id="pdf-page-image" alt="" />
+            <figcaption>Imagen de la página original del PDF</figcaption>
+          </figure>
+        </section>
+        <p class="pdf-page-status" id="pdf-page-status" role="status" hidden></p>
+        <div class="pdf-reader-progress" aria-live="polite">
+          <span class="pdf-page-indicator" id="pdf-page-indicator">Página 1 de 1</span>
+        </div>
       </section>
     `;
 
@@ -280,22 +306,32 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       pdfState.doc = pdfDoc;
       pdfState.page = 1;
       pdfState.total = pdfDoc.numPages || 1;
+      pdfState.fingerprint = pdfDoc.fingerprints?.[0] || `${slug}:${libro.updated_at || 'current'}`;
 
-      tocList.innerHTML = `
-        <li><button class="toc-link active" disabled>PDF · ${pdfState.total} páginas</button></li>
-      `;
+      tocList.innerHTML = Array.from({ length: pdfState.total }, (_, index) => `
+        <li>
+          <button class="toc-link ${index === 0 ? 'active' : ''}" type="button" data-pdf-page="${index + 1}">
+            <span class="toc-num">${index + 1}</span>
+            <span class="toc-name">Página ${index + 1}</span>
+          </button>
+        </li>
+      `).join('');
 
-      updatePdfUi();
-      await renderPdfPage(pdfState.page);
-
-      document.getElementById('pdf-prev')?.addEventListener('click', () => {
-        if (pdfState.page <= 1) return;
-        queuePdfPage(pdfState.page - 1);
+      tocList.querySelectorAll('[data-pdf-page]').forEach((button) => {
+        button.addEventListener('click', () => queuePdfPage(Number(button.dataset.pdfPage)));
       });
 
-      document.getElementById('pdf-next')?.addEventListener('click', () => {
-        if (pdfState.page >= pdfState.total) return;
-        queuePdfPage(pdfState.page + 1);
+      document.getElementById('pdf-text-mode')?.addEventListener('click', () => setPdfMode('text'));
+      document.getElementById('pdf-image-mode')?.addEventListener('click', () => setPdfMode('image'));
+
+      updatePdfUi();
+      renderPdfPage(pdfState.page).catch((error) => {
+        console.error(`No se pudo mostrar la página ${pdfState.page} del PDF:`, error);
+        const status = document.getElementById('pdf-page-status');
+        if (status) {
+          status.hidden = false;
+          status.textContent = 'No se pudo cargar esta página. Intenta avanzar o volver a intentarlo.';
+        }
       });
 
       document.getElementById('reader-prev')?.addEventListener('click', () => {
@@ -310,13 +346,200 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         <div class="doc-preview-unavailable">
           <h2>No se pudo abrir el PDF aquí</h2>
           <p>Puedes abrir el archivo en una nueva pestaña para leerlo.</p>
-          <a href="${libro.contenido_url}" target="_blank" rel="noopener noreferrer" class="doc-open-btn">Abrir PDF</a>
+          <a href="${escapeHtml(libro.contenido_url)}" target="_blank" rel="noopener noreferrer" class="doc-open-btn">Abrir PDF</a>
         </div>
       `;
       const fill = document.getElementById('progress-fill');
       if (fill) fill.style.width = '100%';
       tocList.innerHTML = '<li><button class="toc-link" disabled>PDF externo</button></li>';
     }
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    })[character]);
+  }
+
+  function setPdfMode(mode) {
+    pdfState.mode = mode;
+    const textButton = document.getElementById('pdf-text-mode');
+    const imageButton = document.getElementById('pdf-image-mode');
+    const textView = document.getElementById('pdf-text-view');
+    const imageView = document.getElementById('pdf-image-view');
+    const showText = mode === 'text';
+
+    textView.hidden = !showText;
+    imageView.hidden = showText;
+    textButton.classList.toggle('active', showText);
+    textButton.setAttribute('aria-pressed', String(showText));
+    imageButton.classList.toggle('active', !showText);
+    imageButton.setAttribute('aria-pressed', String(!showText));
+  }
+
+  function extractPdfParagraphs(items) {
+    const lines = [];
+    let line = '';
+    let lineY = null;
+    let lineHeight = 12;
+    let previousItem = null;
+
+    const flushLine = () => {
+      const text = line.trim();
+      if (text) lines.push({ text, y: lineY, height: lineHeight });
+      line = '';
+      lineY = null;
+      lineHeight = 12;
+      previousItem = null;
+    };
+
+    for (const item of items) {
+      if (!item || typeof item.str !== 'string' || !item.str.trim()) continue;
+
+      const y = Number(item.transform?.[5]);
+      const height = Math.abs(Number(item.height) || Number(item.transform?.[3]) || 12);
+      const startsNewLine = line && Number.isFinite(y) && Number.isFinite(lineY)
+        && Math.abs(y - lineY) > Math.max(2, height * 0.4);
+
+      if (startsNewLine) flushLine();
+      if (lineY === null && Number.isFinite(y)) lineY = y;
+      lineHeight = Math.max(lineHeight, height);
+
+      const text = item.str.replace(/\s+/g, ' ');
+      if (line && previousItem) {
+        const previousX = Number(previousItem.transform?.[4]);
+        const previousWidth = Number(previousItem.width) || 0;
+        const currentX = Number(item.transform?.[4]);
+        const gap = currentX - (previousX + previousWidth);
+        if (Number.isFinite(gap) && gap > Math.max(1, height * 0.12)) line += ' ';
+      }
+      line += text;
+      previousItem = item;
+      if (item.hasEOL) flushLine();
+    }
+    flushLine();
+
+    const paragraphs = [];
+    let paragraph = '';
+    let previousLine = null;
+    for (const currentLine of lines) {
+      const verticalGap = previousLine && Number.isFinite(currentLine.y) && Number.isFinite(previousLine.y)
+        ? Math.abs(currentLine.y - previousLine.y)
+        : 0;
+      if (paragraph && verticalGap > Math.max(currentLine.height, previousLine.height) * 1.45) {
+        paragraphs.push(paragraph.trim());
+        paragraph = '';
+      }
+      paragraph = paragraph ? `${paragraph} ${currentLine.text}` : currentLine.text;
+      previousLine = currentLine;
+    }
+    if (paragraph.trim()) paragraphs.push(paragraph.trim());
+    return paragraphs;
+  }
+
+  function needsPdfOcr(items, paragraphs) {
+    if (!paragraphs.length) return true;
+
+    const shortSpanishWords = new Set(['a', 'al', 'de', 'del', 'el', 'en', 'es', 'ha', 'he', 'la', 'le', 'lo', 'me', 'mi', 'no', 'o', 'os', 'se', 'si', 'su', 'te', 'tu', 'un', 'y']);
+    const text = items
+      .filter((item) => item && typeof item.str === 'string')
+      .map((item) => item.str)
+      .join(' ');
+    const tokens = text.match(/[\p{L}\p{N}'’\-]+/gu) || [];
+    if (tokens.length < 7) return false;
+
+    const suspiciousTokens = tokens.filter((token) => {
+      const normalized = token.toLocaleLowerCase('es');
+      return (token.length === 1 && !/^[aáeéiíoóuúy]$/iu.test(token))
+        || (token.length <= 2 && !shortSpanishWords.has(normalized))
+        || /\p{Ll}\p{Lu}|\p{Lu}{2,}\p{Ll}/u.test(token)
+        || /\d/u.test(token);
+    }).length;
+
+    return suspiciousTokens / tokens.length >= 0.16;
+  }
+
+  async function formatPdfTextWithGemini(paragraphs, pageNumber) {
+    const text = paragraphs.join('\n\n').trim();
+    if (!text) return null;
+
+    const status = document.getElementById('pdf-page-status');
+    if (text.length > 6000) {
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'Esta página supera el límite de texto para Gemini. Se muestra la extracción original.';
+      }
+      return null;
+    }
+
+    const cacheKey = `familialee:gemini-story-v1:${pdfState.fingerprint}:${pageNumber}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (Array.isArray(cached) && cached.length && cached.every((paragraph) => typeof paragraph === 'string')) {
+        return cached;
+      }
+    } catch (error) {
+      console.warn('No se pudo leer el texto Gemini guardado localmente:', error);
+    }
+
+    if (status) {
+      status.hidden = false;
+      status.textContent = `Organizando el texto con Gemini · página ${pageNumber} de ${pdfState.total}…`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/ia/formatear-cuento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          title: libro.titulo || 'Cuento',
+          page: pageNumber,
+        }),
+        signal: AbortSignal.timeout(45000),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || `No se pudo mejorar el texto (${response.status}).`);
+      }
+      if (
+        !Array.isArray(payload.paragraphs) ||
+        payload.paragraphs.length === 0 ||
+        payload.paragraphs.some((paragraph) => typeof paragraph !== 'string')
+      ) {
+        throw new Error('Gemini devolvió un formato de texto no válido.');
+      }
+
+      const formatted = payload.paragraphs.map((paragraph) => paragraph.trim()).filter(Boolean);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(formatted));
+      } catch (error) {
+        console.warn('No se pudo guardar localmente el texto Gemini:', error);
+      }
+      return formatted;
+    } catch (error) {
+      console.error(`Gemini no pudo organizar la página ${pageNumber}:`, error);
+      if (status) {
+        status.hidden = false;
+        status.textContent = error instanceof Error
+          ? `${error.message} Se muestra el texto extraído sin cambios.`
+          : 'No se pudo mejorar el texto con Gemini. Se muestra el texto extraído sin cambios.';
+      }
+      return null;
+    }
+  }
+
+  function createPdfPageImage(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('No se pudo convertir la página PDF en imagen.'));
+      }, 'image/jpeg', 0.92);
+    });
   }
 
   function queuePdfPage(pageNumber) {
@@ -328,7 +551,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       return;
     }
 
-    renderPdfPage(safePage);
+    renderPdfPage(safePage).catch((error) => {
+      console.error(`No se pudo mostrar la página ${safePage} del PDF:`, error);
+      const status = document.getElementById('pdf-page-status');
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'No se pudo cargar esta página. Intenta avanzar o volver a intentarlo.';
+      }
+    });
   }
 
   async function renderPdfPage(pageNumber) {
@@ -336,51 +566,151 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
     pdfState.rendering = true;
     pdfState.page = pageNumber;
-
-    const page = await pdfState.doc.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: pdfState.scale });
-
-    const canvas = document.getElementById('pdf-canvas');
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) {
-      pdfState.rendering = false;
-      return;
+    const status = document.getElementById('pdf-page-status');
+    if (status) {
+      status.hidden = false;
+      status.textContent = `Preparando página ${pageNumber} de ${pdfState.total}…`;
     }
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    try {
+      const page = await pdfState.doc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: pdfState.scale });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('El navegador no pudo crear el lienzo para mostrar el PDF.');
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
 
-    updatePdfUi();
-    pdfState.rendering = false;
+      const [, textContent] = await Promise.all([
+        page.render({ canvasContext: ctx, viewport }).promise,
+        page.getTextContent(),
+      ]);
+      const imageBlob = await createPdfPageImage(canvas);
+      const imageUrl = URL.createObjectURL(imageBlob);
+      const previousImageUrl = pdfState.imageUrl;
+      pdfState.imageUrl = imageUrl;
 
-    if (pdfState.pendingPage !== null) {
-      const nextPage = pdfState.pendingPage;
-      pdfState.pendingPage = null;
-      queuePdfPage(nextPage);
+      const pageImage = document.getElementById('pdf-page-image');
+      const adaptiveImage = document.getElementById('pdf-adaptive-image');
+      const imageAlt = `Página original ${pageNumber} de ${libro.titulo || 'el cuento'}`;
+      pageImage.src = imageUrl;
+      pageImage.alt = imageAlt;
+      adaptiveImage.src = imageUrl;
+      adaptiveImage.alt = imageAlt;
+      if (previousImageUrl) URL.revokeObjectURL(previousImageUrl);
+
+      const paragraphs = extractPdfParagraphs(textContent.items);
+      const storyText = document.getElementById('pdf-story-text');
+      const emptyText = document.getElementById('pdf-empty-text');
+      let readableParagraphs = paragraphs;
+      let aiFormatFailed = false;
+      if (needsPdfOcr(textContent.items, paragraphs)) {
+        if (status) {
+          status.hidden = false;
+          status.textContent = 'El texto de esta página no se pudo extraer con claridad. Reconociendo el texto de la imagen…';
+        }
+        const ocrText = await recognizePdfPageText(canvas, pageNumber);
+        if (ocrText) readableParagraphs = [ocrText];
+      }
+
+      if (readableParagraphs.length) {
+        const aiParagraphs = await formatPdfTextWithGemini(readableParagraphs, pageNumber);
+        if (aiParagraphs) readableParagraphs = aiParagraphs;
+        else aiFormatFailed = true;
+      }
+
+      storyText.replaceChildren(...readableParagraphs.map((paragraph) => {
+        const element = document.createElement('p');
+        element.className = 'page-parrafo pdf-story-paragraph';
+        element.textContent = paragraph;
+        return element;
+      }));
+      emptyText.hidden = readableParagraphs.length > 0;
+      if (status && readableParagraphs.length && !aiFormatFailed) {
+        status.hidden = true;
+        status.textContent = '';
+      } else if (status && !status.textContent) {
+        status.hidden = false;
+        status.textContent = 'No se pudo extraer texto de esta página. Puedes verla en “Página original”.';
+      }
+
+      const pageLabel = document.getElementById('pdf-page-label');
+      if (pageLabel) pageLabel.textContent = `Página ${pageNumber} de ${pdfState.total}`;
+
+      document.querySelectorAll('[data-pdf-page]').forEach((button) => {
+        button.classList.toggle('active', Number(button.dataset.pdfPage) === pageNumber);
+      });
+
+      canvas.width = 0;
+      canvas.height = 0;
+      updatePdfUi();
+    } finally {
+      pdfState.rendering = false;
+      if (pdfState.pendingPage !== null) {
+        const nextPage = pdfState.pendingPage;
+        pdfState.pendingPage = null;
+        queuePdfPage(nextPage);
+      }
+    }
+  }
+
+  async function recognizePdfPageText(canvas, pageNumber) {
+    const status = document.getElementById('pdf-page-status');
+    const previousProgressHandler = ocrProgressHandler;
+
+    ocrProgressHandler = (message) => {
+      if (status) {
+        status.hidden = false;
+        status.textContent = `${message} · página ${pageNumber} de ${pdfState.total}`;
+      }
+    };
+
+    try {
+      const worker = await loadSpanishOcrWorker();
+      const result = await worker.recognize(canvas);
+      const recognizedText = getReadableOcrText(result)
+        .replace(/-\s*\n\s*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!recognizedText && status) {
+        status.hidden = false;
+        status.textContent = 'No se pudo reconocer texto en esta página. Puedes verla en “Página original”.';
+      }
+      return recognizedText;
+    } catch (error) {
+      console.error(`No se pudo aplicar OCR a la página ${pageNumber}:`, error);
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'No se pudo reconocer el texto de esta página. Puedes verla en “Página original”.';
+      }
+      return '';
+    } finally {
+      ocrProgressHandler = previousProgressHandler;
     }
   }
 
   function updatePdfUi() {
     const indicator = document.getElementById('pdf-page-indicator');
     if (indicator) indicator.textContent = `Página ${pdfState.page} de ${pdfState.total}`;
+
     const pageCount = document.getElementById('reader-page-count');
     if (pageCount) pageCount.textContent = `${pdfState.page} / ${pdfState.total}`;
-    const progressBar = document.querySelector('.reader-progress .progress-bar');
-    progressBar?.setAttribute('aria-valuenow', String(Math.round((pdfState.page / pdfState.total) * 100)));
 
-    const prevBtn = document.getElementById('pdf-prev');
-    const nextBtn = document.getElementById('pdf-next');
-    if (prevBtn) prevBtn.disabled = pdfState.page <= 1;
-    if (nextBtn) nextBtn.disabled = pdfState.page >= pdfState.total;
-    const readerPrev = document.getElementById('reader-prev');
-    const readerNext = document.getElementById('reader-next');
-    if (readerPrev) readerPrev.disabled = pdfState.page <= 1;
-    if (readerNext) readerNext.disabled = pdfState.page >= pdfState.total;
+    const progress = pdfState.total ? Math.round((pdfState.page / pdfState.total) * 100) : 0;
+    const progressBar = document.querySelector('.reader-progress .progress-bar');
+    progressBar?.setAttribute('aria-valuenow', String(progress));
 
     const fill = document.getElementById('progress-fill');
-    if (fill) fill.style.width = `${(pdfState.page / pdfState.total) * 100}%`;
+    if (fill) fill.style.width = `${progress}%`;
+
+    const previousButton = document.getElementById('reader-prev');
+    const nextButton = document.getElementById('reader-next');
+    if (previousButton) previousButton.disabled = pdfState.page <= 1;
+    if (nextButton) nextButton.disabled = pdfState.page >= pdfState.total;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function renderBook() {
@@ -568,12 +898,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     }
 
     return result.data.lines
-      .filter((line) => Array.isArray(line.words))
+      .filter((line) => Array.isArray(line.words) && line.confidence >= 70)
       .map((line) => {
         const words = line.words
           .filter((word) => word.confidence >= 78)
           .map((word) => word.text.trim())
-          .filter((word) => isPlausibleSpanishOcrWord(word));
+          .filter((word) => isPlausibleSpanishOcrWord(word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')));
         const letters = words.join('').replace(/[^\p{L}]/gu, '');
         const letterCount = [...letters].length;
         const uppercaseCount = [...letters].filter((letter) => letter === letter.toLocaleUpperCase('es') && letter !== letter.toLocaleLowerCase('es')).length;
@@ -582,7 +912,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         const plausibleSingleWord = words.length === 1 && letterCount >= 8 && line.confidence >= 92 && !mostlyUppercase;
 
         if ((!plausibleLine && !plausibleSingleWord) || mostlyUppercase) return '';
-        return words.join(' ');
+        return words.join(' ')
+          .replace(/\s+([,.;:!?…])/g, '$1')
+          .replace(/([¿¡])\s+/g, '$1');
       })
       .filter(Boolean)
       .join('\n')
@@ -711,9 +1043,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           createWorker('spa', 1, {
             logger: (message) => {
               if (message.status === 'loading language traineddata') {
-                setAudiobookStatus('Descargando el modelo OCR en español…');
+                const progressMessage = 'Descargando el modelo OCR en español…';
+                if (ocrProgressHandler) ocrProgressHandler(progressMessage);
+                else setAudiobookStatus(progressMessage);
               } else if (message.status === 'recognizing text') {
-                setAudiobookStatus(`Reconociendo texto de la página… ${Math.round(message.progress * 100)}%`);
+                const progressMessage = `Reconociendo texto… ${Math.round(message.progress * 100)}%`;
+                if (ocrProgressHandler) ocrProgressHandler(progressMessage);
+                else setAudiobookStatus(progressMessage);
               }
             },
           }),
@@ -988,11 +1324,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     let fontSize = 17;
     const main = document.getElementById('reader-main');
     const adjustReaderSize = (direction) => {
-      if (pdfState.doc) {
-        pdfState.scale = Math.min(2.5, Math.max(0.75, pdfState.scale + direction * 0.15));
-        queuePdfPage(pdfState.page);
-        return;
-      }
       fontSize = Math.min(24, Math.max(13, fontSize + direction));
       main?.style.setProperty('--reader-font-size', `${fontSize}px`);
     };
@@ -1227,6 +1558,113 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+  }
+
+  .pdf-story-header {
+    text-align: center;
+  }
+
+  .pdf-mode-switch {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .pdf-mode-button {
+    padding: 0.55rem 0.9rem;
+    border: 1px solid var(--reader-border);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--reader-page-muted);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .pdf-mode-button.active {
+    border-color: #2d9f91;
+    background: #2d9f91;
+    color: #fff;
+  }
+
+  .pdf-mode-view[hidden] {
+    display: none;
+  }
+
+  .pdf-story-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .pdf-adaptive-artwork {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 auto 0.5rem;
+  }
+
+  .pdf-adaptive-image {
+    display: block;
+    width: auto;
+    max-width: min(100%, 520px);
+    max-height: 32vh;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(39, 85, 85, 0.13);
+    object-fit: contain;
+  }
+
+  .pdf-adaptive-artwork figcaption {
+    color: var(--reader-page-muted);
+    font-size: 0.72rem;
+  }
+
+  .pdf-story-paragraph {
+    max-width: 35rem;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .pdf-empty-text,
+  .pdf-page-status {
+    margin: 0;
+    color: var(--reader-page-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  .pdf-image-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .pdf-page-image {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: 62vh;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(39, 85, 85, 0.13);
+    object-fit: contain;
+  }
+
+  .pdf-image-wrap figcaption {
+    color: var(--reader-page-muted);
+    font-size: 0.75rem;
+  }
+
+  .pdf-reader-progress {
+    text-align: center;
   }
 
   .pdf-canvas-wrap {
@@ -1507,6 +1945,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     box-shadow: 0 20px 44px rgba(49, 109, 105, 0.1);
   }
 
+  #reader-container .pdf-story-header .page-label {
+    margin-bottom: 0.5rem;
+  }
+
+  #reader-container .pdf-mode-switch {
+    flex-wrap: wrap;
+  }
+
+  #reader-container .pdf-mode-view[hidden] {
+    display: none;
+  }
+
+  #reader-container .pdf-story-paragraph {
+    max-width: 35rem;
+  }
+
   #reader-container .pdf-canvas-wrap {
     min-height: 0;
     padding: 0;
@@ -1629,6 +2083,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     #reader-container .pdf-canvas {
       max-width: none;
       max-height: calc(68vh - 1.5rem);
+    }
+
+    #reader-container .pdf-page-image {
+      max-height: 60vh;
     }
 
     #reader-container .reader-page-nav {

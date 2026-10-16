@@ -14,6 +14,7 @@ import estadisticasRoutes from './routes/estadisticas.js';
 import uploadRoutes from './routes/upload.js';
 import adminRoutes from './routes/admin.js';
 import pagosRoutes from './routes/pagos.js';
+import iaRoutes from './routes/ia.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 3002;
@@ -50,6 +51,7 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/estadisticas', estadisticasRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/pagos', pagosRoutes);
+app.use('/api/ia', iaRoutes);
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) =>
