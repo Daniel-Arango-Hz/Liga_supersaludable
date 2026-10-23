@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "id": "liga-static-view-smoke-v2",
+  "title": "Liga Supersaludable - read-only static view smoke tests",
+  "baseUrl": "http://127.0.0.1:4321/",
+  "viewport": {
+    "width": 1365,
+    "height": 900
+  },
+  "authorization": {
+    "allowRemoteAccess": false,
+    "allowMutatingActions": false
+  },
+  "cases": [
+    {
+      "id": "home-libros",
+      "title": "Render /",
+      "viewPath": "/",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "admin-libros",
+      "title": "Render /admin",
+      "viewPath": "/admin",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "apoyar-libros",
+      "title": "Render /apoyar",
+      "viewPath": "/apoyar",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "apoyar-resultado-libros",
+      "title": "Render /apoyar/resultado",
+      "viewPath": "/apoyar/resultado",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "auth-login-libros",
+      "title": "Render /auth/login",
+      "viewPath": "/auth/login",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "auth-registro-libros",
+      "title": "Render /auth/registro",
+      "viewPath": "/auth/registro",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "autores-libros",
+      "title": "Render /autores",
+      "viewPath": "/autores",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "biblioteca-libros",
+      "title": "Render /biblioteca",
+      "viewPath": "/biblioteca",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        },
+        {
+          "action": "expectText",
+          "selector": ".page-title",
+          "text": "Cuentos Super Saludables"
+        },
+        {
+          "action": "expectVisible",
+          "selector": "input[name=\"q\"]"
+        }
+      ]
+    },
+    {
+      "id": "dashboard-libros",
+      "title": "Render /dashboard",
+      "viewPath": "/dashboard",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "galeria-libros",
+      "title": "Render /galeria",
+      "viewPath": "/galeria",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "panel-libros",
+      "title": "Render /panel",
+      "viewPath": "/panel",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "panel-guardados-libros",
+      "title": "Render /panel/guardados",
+      "viewPath": "/panel/guardados",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "panel-publicaciones-libros",
+      "title": "Render /panel/publicaciones",
+      "viewPath": "/panel/publicaciones",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "perfil-libros",
+      "title": "Render /perfil",
+      "viewPath": "/perfil",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "recursos-libros",
+      "title": "Render /recursos",
+      "viewPath": "/recursos",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "id": "subir-libro-libros",
+      "title": "Render /subir-libro",
+      "viewPath": "/subir-libro",
+      "steps": [
+        {
+          "action": "expectVisible",
+          "selector": "body"
+        }
+      ]
+    }
+  ]
+}

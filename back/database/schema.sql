@@ -388,7 +388,7 @@ begin
     new.email,
     coalesce(new.raw_user_meta_data->>'nombre', ''),
     coalesce(new.raw_user_meta_data->>'apellido', ''),
-    coalesce(new.raw_user_meta_data->>'tipo', 'familia')
+    'familia'
   )
   on conflict (id) do nothing;
   return new;
@@ -399,6 +399,24 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+create or replace function public.prevent_user_role_change()
+returns trigger language plpgsql security definer
+set search_path = public, pg_temp as $$
+begin
+  if new.tipo is distinct from old.tipo
+    and coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'Only trusted server operations may change a user role'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists prevent_user_role_change on public.usuarios;
+create trigger prevent_user_role_change
+  before update of tipo on public.usuarios
+  for each row execute function public.prevent_user_role_change();
 
 -- Actualizar updated_at automáticamente en usuarios y libros
 create or replace function public.set_updated_at()
