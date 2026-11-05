@@ -592,7 +592,7 @@ import Layout from '../layouts/Layout.astro';
             throw new Error(uploadInfo.error || 'No se pudo preparar la subida del archivo.');
           }
 
-          if (!uploadInfo.token || !uploadInfo.tus_endpoint || !uploadInfo.ruta) {
+          if (!uploadInfo.token || !uploadInfo.tus_endpoint || !uploadInfo.ruta || !uploadInfo.api_key) {
             throw new Error('El servidor no devolvió los datos necesarios para la carga reanudable.');
           }
 
@@ -601,6 +601,7 @@ import Layout from '../layouts/Layout.astro';
               endpoint: uploadInfo.tus_endpoint,
               retryDelays: [0, 3000, 5000, 10000, 20000],
               headers: {
+                apikey: uploadInfo.api_key,
                 'x-signature': uploadInfo.token,
               },
               metadata: {

@@ -183,6 +183,7 @@ router.post('/upload-url', requireAuth, async (req, res) => {
       token: signedUpload.token,
       bucket_name: STORAGE_BUCKET,
       tus_endpoint: getTusEndpoint(),
+      api_key: process.env.SUPABASE_ANON_KEY,
     });
   } catch (error) {
     console.error('Error al preparar la subida directa:', error);
@@ -196,7 +197,7 @@ function getTusEndpoint() {
     ? projectUrl.hostname.replace(/\.supabase\.co$/, '.storage.supabase.co')
     : projectUrl.hostname;
 
-  return `${projectUrl.protocol}//${hostname}/storage/v1/upload/resumable`;
+  return `${projectUrl.protocol}//${hostname}/storage/v1/upload/resumable/sign`;
 }
 
 async function ensureUniqueSlug(baseSlug) {
