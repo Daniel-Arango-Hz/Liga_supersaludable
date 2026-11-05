@@ -238,10 +238,6 @@ router.post('/upload', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid file payload' });
     }
 
-    if (fileBuffer.length > 25 * 1024 * 1024) {
-      return res.status(400).json({ error: 'File exceeds 25MB limit' });
-    }
-
     const baseSlug = slugify(titulo) || `libro-${Date.now()}`;
     const slug = await ensureUniqueSlug(baseSlug);
 
@@ -389,4 +385,3 @@ router.post('/upload', requireAuth, async (req, res) => {
 });
 
 export default router;
-

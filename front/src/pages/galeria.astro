@@ -107,7 +107,14 @@ function formatFecha(raw: string) {
   <main>
     <section class="page-hero">
       <div class="container">
-        <h1 class="page-title">Galería Familiar</h1>
+        <h1 class="visually-hidden">Galería Familiar</h1>
+        <div class="hero-card" aria-label="Banner de la Galería Familiar">
+          <img
+            class="hero-image"
+            src="/img/galeria-familiar-banner.png"
+            alt="Una familia de superhéroes celebrando unida en la Galería Familiar."
+          />
+        </div>
         <p class="page-desc">Explora videos, imágenes y testimonios compartidos por nuestra comunidad.</p>
       </div>
     </section>
@@ -127,18 +134,24 @@ function formatFecha(raw: string) {
         </div>
 
         <div class="galeria-upload-actions" aria-label="Publicar contenido en la galería">
-          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="video">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 7 8 5-8 5V7Z" /><rect x="3" y="4" width="18" height="16" rx="3" /></svg>
-            Subir video
-          </button>
-          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="foto">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
-            Subir imagen
-          </button>
-          <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="comentario">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>
-            Subir comentario
-          </button>
+          {filtro === 'Videos' && (
+            <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="video">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 7 8 5-8 5V7Z" /><rect x="3" y="4" width="18" height="16" rx="3" /></svg>
+              Subir video
+            </button>
+          )}
+          {filtro === 'Imágenes' && (
+            <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="foto">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+              Subir imagen
+            </button>
+          )}
+          {filtro === 'Testimonios' && (
+            <button type="button" class="galeria-upload-btn js-open-upload" data-upload-type="comentario">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>
+              Subir comentario
+            </button>
+          )}
         </div>
 
         {errorMessage ? (
@@ -455,40 +468,52 @@ function formatFecha(raw: string) {
 </Layout>
 
 <style>
-  .page-hero { background: var(--color-navy); color: var(--color-white); padding: 3.5rem 0; }
-  .page-title { font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 700; margin-bottom: 0.5rem; }
-  .page-desc { color: rgba(255,255,255,0.75); font-size: 1rem; max-width: 620px; }
-  .cat-filter { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; }
-  .cat-btn { padding: 0.6rem 1.1rem; border: 1.5px solid var(--color-border); border-radius: 100px; font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted); transition: all 0.2s; }
-  .cat-btn:hover { border-color: var(--color-navy); color: var(--color-navy); }
-  .cat-btn.active { background: var(--color-navy); border-color: var(--color-navy); color: var(--color-white); }
-  .galeria-upload-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: -0.65rem 0 2rem; }
-  .galeria-upload-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 44px; padding: 0.7rem 1rem; border: 1px solid transparent; border-radius: 999px; background: #ff6c3f; color: #fff; font: inherit; font-weight: 700; cursor: pointer; transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
-  .galeria-upload-btn:hover { transform: translateY(-1px); background: #e5562f; box-shadow: 0 5px 14px rgba(229, 86, 47, 0.2); }
-  .galeria-upload-btn:focus-visible { outline: 3px solid rgba(21, 101, 192, 0.35); outline-offset: 3px; }
+  .page-hero { color: var(--color-text); padding: 0; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .hero-card { margin-top: 14px; aspect-ratio: 1024 / 388; border-radius: 18px; overflow: hidden; box-shadow: 0 14px 32px rgba(31, 64, 68, 0.1); }
+  .hero-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 10%; }
+  .page-desc { color: #607889; font-size: 1rem; max-width: 620px; margin: 0.75rem auto 0; text-align: center; }
+  #galeriaPage { padding: 2.25rem 0 4rem; background: linear-gradient(180deg, #f3faf8 0%, #fffaf5 100%); }
+  .cat-filter { display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .cat-btn { padding: 0.62rem 1.15rem; border: 1px solid #dcebe8; border-radius: 100px; background: rgba(255,255,255,0.82); color: #607889; font-size: 0.92rem; font-weight: 700; box-shadow: 0 4px 12px rgba(31,64,68,0.04); transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
+  .cat-btn:hover { transform: translateY(-2px); border-color: #9dcac5; color: #267c7a; box-shadow: 0 8px 16px rgba(31,64,68,0.08); }
+  .cat-btn.active { background: #3b7f86; border-color: #3b7f86; color: var(--color-white); box-shadow: 0 8px 16px rgba(59,127,134,0.2); }
+  .galeria-upload-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 2rem; }
+  .galeria-upload-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 46px; padding: 0.72rem 1.1rem; border: 1px solid transparent; border-radius: 999px; background: #f06641; color: #fff; font: inherit; font-weight: 800; cursor: pointer; box-shadow: 0 8px 18px rgba(240,102,65,0.18); transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+  .galeria-upload-btn:nth-child(2) { background: #3b8c91; box-shadow: 0 8px 18px rgba(59,140,145,0.18); }
+  .galeria-upload-btn:nth-child(3) { background: #7d68c4; box-shadow: 0 8px 18px rgba(125,104,196,0.18); }
+  .galeria-upload-btn:hover { transform: translateY(-2px); background: #d95735; box-shadow: 0 12px 22px rgba(229,86,47,0.22); }
+  .galeria-upload-btn:nth-child(2):hover { background: #2f7379; box-shadow: 0 12px 22px rgba(59,140,145,0.24); }
+  .galeria-upload-btn:nth-child(3):hover { background: #6954af; box-shadow: 0 12px 22px rgba(125,104,196,0.24); }
+  .galeria-upload-btn:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 3px; }
   .galeria-upload-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .videos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-  .galeria-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-  .video-card, .galeria-card { background: var(--color-white); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); transition: box-shadow 0.25s, transform 0.25s; }
-  .video-card:hover, .galeria-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+  .videos-grid, .galeria-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
+  .video-card, .galeria-card { min-width: 0; background: #fff; border-radius: 24px; overflow: hidden; border: 0; box-shadow: 0 12px 26px rgba(31,64,68,0.07); transition: box-shadow 0.2s ease, transform 0.2s ease; }
+  .video-card:hover, .galeria-card:hover { box-shadow: 0 18px 32px rgba(31,64,68,0.13); transform: translateY(-5px); }
   .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
+  .video-card:focus-visible { outline: 3px solid #247f78; outline-offset: 3px; }
   .video-thumb { position: relative; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
-  .video-emoji { font-size: 2.5rem; opacity: 0.5; pointer-events: none; }
-  .video-duration { position: absolute; bottom: 0.6rem; right: 0.6rem; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.78rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; }
-  .video-play { width: 48px; height: 48px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+  .video-emoji { font-size: 2.5rem; opacity: 0.72; pointer-events: none; filter: drop-shadow(0 3px 6px rgba(32,48,75,0.12)); }
+  .video-duration { position: absolute; bottom: 0.7rem; right: 0.7rem; background: rgba(32,48,75,0.78); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.28rem 0.6rem; border-radius: 999px; }
+  .video-play { width: 50px; height: 50px; background: rgba(255,255,255,0.94); color: #3b7f86; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.9); box-shadow: 0 8px 20px rgba(32,48,75,0.2); transition: opacity 0.2s, transform 0.2s; }
   .video-card:hover .video-play { opacity: 1; }
-  .video-info { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-  .video-cat-badge { font-size: 0.75rem; color: var(--color-gold); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .video-titulo { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--color-navy); line-height: 1.3; margin: 0; }
-  .video-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--color-text-muted); }
+  .video-card:hover .video-play { transform: scale(1); }
+  .video-info { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
+  .video-cat-badge { width: fit-content; padding: 0.28rem 0.65rem; border-radius: 999px; background: #fff2df; color: #bd7130; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+  .video-titulo { font-family: var(--font-serif); font-size: 1.08rem; font-weight: 700; color: #2d405d; line-height: 1.3; margin: 0; }
+  .video-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.84rem; color: #607889; }
   .video-vistas { display: flex; align-items: center; gap: 0.35rem; }
   .galeria-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
-  .galeria-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
-  .galeria-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
-  .galeria-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-navy); }
-  .galeria-author { font-size: 0.9rem; color: var(--color-text-muted); }
-  .galeria-likes { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--color-text-muted); }
-  .galeria-likes svg { width: 14px; height: 14px; }
+  .galeria-body { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  .galeria-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.65rem; flex-wrap: wrap; }
+  .galeria-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #bd7130; background: #fff2df; padding: 0.28rem 0.65rem; border-radius: 999px; }
+  .galeria-author { font-size: 0.86rem; color: #607889; font-weight: 600; }
+  .galeria-text { color: #2d405d; font-size: 0.96rem; line-height: 1.55; margin: 0; }
+  .galeria-like-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; min-height: 36px; padding: 0.35rem 0.65rem; border: 1px solid #e2ebf3; border-radius: 999px; background: #fff; color: #7890a7; font: inherit; font-size: 0.84rem; font-weight: 700; transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease; }
+  .galeria-like-btn:hover, .galeria-like-btn[data-liked="true"] { border-color: #ffd2cb; background: #fff2ef; color: #e65d55; }
+  .galeria-like-btn:active { transform: scale(0.96); }
+  .galeria-like-btn svg { width: 15px; height: 15px; }
+  .galeria-likes-count { line-height: 1; }
   .video-meta-right { display: inline-flex; align-items: center; gap: 1rem; }
   .video-likes { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; color: var(--color-text-muted); }
   .video-likes svg { width: 14px; height: 14px; }
@@ -532,7 +557,7 @@ function formatFecha(raw: string) {
   .vplayer-video { width: 100%; height: clamp(320px, 45vh, 520px); background: #000; }
   .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
   .video-card-link:hover .video-play { opacity: 1; }
-  .empty-state, .error-box { padding: 2rem; border-radius: 1rem; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); text-align: center; }
-  @media (max-width: 900px) { .videos-grid, .galeria-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 680px) { .videos-grid, .galeria-grid { grid-template-columns: 1fr; } .page-hero { padding: 2.5rem 0; } .galeria-upload-actions { display: grid; grid-template-columns: 1fr; } }
+  .empty-state, .error-box { padding: 2rem; border-radius: 24px; border: 0; background: #fff; color: #607889; text-align: center; box-shadow: 0 12px 26px rgba(31,64,68,0.07); }
+  @media (max-width: 900px) { .videos-grid, .galeria-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 680px) { #galeriaPage { padding: 1.5rem 0 3rem; } .videos-grid, .galeria-grid { grid-template-columns: 1fr; gap: 1rem; } .galeria-upload-actions { display: grid; grid-template-columns: 1fr; } .galeria-upload-btn { width: 100%; } }
 </style>
