@@ -118,6 +118,8 @@ import Layout from '../layouts/Layout.astro';
   </main>
 
   <script>
+    import { Upload } from 'tus-js-client';
+
     // @ts-nocheck
     const API_URL = (import.meta.env.PUBLIC_API_URL || 'http://localhost:3002/api');
     const dropZone = document.getElementById('dropZone');
@@ -569,7 +571,7 @@ import Layout from '../layouts/Layout.astro';
       progressText.textContent = 'Subiendo archivo PDF a la nube...';
 
       try {
-        async function uploadFileToStorage(file, type) {
+        async function uploadFileToStorage(file, type, progressStart, progressEnd) {
           const mimeType = file.type || (type === 'libro' ? 'application/pdf' : '');
           let uploadUrlResponse;
           try {
@@ -590,40 +592,63 @@ import Layout from '../layouts/Layout.astro';
             throw new Error(uploadInfo.error || 'No se pudo preparar la subida del archivo.');
           }
 
-          let storageResponse;
-          try {
-            storageResponse = await fetch(uploadInfo.signed_url, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': mimeType,
-                'x-upsert': 'false',
-              },
-              body: file,
-            });
-          } catch {
-            throw new Error('No se pudo conectar con el almacenamiento para subir el archivo.');
+          if (!uploadInfo.token || !uploadInfo.tus_endpoint || !uploadInfo.ruta) {
+            throw new Error('El servidor no devolvió los datos necesarios para la carga reanudable.');
           }
 
-          if (!storageResponse.ok) {
-            const detail = await storageResponse.text();
-            throw new Error(`El almacenamiento rechazó el archivo (${storageResponse.status}): ${detail.slice(0, 200)}`);
-          }
+          await new Promise((resolve, reject) => {
+            const upload = new Upload(file, {
+              endpoint: uploadInfo.tus_endpoint,
+              retryDelays: [0, 3000, 5000, 10000, 20000],
+              headers: {
+                'x-signature': uploadInfo.token,
+              },
+              metadata: {
+                bucketName: uploadInfo.bucket_name,
+                objectName: uploadInfo.ruta,
+                contentType: mimeType,
+                cacheControl: '3600',
+              },
+              chunkSize: 6 * 1024 * 1024,
+              uploadDataDuringCreation: true,
+              removeFingerprintOnSuccess: true,
+              onError(error) {
+                const status = error.originalResponse?.getStatus();
+                if (status === 413) {
+                  reject(new Error('Supabase Storage alcanzó el límite máximo configurado para este archivo. Aumenta el límite global y el del bucket en Storage Settings; las cargas reanudables no pueden superar esos límites.'));
+                  return;
+                }
+                reject(new Error(`Falló la carga reanudable: ${error.message}`));
+              },
+              onProgress(bytesUploaded, bytesTotal) {
+                const percentage = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
+                const currentProgress = progressStart + percentage * (progressEnd - progressStart);
+                progressFill.style.width = `${Math.round(currentProgress)}%`;
+                progressText.textContent = `Subiendo ${type === 'libro' ? 'el libro' : 'la miniatura'}... ${Math.round(percentage * 100)}%`;
+              },
+              onSuccess() {
+                resolve();
+              },
+            });
+
+            upload.start();
+          });
 
           return uploadInfo.ruta;
         }
 
         progressText.textContent = 'Subiendo el libro al almacenamiento...';
         progressFill.style.width = '25%';
-        const ruta = await uploadFileToStorage(convertedUploadFile, 'libro');
+        const ruta = await uploadFileToStorage(convertedUploadFile, 'libro', 5, 65);
         let portadaRuta = null;
         if (selectedCover) {
           progressText.textContent = 'Subiendo miniatura...';
-          progressFill.style.width = '55%';
-          portadaRuta = await uploadFileToStorage(selectedCover, 'portada');
+          progressFill.style.width = '65%';
+          portadaRuta = await uploadFileToStorage(selectedCover, 'portada', 65, 85);
         }
 
         progressText.textContent = 'Guardando los datos del libro...';
-        progressFill.style.width = '75%';
+        progressFill.style.width = '90%';
 
         const response = await fetch(`${API_URL}/libros/upload`, {
           method: 'POST',

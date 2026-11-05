@@ -180,13 +180,24 @@ router.post('/upload-url', requireAuth, async (req, res) => {
 
     return res.json({
       ruta: signedUpload.path,
-      signed_url: signedUpload.signedUrl,
+      token: signedUpload.token,
+      bucket_name: STORAGE_BUCKET,
+      tus_endpoint: getTusEndpoint(),
     });
   } catch (error) {
     console.error('Error al preparar la subida directa:', error);
     return res.status(500).json({ error: 'No se pudo preparar la subida del archivo.' });
   }
 });
+
+function getTusEndpoint() {
+  const projectUrl = new URL(process.env.SUPABASE_URL);
+  const hostname = projectUrl.hostname.endsWith('.supabase.co')
+    ? projectUrl.hostname.replace(/\.supabase\.co$/, '.storage.supabase.co')
+    : projectUrl.hostname;
+
+  return `${projectUrl.protocol}//${hostname}/storage/v1/upload/resumable`;
+}
 
 async function ensureUniqueSlug(baseSlug) {
   let slug = baseSlug;
