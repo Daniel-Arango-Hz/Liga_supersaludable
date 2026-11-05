@@ -79,7 +79,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="form-group cover-field">
               <label for="coverInput">Miniatura del libro (opcional)</label>
               <input type="file" id="coverInput" accept="image/jpeg,image/png,image/webp,image/gif" />
-              <small class="input-help">Formatos permitidos: JPG, PNG, WEBP o GIF (máx. 5 MB).</small>
+              <small class="input-help">Formatos permitidos: JPG, PNG, WEBP o GIF.</small>
             </div>
 
             <div id="coverPreview" class="cover-preview" style="display: none;">
@@ -530,13 +530,6 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        showError('⚠️ La miniatura no puede superar 5MB.');
-        coverInput.value = '';
-        clearCover();
-        return;
-      }
-
       selectedCover = file;
       document.getElementById('coverName').textContent = file.name;
       document.getElementById('coverSize').textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
@@ -576,28 +569,62 @@ import Layout from '../layouts/Layout.astro';
       progressText.textContent = 'Subiendo archivo PDF a la nube...';
 
       try {
-        // Leemos el archivo en base64 para enviarlo al backend
-        const fileBase64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = (e) => reject(new Error('Error al leer el archivo'));
-          reader.readAsDataURL(convertedUploadFile);
-        });
+        async function uploadFileToStorage(file, type) {
+          const mimeType = file.type || (type === 'libro' ? 'application/pdf' : '');
+          let uploadUrlResponse;
+          try {
+            uploadUrlResponse = await fetch(`${API_URL}/libros/upload-url`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ fileName: file.name, mimeType, type }),
+            });
+          } catch (error) {
+            throw new Error(getApiErrorMessage(error, 'preparar la subida'));
+          }
 
-        let coverBase64 = null;
-        if (selectedCover) {
-          coverBase64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('Error al leer la miniatura'));
-            reader.readAsDataURL(selectedCover);
-          });
+          const uploadInfo = await uploadUrlResponse.json().catch(() => ({}));
+          if (!uploadUrlResponse.ok) {
+            throw new Error(uploadInfo.error || 'No se pudo preparar la subida del archivo.');
+          }
+
+          let storageResponse;
+          try {
+            storageResponse = await fetch(uploadInfo.signed_url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': mimeType,
+                'x-upsert': 'false',
+              },
+              body: file,
+            });
+          } catch {
+            throw new Error('No se pudo conectar con el almacenamiento para subir el archivo.');
+          }
+
+          if (!storageResponse.ok) {
+            const detail = await storageResponse.text();
+            throw new Error(`El almacenamiento rechazó el archivo (${storageResponse.status}): ${detail.slice(0, 200)}`);
+          }
+
+          return uploadInfo.ruta;
         }
 
-        progressText.textContent = 'Guardando metadatos del libro...';
-        progressFill.style.width = '50%';
+        progressText.textContent = 'Subiendo el libro al almacenamiento...';
+        progressFill.style.width = '25%';
+        const ruta = await uploadFileToStorage(convertedUploadFile, 'libro');
+        let portadaRuta = null;
+        if (selectedCover) {
+          progressText.textContent = 'Subiendo miniatura...';
+          progressFill.style.width = '55%';
+          portadaRuta = await uploadFileToStorage(selectedCover, 'portada');
+        }
 
-        // Enviar al backend
+        progressText.textContent = 'Guardando los datos del libro...';
+        progressFill.style.width = '75%';
+
         const response = await fetch(`${API_URL}/libros/upload`, {
           method: 'POST',
           headers: {
@@ -611,12 +638,10 @@ import Layout from '../layouts/Layout.astro';
             categoria,
             edad_rango: edadRango,
             anio,
+            ruta,
             fileName: convertedUploadFile.name,
-            fileBase64,
-            mimeType: convertedUploadFile.type,
-            coverName: selectedCover?.name || null,
-            coverBase64,
-            coverMimeType: selectedCover?.type || null
+            mimeType: convertedUploadFile.type || 'application/pdf',
+            portadaRuta,
           })
         });
 

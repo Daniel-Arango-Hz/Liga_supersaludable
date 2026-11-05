@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createRequire } from 'module';
+import { randomUUID } from 'node:crypto';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -147,6 +148,46 @@ async function getPageCountByMimeType(fileBuffer, mimeType) {
   return 1;
 }
 
+router.post('/upload-url', requireAuth, async (req, res) => {
+  try {
+    const { fileName, mimeType, type } = req.body ?? {};
+    const isCover = type === 'portada';
+    const allowedTypes = isCover ? ALLOWED_COVER_MIME_TYPES : ALLOWED_MIME_TYPES;
+
+    if (!['libro', 'portada'].includes(type)) {
+      return res.status(400).json({ error: 'Tipo de archivo inválido.' });
+    }
+    if (typeof fileName !== 'string' || !fileName.trim()) {
+      return res.status(400).json({ error: 'Nombre de archivo requerido.' });
+    }
+    if (!allowedTypes.has(mimeType)) {
+      return res.status(400).json({ error: 'Tipo de archivo no soportado.' });
+    }
+
+    const extension = isCover
+      ? getCoverExtension(fileName, mimeType)
+      : getExtension(fileName, mimeType);
+    const folder = isCover ? 'portadas' : 'libros';
+    const storagePath = `${folder}/${req.user.id}/${randomUUID()}.${extension}`;
+    const { data: signedUpload, error } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUploadUrl(storagePath);
+
+    if (error || !signedUpload) {
+      console.error('No se pudo preparar la subida directa:', error);
+      return res.status(502).json({ error: 'No se pudo preparar la subida del archivo.' });
+    }
+
+    return res.json({
+      ruta: signedUpload.path,
+      signed_url: signedUpload.signedUrl,
+    });
+  } catch (error) {
+    console.error('Error al preparar la subida directa:', error);
+    return res.status(500).json({ error: 'No se pudo preparar la subida del archivo.' });
+  }
+});
+
 async function ensureUniqueSlug(baseSlug) {
   let slug = baseSlug;
   let counter = 1;
@@ -215,16 +256,18 @@ router.post('/upload', requireAuth, async (req, res) => {
       fileName,
       fileBase64,
       mimeType,
+      ruta,
       coverName,
       coverBase64,
-      coverMimeType
+      coverMimeType,
+      portadaRuta
     } = req.body;
 
     if (!titulo || !descripcion || !categoria || !edad_rango) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (!fileName || !fileBase64 || !mimeType) {
+    if (!fileName || !mimeType || (!ruta && !fileBase64)) {
       return res.status(400).json({ error: 'File data is required' });
     }
 
@@ -232,83 +275,124 @@ router.post('/upload', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Unsupported file type. Only PDF is allowed. Convert Word to PDF before uploading.' });
     }
 
-    const base64Payload = extractBase64Payload(fileBase64);
-    const fileBuffer = Buffer.from(base64Payload, 'base64');
-    if (!fileBuffer || fileBuffer.length === 0) {
-      return res.status(400).json({ error: 'Invalid file payload' });
-    }
-
     const baseSlug = slugify(titulo) || `libro-${Date.now()}`;
     const slug = await ensureUniqueSlug(baseSlug);
 
-    const extension = getExtension(fileName, mimeType);
-    const storagePath = `libros/${req.user.id}/${Date.now()}-${slug}.${extension}`;
+    let fileBuffer;
+    let storagePath;
+    let contenidoUrl;
+    const storage = supabaseAdmin.storage.from(STORAGE_BUCKET);
 
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .upload(storagePath, fileBuffer, {
+    if (ruta) {
+      const expectedFolder = `libros/${req.user.id}/`;
+      if (typeof ruta !== 'string' || !ruta.startsWith(expectedFolder) || ruta.includes('..')) {
+        return res.status(400).json({ error: 'La ruta del libro no es válida para este usuario.' });
+      }
+
+      const { data: uploadedFile, error: infoError } = await storage.info(ruta);
+      if (infoError || !uploadedFile || uploadedFile.size <= 0) {
+        return res.status(400).json({ error: 'No se encontró el archivo subido.' });
+      }
+      const uploadedMimeType = uploadedFile.metadata?.mimetype;
+      if (uploadedMimeType && !ALLOWED_MIME_TYPES.has(uploadedMimeType)) {
+        return res.status(400).json({ error: 'El archivo subido no es un PDF válido.' });
+      }
+
+      const { data: downloadedFile, error: downloadError } = await storage.download(ruta);
+      if (downloadError || !downloadedFile) {
+        console.error('No se pudo leer el libro subido:', downloadError);
+        return res.status(502).json({ error: 'No se pudo verificar el archivo subido.' });
+      }
+
+      fileBuffer = Buffer.from(await downloadedFile.arrayBuffer());
+      storagePath = ruta;
+    } else {
+      const base64Payload = extractBase64Payload(fileBase64);
+      fileBuffer = Buffer.from(base64Payload, 'base64');
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return res.status(400).json({ error: 'Invalid file payload' });
+      }
+
+      const extension = getExtension(fileName, mimeType);
+      storagePath = `libros/${req.user.id}/${Date.now()}-${slug}.${extension}`;
+      const { error: uploadError } = await storage.upload(storagePath, fileBuffer, {
         contentType: mimeType,
         upsert: false,
       });
 
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      return res.status(500).json({ error: 'Failed to upload file to storage', details: uploadError.message });
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload file to storage', details: uploadError.message });
+      }
     }
 
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(storagePath);
-
-    const contenidoUrl = publicUrlData?.publicUrl;
+    const { data: publicUrlData } = storage.getPublicUrl(storagePath);
+    contenidoUrl = publicUrlData?.publicUrl;
     if (!contenidoUrl) {
       return res.status(500).json({ error: 'Could not generate file URL' });
     }
 
     let portadaIcono = '📚';
-    if (coverName || coverBase64 || coverMimeType) {
-      if (!coverName || !coverBase64 || !coverMimeType) {
-        return res.status(400).json({ error: 'Incomplete cover data' });
+    if (portadaRuta || coverName || coverBase64 || coverMimeType) {
+      if (portadaRuta) {
+        const expectedCoverFolder = `portadas/${req.user.id}/`;
+        if (typeof portadaRuta !== 'string' || !portadaRuta.startsWith(expectedCoverFolder) || portadaRuta.includes('..')) {
+          return res.status(400).json({ error: 'La ruta de la miniatura no es válida para este usuario.' });
+        }
+
+        const { data: uploadedCover, error: coverInfoError } = await storage.info(portadaRuta);
+        if (coverInfoError || !uploadedCover || uploadedCover.size <= 0) {
+          return res.status(400).json({ error: 'No se encontró la miniatura subida.' });
+        }
+
+        const coverMimeTypeStored = uploadedCover.metadata?.mimetype;
+        if (coverMimeTypeStored && !ALLOWED_COVER_MIME_TYPES.has(coverMimeTypeStored)) {
+          return res.status(400).json({ error: 'Tipo de miniatura no soportado.' });
+        }
+
+        const { data: coverPublicUrlData } = storage.getPublicUrl(portadaRuta);
+        if (!coverPublicUrlData?.publicUrl) {
+          return res.status(500).json({ error: 'Could not generate cover URL' });
+        }
+        portadaIcono = coverPublicUrlData.publicUrl;
+      } else {
+        if (!coverName || !coverBase64 || !coverMimeType) {
+          return res.status(400).json({ error: 'Incomplete cover data' });
+        }
+
+        if (!ALLOWED_COVER_MIME_TYPES.has(coverMimeType)) {
+          return res.status(400).json({ error: 'Unsupported cover type. Only JPG, PNG, WEBP or GIF are allowed.' });
+        }
+
+        const coverBase64Payload = extractBase64Payload(coverBase64);
+        const coverBuffer = Buffer.from(coverBase64Payload, 'base64');
+        if (!coverBuffer || coverBuffer.length === 0) {
+          return res.status(400).json({ error: 'Invalid cover payload' });
+        }
+
+        const coverExtension = getCoverExtension(coverName, coverMimeType);
+        const coverStoragePath = `portadas/${req.user.id}/${Date.now()}-${slug}.${coverExtension}`;
+
+        const { error: coverUploadError } = await supabaseAdmin.storage
+          .from(STORAGE_BUCKET)
+          .upload(coverStoragePath, coverBuffer, {
+            contentType: coverMimeType,
+            upsert: false,
+          });
+
+        if (coverUploadError) {
+          console.error('Cover upload error:', coverUploadError);
+          return res.status(500).json({ error: 'Failed to upload cover image', details: coverUploadError.message });
+        }
+
+        const { data: coverPublicUrlData } = storage.getPublicUrl(coverStoragePath);
+
+        if (!coverPublicUrlData?.publicUrl) {
+          return res.status(500).json({ error: 'Could not generate cover URL' });
+        }
+
+        portadaIcono = coverPublicUrlData.publicUrl;
       }
-
-      if (!ALLOWED_COVER_MIME_TYPES.has(coverMimeType)) {
-        return res.status(400).json({ error: 'Unsupported cover type. Only JPG, PNG, WEBP or GIF are allowed.' });
-      }
-
-      const coverBase64Payload = extractBase64Payload(coverBase64);
-      const coverBuffer = Buffer.from(coverBase64Payload, 'base64');
-      if (!coverBuffer || coverBuffer.length === 0) {
-        return res.status(400).json({ error: 'Invalid cover payload' });
-      }
-
-      if (coverBuffer.length > 5 * 1024 * 1024) {
-        return res.status(400).json({ error: 'Cover image exceeds 5MB limit' });
-      }
-
-      const coverExtension = getCoverExtension(coverName, coverMimeType);
-      const coverStoragePath = `portadas/${req.user.id}/${Date.now()}-${slug}.${coverExtension}`;
-
-      const { error: coverUploadError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .upload(coverStoragePath, coverBuffer, {
-          contentType: coverMimeType,
-          upsert: false,
-        });
-
-      if (coverUploadError) {
-        console.error('Cover upload error:', coverUploadError);
-        return res.status(500).json({ error: 'Failed to upload cover image', details: coverUploadError.message });
-      }
-
-      const { data: coverPublicUrlData } = supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(coverStoragePath);
-
-      if (!coverPublicUrlData?.publicUrl) {
-        return res.status(500).json({ error: 'Could not generate cover URL' });
-      }
-
-      portadaIcono = coverPublicUrlData.publicUrl;
     }
 
     const pageCount = await getPageCountByMimeType(fileBuffer, mimeType);
