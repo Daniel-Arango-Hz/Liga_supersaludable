@@ -46,7 +46,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
               <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
             </svg>
           </button>
-          <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Crear audiolibro</button>
+          {slug !== 'mensaje-libre' && <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Crear audiolibro</button>}
           <a id="btn-download" href="#" class="reader-btn reader-btn-dl" title="Ir al libro">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -66,7 +66,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       <span class="reader-page-count" id="reader-page-count">1 / 1</span>
     </section>
 
-    <section class="audiobook-panel" id="audiobook-panel" aria-label="Crear audiolibro" hidden>
+    {slug !== 'mensaje-libre' && <section class="audiobook-panel" id="audiobook-panel" aria-label="Crear audiolibro" hidden>
       <div class="audiobook-heading">
         <div>
           <h2>Crear audiolibro</h2>
@@ -89,7 +89,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       <progress class="audiobook-progress" id="audiobook-progress" max="100" value="0" hidden></progress>
       <p class="audiobook-status" id="audiobook-status" role="status"></p>
       <audio class="audiobook-audio" id="audiobook-audio" controls hidden></audio>
-    </section>
+    </section>}
 
     <main class="reader-main" id="reader-main">
       <!-- Índice lateral -->
@@ -120,6 +120,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
 <script define:vars={{ slug, apiUrl }}>
   const API_URL = apiUrl;
+  const isFreeMessage = slug === 'mensaje-libre';
   let libro = null;
   let paginas = [];
   let currentPage = 1;
@@ -148,14 +149,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       if (!res.ok) throw new Error('Libro no encontrado');
       
       libro = await res.json();
-      canCreateAudiobook = await verifyAdminRole();
+      canCreateAudiobook = isFreeMessage ? false : await verifyAdminRole();
       const progressTitle = document.getElementById('reader-progress-title');
       if (progressTitle) progressTitle.textContent = libro.titulo || 'Tu aventura';
 
       if (libro?.contenido_url) {
         await renderPdfBook();
         setupEventListeners();
-        enableAudiobook(/\.pdf(\?|$)/i.test(libro.contenido_url) || Boolean(libro.audiolibro_disponible));
+        enableAudiobook(!isFreeMessage && (/\.pdf(\?|$)/i.test(libro.contenido_url) || Boolean(libro.audiolibro_disponible)));
         showReader();
         return;
       }
@@ -169,7 +170,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       
       renderBook();
       setupEventListeners();
-      enableAudiobook(true);
+      enableAudiobook(!isFreeMessage);
       showReader();
     } catch (error) {
       console.error('Error cargando libro:', error);
@@ -274,7 +275,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           <span class="page-label" id="pdf-page-label">Página 1</span>
           <h1 class="page-titulo">${escapeHtml(libro.titulo || 'Cuento')}</h1>
         </header>
-        <div class="pdf-mode-switch" role="group" aria-label="Modo de lectura">
+        ${!isFreeMessage ? `<div class="pdf-mode-switch" role="group" aria-label="Modo de lectura">
           <button class="pdf-mode-button active" id="pdf-text-mode" type="button" aria-pressed="true">
             Lectura adaptable
           </button>
@@ -291,8 +292,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
           <p class="pdf-empty-text" id="pdf-empty-text" hidden>
             Esta página no contiene texto seleccionable. Puedes verla en su formato original o usar el audiolibro si está disponible.
           </p>
-        </section>
-        <section class="pdf-mode-view" id="pdf-image-view" role="region" aria-label="Imagen de la página original" hidden>
+        </section>` : ''}
+        <section class="pdf-mode-view" id="pdf-image-view" role="region" aria-label="Imagen de la página original" ${isFreeMessage ? '' : 'hidden'}>
           <figure class="pdf-image-wrap">
             <img class="pdf-page-image" id="pdf-page-image" alt="" />
             <figcaption>Imagen de la página original del PDF</figcaption>
@@ -591,7 +592,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
       const [, textContent] = await Promise.all([
         page.render({ canvasContext: ctx, viewport }).promise,
-        page.getTextContent(),
+        isFreeMessage ? Promise.resolve(null) : page.getTextContent(),
       ]);
       const imageBlob = await createPdfPageImage(canvas);
       const imageUrl = URL.createObjectURL(imageBlob);
@@ -603,43 +604,50 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       const imageAlt = `Página original ${pageNumber} de ${libro.titulo || 'el cuento'}`;
       pageImage.src = imageUrl;
       pageImage.alt = imageAlt;
-      adaptiveImage.src = imageUrl;
-      adaptiveImage.alt = imageAlt;
+      if (adaptiveImage) {
+        adaptiveImage.src = imageUrl;
+        adaptiveImage.alt = imageAlt;
+      }
       if (previousImageUrl) URL.revokeObjectURL(previousImageUrl);
 
-      const paragraphs = extractPdfParagraphs(textContent.items);
-      const storyText = document.getElementById('pdf-story-text');
-      const emptyText = document.getElementById('pdf-empty-text');
-      let readableParagraphs = paragraphs;
-      let aiFormatFailed = false;
-      if (needsPdfOcr(textContent.items, paragraphs)) {
-        if (status) {
-          status.hidden = false;
-          status.textContent = 'El texto de esta página no se pudo extraer con claridad. Reconociendo el texto de la imagen…';
+      if (!isFreeMessage) {
+        const paragraphs = extractPdfParagraphs(textContent.items);
+        const storyText = document.getElementById('pdf-story-text');
+        const emptyText = document.getElementById('pdf-empty-text');
+        let readableParagraphs = paragraphs;
+        let aiFormatFailed = false;
+        if (needsPdfOcr(textContent.items, paragraphs)) {
+          if (status) {
+            status.hidden = false;
+            status.textContent = 'El texto de esta página no se pudo extraer con claridad. Reconociendo el texto de la imagen…';
+          }
+          const ocrText = await recognizePdfPageText(canvas, pageNumber);
+          if (ocrText) readableParagraphs = [ocrText];
         }
-        const ocrText = await recognizePdfPageText(canvas, pageNumber);
-        if (ocrText) readableParagraphs = [ocrText];
-      }
 
-      if (readableParagraphs.length) {
-        const aiParagraphs = await formatPdfTextWithGemini(readableParagraphs, pageNumber);
-        if (aiParagraphs) readableParagraphs = aiParagraphs;
-        else aiFormatFailed = true;
-      }
+        if (readableParagraphs.length) {
+          const aiParagraphs = await formatPdfTextWithGemini(readableParagraphs, pageNumber);
+          if (aiParagraphs) readableParagraphs = aiParagraphs;
+          else aiFormatFailed = true;
+        }
 
-      storyText.replaceChildren(...readableParagraphs.map((paragraph) => {
-        const element = document.createElement('p');
-        element.className = 'page-parrafo pdf-story-paragraph';
-        element.textContent = paragraph;
-        return element;
-      }));
-      emptyText.hidden = readableParagraphs.length > 0;
-      if (status && readableParagraphs.length && !aiFormatFailed) {
+        storyText.replaceChildren(...readableParagraphs.map((paragraph) => {
+          const element = document.createElement('p');
+          element.className = 'page-parrafo pdf-story-paragraph';
+          element.textContent = paragraph;
+          return element;
+        }));
+        emptyText.hidden = readableParagraphs.length > 0;
+        if (status && readableParagraphs.length && !aiFormatFailed) {
+          status.hidden = true;
+          status.textContent = '';
+        } else if (status && !status.textContent) {
+          status.hidden = false;
+          status.textContent = 'No se pudo extraer texto de esta página. Puedes verla en “Página original”.';
+        }
+      } else if (status) {
         status.hidden = true;
         status.textContent = '';
-      } else if (status && !status.textContent) {
-        status.hidden = false;
-        status.textContent = 'No se pudo extraer texto de esta página. Puedes verla en “Página original”.';
       }
 
       const pageLabel = document.getElementById('pdf-page-label');
