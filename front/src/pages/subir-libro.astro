@@ -82,12 +82,23 @@ import Layout from '../layouts/Layout.astro';
               <small class="input-help">Formatos permitidos: JPG, PNG, WEBP o GIF.</small>
             </div>
 
+            <div class="form-group audiobook-field">
+              <label for="audiobookInput">Audiolibro (opcional)</label>
+              <input type="file" id="audiobookInput" accept=".mp3,.mpeg,.mpg,audio/mpeg" />
+              <small class="input-help">Formatos permitidos: MP3 o MPEG (.mp3, .mpeg, .mpg).</small>
+            </div>
+
             <div id="coverPreview" class="cover-preview" style="display: none;">
               <img id="coverPreviewImage" alt="Vista previa de miniatura" />
               <div>
                 <p>🖼️ <strong id="coverName"></strong></p>
                 <p id="coverSize"></p>
               </div>
+            </div>
+
+            <div id="audiobookInfo" class="file-info" style="display: none;">
+              <p>🎧 <strong id="audiobookName"></strong></p>
+              <p id="audiobookSize"></p>
             </div>
 
             <div id="fileInfo" class="file-info" style="display: none;">
@@ -131,6 +142,8 @@ import Layout from '../layouts/Layout.astro';
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
     const coverInput = document.getElementById('coverInput');
+    const audiobookInput = document.getElementById('audiobookInput');
+    const audiobookInfo = document.getElementById('audiobookInfo');
     const coverPreview = document.getElementById('coverPreview');
     const coverPreviewImage = document.getElementById('coverPreviewImage');
     const categorySelect = document.getElementById('categoria');
@@ -138,6 +151,7 @@ import Layout from '../layouts/Layout.astro';
 
     let selectedFile = null;
     let selectedCover = null;
+    let selectedAudiobook = null;
     let convertedUploadFile = null;
     function getApiErrorMessage(error, action) {
       if (error instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(error.message)) {
@@ -237,6 +251,14 @@ import Layout from '../layouts/Layout.astro';
         handleCoverSelect(e.target.files[0]);
       } else {
         clearCover();
+      }
+    });
+
+    audiobookInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleAudiobookSelect(e.target.files[0]);
+      } else {
+        clearAudiobook();
       }
     });
 
@@ -545,6 +567,25 @@ import Layout from '../layouts/Layout.astro';
       coverPreviewImage.removeAttribute('src');
     }
 
+    function handleAudiobookSelect(file) {
+      if (!/\.(mp3|mpeg|mpg)$/i.test(file.name || '')) {
+        showError('⚠️ El audiolibro debe estar en formato MP3 o MPEG.');
+        audiobookInput.value = '';
+        clearAudiobook();
+        return;
+      }
+
+      selectedAudiobook = file;
+      document.getElementById('audiobookName').textContent = file.name;
+      document.getElementById('audiobookSize').textContent = getReadableSize(file);
+      audiobookInfo.style.display = 'block';
+    }
+
+    function clearAudiobook() {
+      selectedAudiobook = null;
+      audiobookInfo.style.display = 'none';
+    }
+
     uploadBtn.addEventListener('click', async () => {
       if (!selectedFile || !convertedUploadFile) return;
 
@@ -572,7 +613,11 @@ import Layout from '../layouts/Layout.astro';
 
       try {
         async function uploadFileToStorage(file, type, progressStart, progressEnd) {
-          const mimeType = file.type || (type === 'libro' ? 'application/pdf' : '');
+          const mimeType = type === 'audiolibro' ? 'audio/mpeg' : file.type || (
+            type === 'libro'
+              ? 'application/pdf'
+              : ''
+          );
           let uploadUrlResponse;
           try {
             uploadUrlResponse = await fetch(`${API_URL}/libros/upload-url`, {
@@ -625,7 +670,8 @@ import Layout from '../layouts/Layout.astro';
                 const percentage = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
                 const currentProgress = progressStart + percentage * (progressEnd - progressStart);
                 progressFill.style.width = `${Math.round(currentProgress)}%`;
-                progressText.textContent = `Subiendo ${type === 'libro' ? 'el libro' : 'la miniatura'}... ${Math.round(percentage * 100)}%`;
+                const label = type === 'libro' ? 'el libro' : type === 'audiolibro' ? 'el audiolibro' : 'la miniatura';
+                progressText.textContent = `Subiendo ${label}... ${Math.round(percentage * 100)}%`;
               },
               onSuccess() {
                 resolve();
@@ -640,12 +686,18 @@ import Layout from '../layouts/Layout.astro';
 
         progressText.textContent = 'Subiendo el libro al almacenamiento...';
         progressFill.style.width = '25%';
-        const ruta = await uploadFileToStorage(convertedUploadFile, 'libro', 5, 65);
+        const ruta = await uploadFileToStorage(convertedUploadFile, 'libro', 5, selectedAudiobook || selectedCover ? 50 : 90);
+        let audiolibroRuta = null;
+        if (selectedAudiobook) {
+          progressText.textContent = 'Subiendo audiolibro...';
+          progressFill.style.width = '50%';
+          audiolibroRuta = await uploadFileToStorage(selectedAudiobook, 'audiolibro', 50, selectedCover ? 75 : 90);
+        }
         let portadaRuta = null;
         if (selectedCover) {
           progressText.textContent = 'Subiendo miniatura...';
-          progressFill.style.width = '65%';
-          portadaRuta = await uploadFileToStorage(selectedCover, 'portada', 65, 85);
+          progressFill.style.width = selectedAudiobook ? '75%' : '65%';
+          portadaRuta = await uploadFileToStorage(selectedCover, 'portada', selectedAudiobook ? 75 : 65, 90);
         }
 
         progressText.textContent = 'Guardando los datos del libro...';
@@ -668,6 +720,7 @@ import Layout from '../layouts/Layout.astro';
             fileName: convertedUploadFile.name,
             mimeType: convertedUploadFile.type || 'application/pdf',
             portadaRuta,
+            audiolibroRuta,
           })
         });
 
@@ -696,11 +749,13 @@ import Layout from '../layouts/Layout.astro';
         selectedFile = null;
         convertedUploadFile = null;
         clearCover();
+        clearAudiobook();
         fileInfo.style.display = 'none';
         uploadBtn.disabled = true;
         uploadProgress.style.display = 'none';
         fileInput.value = '';
         coverInput.value = '';
+        audiobookInput.value = '';
 
         setTimeout(() => {
           window.location.href = '/';

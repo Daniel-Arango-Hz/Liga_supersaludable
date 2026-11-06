@@ -22,6 +22,14 @@ const ALLOWED_COVER_MIME_TYPES = new Set([
   'image/webp',
   'image/gif',
 ]);
+const ALLOWED_AUDIOBOOK_MIME_TYPES = new Set([
+  'audio/mpeg',
+]);
+
+function getAudiobookExtension(fileName) {
+  const match = String(fileName || '').toLowerCase().match(/\.(mp3|mpeg|mpg)$/);
+  return match?.[1] ?? null;
+}
 
 function slugify(text) {
   return String(text || '')
@@ -152,9 +160,14 @@ router.post('/upload-url', requireAuth, async (req, res) => {
   try {
     const { fileName, mimeType, type } = req.body ?? {};
     const isCover = type === 'portada';
-    const allowedTypes = isCover ? ALLOWED_COVER_MIME_TYPES : ALLOWED_MIME_TYPES;
+    const isAudiobook = type === 'audiolibro';
+    const allowedTypes = isCover
+      ? ALLOWED_COVER_MIME_TYPES
+      : isAudiobook
+        ? ALLOWED_AUDIOBOOK_MIME_TYPES
+        : ALLOWED_MIME_TYPES;
 
-    if (!['libro', 'portada'].includes(type)) {
+    if (!['libro', 'portada', 'audiolibro'].includes(type)) {
       return res.status(400).json({ error: 'Tipo de archivo inválido.' });
     }
     if (typeof fileName !== 'string' || !fileName.trim()) {
@@ -163,14 +176,21 @@ router.post('/upload-url', requireAuth, async (req, res) => {
     if (!allowedTypes.has(mimeType)) {
       return res.status(400).json({ error: 'Tipo de archivo no soportado.' });
     }
+    const audiobookExtension = isAudiobook ? getAudiobookExtension(fileName) : null;
+    if (isAudiobook && !audiobookExtension) {
+      return res.status(400).json({ error: 'El audiolibro debe estar en formato MP3 o MPEG.' });
+    }
 
     const extension = isCover
       ? getCoverExtension(fileName, mimeType)
-      : getExtension(fileName, mimeType);
-    const folder = isCover ? 'portadas' : 'libros';
+      : isAudiobook
+        ? audiobookExtension
+        : getExtension(fileName, mimeType);
+    const folder = isCover ? 'portadas' : isAudiobook ? 'audiolibros' : 'libros';
     const storagePath = `${folder}/${req.user.id}/${randomUUID()}.${extension}`;
+    const storageBucket = isAudiobook ? 'audiolibros' : STORAGE_BUCKET;
     const { data: signedUpload, error } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
+      .from(storageBucket)
       .createSignedUploadUrl(storagePath);
 
     if (error || !signedUpload) {
@@ -181,7 +201,7 @@ router.post('/upload-url', requireAuth, async (req, res) => {
     return res.json({
       ruta: signedUpload.path,
       token: signedUpload.token,
-      bucket_name: STORAGE_BUCKET,
+      bucket_name: storageBucket,
       tus_endpoint: getTusEndpoint(),
       api_key: process.env.SUPABASE_ANON_KEY,
     });
@@ -269,6 +289,7 @@ router.post('/upload', requireAuth, async (req, res) => {
       fileBase64,
       mimeType,
       ruta,
+      audiolibroRuta,
       coverName,
       coverBase64,
       coverMimeType,
@@ -285,6 +306,33 @@ router.post('/upload', requireAuth, async (req, res) => {
 
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
       return res.status(400).json({ error: 'Unsupported file type. Only PDF is allowed. Convert Word to PDF before uploading.' });
+    }
+
+    let audiobookPath = null;
+    if (audiolibroRuta) {
+      const expectedAudiobookFolder = `audiolibros/${req.user.id}/`;
+      if (
+        typeof audiolibroRuta !== 'string'
+        || !audiolibroRuta.startsWith(expectedAudiobookFolder)
+        || !getAudiobookExtension(audiolibroRuta)
+        || audiolibroRuta.includes('..')
+      ) {
+        return res.status(400).json({ error: 'La ruta del audiolibro no es válida para este usuario.' });
+      }
+
+      const { data: uploadedAudiobook, error: audiobookInfoError } = await supabaseAdmin.storage
+        .from('audiolibros')
+        .info(audiolibroRuta);
+      if (audiobookInfoError || !uploadedAudiobook || uploadedAudiobook.size <= 0) {
+        return res.status(400).json({ error: 'No se encontró el audiolibro subido.' });
+      }
+      if (
+        uploadedAudiobook.metadata?.mimetype
+        && !ALLOWED_AUDIOBOOK_MIME_TYPES.has(uploadedAudiobook.metadata.mimetype)
+      ) {
+        return res.status(400).json({ error: 'El archivo subido no es un audiolibro MP3 válido.' });
+      }
+      audiobookPath = audiolibroRuta;
     }
 
     const baseSlug = slugify(titulo) || `libro-${Date.now()}`;
@@ -421,6 +469,7 @@ router.post('/upload', requireAuth, async (req, res) => {
       paginas: pageCount,
       anio: parseInt(anio) || new Date().getFullYear(),
       contenido_url: contenidoUrl,
+      audiolibro: audiobookPath,
       publicado: true,
       destacado: false,
       nuevo: true,
