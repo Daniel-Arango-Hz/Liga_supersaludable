@@ -380,6 +380,7 @@ router.post(
       return res.status(503).json({ error: 'El servicio de recuperación no está disponible.' });
     }
 
+    let recoveryStage = 'supabase';
     try {
       const { data, error } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
@@ -387,10 +388,23 @@ router.post(
       });
 
       if (error) {
-        if (error.message.toLowerCase().includes('user not found')) {
+        const errorMessage = error.message.toLowerCase();
+        if (
+          error.status === 404
+          || error.code === 'user_not_found'
+          || errorMessage.includes('user not found')
+        ) {
           return res.json({ mensaje: genericMessage });
         }
-        console.error('Supabase no pudo generar el enlace de recuperación:', error.status || error.code || 'unknown');
+        const safeMessage = error.message.replace(
+          /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+          '[email redacted]'
+        );
+        console.error('Supabase no pudo generar el enlace de recuperación:', {
+          status: error.status || null,
+          code: error.code || null,
+          message: safeMessage,
+        });
         return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
       }
 
@@ -412,6 +426,7 @@ router.post(
       const resetLink = resetUrl.toString();
       const htmlResetLink = resetLink.replace(/&/g, '&amp;');
 
+      recoveryStage = 'sendgrid';
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
       await sgMail.send({
         to: req.body.email,
@@ -426,7 +441,14 @@ router.post(
 
       return res.json({ mensaje: genericMessage });
     } catch (error) {
-      console.error('No se pudo enviar el enlace de recuperación con SendGrid:', error?.response?.statusCode || error?.code || 'unknown');
+      const providerMessages = error?.response?.body?.errors
+        ?.map((item) => item?.message)
+        .filter((message) => typeof message === 'string' && message.trim());
+      console.error(`Falló la recuperación de contraseña en ${recoveryStage}:`, {
+        statusCode: error?.response?.statusCode || error?.status || null,
+        code: error?.code || null,
+        providerMessages: providerMessages?.length ? providerMessages : undefined,
+      });
       return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
     }
   }
