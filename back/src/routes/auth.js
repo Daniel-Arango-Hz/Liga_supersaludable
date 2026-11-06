@@ -374,8 +374,12 @@ router.post(
   async (req, res) => {
     const genericMessage = 'Si el correo existe, recibirás un enlace de recuperación.';
 
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-      console.error('Falta configurar TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN.');
+    if (
+      !process.env.TWILIO_ACCOUNT_SID
+      || !process.env.TWILIO_API_KEY_SID
+      || !process.env.TWILIO_API_KEY_SECRET
+    ) {
+      console.error('Falta configurar TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID o TWILIO_API_KEY_SECRET.');
       return res.status(503).json({ error: 'El servicio de recuperación no está disponible.' });
     }
 
@@ -436,7 +440,7 @@ router.post(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`${process.env.TWILIO_API_KEY_SID}:${process.env.TWILIO_API_KEY_SECRET}`).toString('base64')}`,
         },
         body: JSON.stringify({
           from: {
