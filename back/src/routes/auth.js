@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import sgMail from '@sendgrid/mail';
 import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { validate } from '../middleware/validate.js';
@@ -375,8 +374,8 @@ router.post(
   async (req, res) => {
     const genericMessage = 'Si el correo existe, recibirás un enlace de recuperación.';
 
-    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) {
-      console.error('Falta configurar SENDGRID_API_KEY o SENDGRID_FROM_EMAIL.');
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+      console.error('Falta configurar TWILIO_ACCOUNT_SID o TWILIO_AUTH_TOKEN.');
       return res.status(503).json({ error: 'El servicio de recuperación no está disponible.' });
     }
 
@@ -431,28 +430,56 @@ router.post(
       const resetLink = resetUrl.toString();
       const htmlResetLink = resetLink.replace(/&/g, '&amp;');
 
-      recoveryStage = 'sendgrid';
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-      await sgMail.send({
-        to: req.body.email,
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL,
-          name: process.env.SENDGRID_FROM_NAME || 'Liga Supersaludable',
+      recoveryStage = 'twilio';
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const twilioResponse = await fetch('https://comms.twilio.com/v1/Emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${accountSid}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
         },
-        subject: 'Recupera tu contraseña de Liga Supersaludable',
-        text: `Recibimos una solicitud para cambiar la contraseña de tu cuenta. Para elegir una nueva contraseña, abre este enlace: ${resetLink}\n\nSi no solicitaste este cambio, puedes ignorar este mensaje.`,
-        html: `<p>Recibimos una solicitud para cambiar la contraseña de tu cuenta de Liga Supersaludable.</p><p><a href="${htmlResetLink}">Crear una nueva contraseña</a></p><p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>`,
+        body: JSON.stringify({
+          from: {
+            address: process.env.TWILIO_FROM_EMAIL || `${accountSid}@twilio.email`,
+            name: process.env.TWILIO_FROM_NAME || 'Liga Supersaludable',
+          },
+          to: [{ address: req.body.email }],
+          content: {
+            subject: 'Recupera tu contraseña de Liga Supersaludable',
+            html: `<p>Recibimos una solicitud para cambiar la contraseña de tu cuenta de Liga Supersaludable.</p><p><a href="${htmlResetLink}">Crear una nueva contraseña</a></p><p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>`,
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
       });
+
+      if (!twilioResponse.ok) {
+        const responseText = await twilioResponse.text();
+        let providerError;
+        try {
+          providerError = responseText ? JSON.parse(responseText) : {};
+        } catch {
+          providerError = {};
+        }
+
+        const error = new Error('Twilio rejected the recovery email.');
+        error.status = twilioResponse.status;
+        error.code = providerError.code || null;
+        error.providerMessage = typeof providerError.message === 'string'
+          ? providerError.message
+          : null;
+        throw error;
+      }
 
       return res.json({ mensaje: genericMessage });
     } catch (error) {
-      const providerMessages = error?.response?.body?.errors
-        ?.map((item) => item?.message)
-        .filter((message) => typeof message === 'string' && message.trim());
+      const providerMessage = error?.providerMessage?.replace(
+        /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+        '[email redacted]'
+      );
       console.error(`Falló la recuperación de contraseña en ${recoveryStage}:`, {
-        statusCode: error?.response?.statusCode || error?.status || null,
+        statusCode: error?.status || null,
         code: error?.code || null,
-        providerMessages: providerMessages?.length ? providerMessages : undefined,
+        providerMessage: providerMessage || undefined,
       });
       return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
     }
