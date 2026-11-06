@@ -2,6 +2,7 @@
 import LoginModal from '../components/LoginModal.astro';
 import CtaFooter from '../components/CtaFooter.astro';
 import LigaBookShell from '../components/LigaBookShell.astro';
+import LegalPolicyModal from '../components/LegalPolicyModal.astro';
 
 interface Props {
   title?: string;
@@ -54,6 +55,7 @@ const activeSection = Astro.url.pathname === '/'
         <CtaFooter />
       </>
     )}
+    <LegalPolicyModal />
 
     <script>
       import { maintainAuthSession } from '../utils/api';

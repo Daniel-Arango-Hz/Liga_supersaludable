@@ -5,31 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 <Layout title="Ingresar – Liga Supersaludables" description="Accede a tu cuenta en Liga Supersaludables." minimal>
   <main class="auth-layout">
     <aside class="promo-panel">
-      <a href="/" class="brand" aria-label="Liga Supersaludables, inicio">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" fill="none">
-            <path d="M25.5 5.5c-9.2.5-16.6 4.2-17.8 11.3-.7 4.2 2.3 7.1 6.1 6.6 7.5-1 10.8-8.8 11.7-17.9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M7 27c3.4-7.5 8.1-11.2 14.5-14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </span>
-        <span class="brand-copy"><strong>Liga</strong><span>SUPER SALUDABLES</span></span>
-      </a>
-
-      <div class="promo-copy">
-        <p class="eyebrow">TU AVENTURA SALUDABLE</p>
-        <h2>Pequeños pasos,<br />grandes<br /><span>superpoderes.</span></h2>
-        <p class="promo-description">Aprende, juega y crece acompañado por tu liga de héroes saludables.</p>
-        <ul class="benefits">
-          <li><span aria-hidden="true">✓</span> Actividades divertidas</li>
-          <li><span aria-hidden="true">✓</span> Hábitos para crecer</li>
-        </ul>
-      </div>
-
-      <svg class="promo-decoration" viewBox="0 0 440 440" fill="none" aria-hidden="true">
-        <circle cx="250" cy="250" r="220" />
-        <circle cx="250" cy="250" r="165" />
-        <path d="M205 346c-19-39-1-74 31-94 36-22 43-53 25-88 46 23 66 62 54 101-13 44-59 69-95 49-24-13-32-34-26-56 5-19 20-32 38-40" />
-      </svg>
+      <img class="promo-image" src="/img/login-background.png" alt="Personajes de la Liga Súper Saludable" />
     </aside>
 
     <section class="auth-panel" aria-labelledby="auth-title">
@@ -147,68 +123,24 @@ import Layout from '../../layouts/Layout.astro';
   .brand-copy strong { font-size: 1rem; font-weight: 700; }
   .brand-copy span { font-size: 0.7rem; letter-spacing: 0.13em; }
 
-  .promo-copy {
-    z-index: 1;
-    width: min(100%, 510px);
-    margin: 3rem 0 4rem;
+  .promo-image {
+    position: absolute;
+    z-index: -1;
+    top: 50%;
+    left: 50%;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    object-fit: fill;
+    transform: translate(-50%, -50%);
   }
 
-  .eyebrow,
   .auth-eyebrow {
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.18em;
   }
-
-  .eyebrow { margin-bottom: 1.45rem; color: rgba(255, 255, 255, 0.88); }
-
-  .promo-copy h2 {
-    margin: 0;
-    font-size: clamp(3.2rem, 5.2vw, 4.45rem);
-    font-weight: 500;
-    line-height: 1.12;
-    letter-spacing: -0.065em;
-  }
-
-  .promo-copy h2 span { color: #ffdc70; }
-
-  .promo-description {
-    max-width: 445px;
-    margin-top: 1.4rem;
-    color: rgba(255, 255, 255, 0.88);
-    font-size: 1.06rem;
-    line-height: 1.7;
-  }
-
-  .benefits {
-    display: grid;
-    gap: 0.8rem;
-    margin-top: 2rem;
-    padding: 0;
-    list-style: none;
-    font-size: 0.87rem;
-    font-weight: 500;
-  }
-
-  .benefits li { display: flex; align-items: center; gap: 0.7rem; }
-  .benefits li span { color: #ffe06c; font-weight: 700; }
-
-  .promo-decoration {
-    position: absolute;
-    z-index: -1;
-    right: -120px;
-    bottom: -90px;
-    width: min(75%, 520px);
-    color: rgba(255, 255, 255, 0.17);
-  }
-
-  .promo-decoration circle,
-  .promo-decoration path {
-    stroke: currentColor;
-    stroke-width: 1;
-  }
-
-  .promo-decoration path { stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
 
   .auth-panel {
     display: flex;
@@ -447,17 +379,13 @@ import Layout from '../../layouts/Layout.astro';
   @media (max-width: 1000px) {
     .auth-layout { grid-template-columns: minmax(350px, 42%) minmax(0, 1fr); }
     .promo-panel { padding-inline: 2.5rem; }
-    .promo-copy h2 { font-size: clamp(2.85rem, 5vw, 3.7rem); }
     .auth-panel { padding-inline: 2rem; }
   }
 
   @media (max-width: 760px) {
-    .auth-layout { display: flex; flex-direction: column; }
-    .promo-panel { min-height: auto; padding: 1.1rem 1.4rem; }
-    .brand-mark { width: 40px; height: 40px; }
-    .promo-copy { display: none; }
-    .promo-decoration { right: -70px; bottom: -210px; width: 280px; }
-    .auth-panel { flex: 1; align-items: flex-start; padding: 1.4rem 1.35rem 2.5rem; }
+    .auth-layout { display: block; }
+    .promo-panel { display: none; }
+    .auth-panel { box-sizing: border-box; min-height: 100vh; min-height: 100svh; align-items: center; padding: 1.4rem 1.35rem 2.5rem; }
     .auth-content { width: min(100%, 456px); margin: 0 auto; gap: 1rem; }
     .back-link { align-self: flex-start; }
     .auth-brand { margin: 0.8rem 0 0.4rem; }

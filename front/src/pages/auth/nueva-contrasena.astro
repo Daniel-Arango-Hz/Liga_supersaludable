@@ -1,0 +1,112 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Crear contraseña nueva – Liga Supersaludable" description="Crea una contraseña nueva para tu cuenta." minimal>
+  <main class="recovery-page">
+    <section class="recovery-card" aria-labelledby="recovery-title">
+      <a class="back-link" href="/auth/login">← Volver a iniciar sesión</a>
+      <span class="recovery-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15.5" r="1" fill="currentColor"/></svg>
+      </span>
+      <p class="eyebrow">LIGA SUPER SALUDABLE</p>
+      <h1 id="recovery-title">Crea una contraseña nueva</h1>
+      <p class="intro">Elige una contraseña segura de al menos 8 caracteres.</p>
+
+      <div id="recovery-message" class="message" role="status" aria-live="polite" hidden></div>
+
+      <form id="password-form" hidden>
+        <label for="password">Nueva contraseña</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required />
+        <label for="password-confirm">Confirma la contraseña</label>
+        <input id="password-confirm" name="password-confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required />
+        <button id="submit-button" type="submit">Guardar contraseña</button>
+      </form>
+
+      <a id="action-link" class="login-link" href="/auth/login" hidden>Ir a iniciar sesión</a>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .recovery-page { display: grid; min-height: 100vh; min-height: 100svh; padding: 1.25rem; place-items: center; background: linear-gradient(145deg, #e8f8f4, #f8fbff 55%, #fff5e3); }
+  .recovery-card { width: min(100%, 460px); padding: clamp(1.5rem, 5vw, 2.5rem); border: 1px solid #e3ecef; border-radius: 24px; background: #fff; box-shadow: 0 20px 60px rgba(27, 55, 74, 0.1); }
+  .back-link { display: inline-block; color: #718198; font-size: 0.84rem; font-weight: 600; text-decoration: none; }
+  .back-link:hover { color: #119d91; }
+  .recovery-icon { display: grid; width: 52px; height: 52px; margin: 2rem auto 1.1rem; place-items: center; border-radius: 16px; color: #119d91; background: #e6f8f4; }
+  .recovery-icon svg { width: 25px; height: 25px; }
+  .eyebrow { color: #119d91; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em; text-align: center; }
+  h1 { margin-top: 0.65rem; color: #26334c; font-size: clamp(1.7rem, 5vw, 2rem); letter-spacing: -0.045em; text-align: center; }
+  .intro { margin-top: 0.8rem; color: #7d8da3; font-size: 0.92rem; line-height: 1.6; text-align: center; }
+  form { display: grid; gap: 0.7rem; margin-top: 1.6rem; }
+  label { color: #40546d; font-size: 0.82rem; font-weight: 600; }
+  input { width: 100%; min-height: 50px; padding: 0.8rem 0.9rem; border: 1px solid #d9e5ef; border-radius: 12px; color: #304157; background: #fbfcfd; font: inherit; font-size: 0.9rem; }
+  input:focus { border-color: #40b7aa; outline: 3px solid rgba(64, 183, 170, 0.14); background: #fff; }
+  button { min-height: 50px; margin-top: 0.3rem; border: 0; border-radius: 12px; color: #fff; background: linear-gradient(110deg, #20b39f, #109b98); box-shadow: 0 9px 20px rgba(24, 155, 145, 0.17); cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 700; }
+  button:disabled { cursor: wait; opacity: 0.65; }
+  .message { margin-top: 1rem; padding: 0.8rem; border: 1px solid #bcecdf; border-radius: 10px; color: #087d72; background: #effaf6; font-size: 0.84rem; line-height: 1.5; text-align: center; }
+  .message.error { border-color: #f3c4c4; color: #a83232; background: #fff5f5; }
+  .login-link { display: block; margin-top: 1rem; color: #119d91; font-size: 0.88rem; font-weight: 700; text-align: center; }
+</style>
+
+<script>
+  import { resetPassword } from '../../utils/api';
+
+  const form = document.getElementById('password-form') as HTMLFormElement;
+  const passwordInput = document.getElementById('password') as HTMLInputElement;
+  const confirmInput = document.getElementById('password-confirm') as HTMLInputElement;
+  const message = document.getElementById('recovery-message') as HTMLDivElement;
+  const submitButton = document.getElementById('submit-button') as HTMLButtonElement;
+  const actionLink = document.getElementById('action-link') as HTMLAnchorElement;
+  const tokenHash = new URLSearchParams(window.location.hash.slice(1)).get('token_hash');
+
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+
+  if (tokenHash) {
+    form.hidden = false;
+  } else {
+    message.textContent = 'El enlace de recuperación no es válido. Solicita uno nuevo.';
+    message.classList.add('error');
+    message.hidden = false;
+    actionLink.href = '/auth/recuperar';
+    actionLink.textContent = 'Solicitar un enlace nuevo';
+    actionLink.hidden = false;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    message.hidden = true;
+    message.classList.remove('error');
+
+    if (passwordInput.value !== confirmInput.value) {
+      message.textContent = 'Las contraseñas no coinciden.';
+      message.classList.add('error');
+      message.hidden = false;
+      confirmInput.focus();
+      return;
+    }
+
+    if (!tokenHash) return;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Guardando…';
+
+    try {
+      message.textContent = await resetPassword(tokenHash, passwordInput.value);
+      message.hidden = false;
+      form.hidden = true;
+      actionLink.href = '/auth/login';
+      actionLink.textContent = 'Ir a iniciar sesión';
+      actionLink.hidden = false;
+    } catch (error) {
+      message.textContent = error instanceof Error ? error.message : 'No se pudo actualizar la contraseña.';
+      message.classList.add('error');
+      message.hidden = false;
+      actionLink.href = '/auth/recuperar';
+      actionLink.textContent = 'Solicitar un enlace nuevo';
+      actionLink.hidden = false;
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Guardar contraseña';
+    }
+  });
+</script>

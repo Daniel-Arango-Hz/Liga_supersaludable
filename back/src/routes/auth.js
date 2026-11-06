@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
+import sgMail from '@sendgrid/mail';
+import { createClient } from '@supabase/supabase-js';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -371,11 +373,103 @@ router.post(
   [body('email').isEmail().normalizeEmail()],
   validate,
   async (req, res) => {
-    await supabase.auth.resetPasswordForEmail(req.body.email, {
-      redirectTo: `${process.env.CORS_ORIGINS?.split(',')[0]}/auth/nueva-contrasena`,
-    });
-    // Siempre responder igual para no revelar si el email existe
-    res.json({ mensaje: 'Si el correo existe, recibirás un enlace de recuperación.' });
+    const genericMessage = 'Si el correo existe, recibirás un enlace de recuperación.';
+
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) {
+      console.error('Falta configurar SENDGRID_API_KEY o SENDGRID_FROM_EMAIL.');
+      return res.status(503).json({ error: 'El servicio de recuperación no está disponible.' });
+    }
+
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: req.body.email,
+      });
+
+      if (error) {
+        if (error.message.toLowerCase().includes('user not found')) {
+          return res.json({ mensaje: genericMessage });
+        }
+        console.error('Supabase no pudo generar el enlace de recuperación:', error.status || error.code || 'unknown');
+        return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
+      }
+
+      const tokenHash = data?.properties?.hashed_token;
+      if (!tokenHash) {
+        console.error('Supabase no devolvió el token del enlace de recuperación.');
+        return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
+      }
+
+      const configuredFrontend = process.env.FRONTEND_URL?.trim()
+        || process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim()).find(Boolean);
+      if (!configuredFrontend) {
+        console.error('Falta configurar FRONTEND_URL para generar enlaces de recuperación.');
+        return res.status(503).json({ error: 'El servicio de recuperación no está disponible.' });
+      }
+
+      const resetUrl = new URL('/auth/nueva-contrasena', configuredFrontend);
+      resetUrl.hash = new URLSearchParams({ token_hash: tokenHash }).toString();
+      const resetLink = resetUrl.toString();
+      const htmlResetLink = resetLink.replace(/&/g, '&amp;');
+
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      await sgMail.send({
+        to: req.body.email,
+        from: {
+          email: process.env.SENDGRID_FROM_EMAIL,
+          name: process.env.SENDGRID_FROM_NAME || 'Liga Supersaludable',
+        },
+        subject: 'Recupera tu contraseña de Liga Supersaludable',
+        text: `Recibimos una solicitud para cambiar la contraseña de tu cuenta. Para elegir una nueva contraseña, abre este enlace: ${resetLink}\n\nSi no solicitaste este cambio, puedes ignorar este mensaje.`,
+        html: `<p>Recibimos una solicitud para cambiar la contraseña de tu cuenta de Liga Supersaludable.</p><p><a href="${htmlResetLink}">Crear una nueva contraseña</a></p><p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>`,
+      });
+
+      return res.json({ mensaje: genericMessage });
+    } catch (error) {
+      console.error('No se pudo enviar el enlace de recuperación con SendGrid:', error?.response?.statusCode || error?.code || 'unknown');
+      return res.status(502).json({ error: 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.' });
+    }
+  }
+);
+
+// ─── POST /auth/nueva-contrasena ──────────────────────────────────────────────
+router.post(
+  '/nueva-contrasena',
+  [
+    body('token_hash').isString().isLength({ min: 10, max: 512 }).withMessage('Enlace de recuperación inválido'),
+    body('password').isString().isLength({ min: 8, max: 128 }).withMessage('La contraseña debe tener entre 8 y 128 caracteres'),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const recoveryClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } }
+      );
+      const { data, error } = await recoveryClient.auth.verifyOtp({
+        token_hash: req.body.token_hash,
+        type: 'recovery',
+      });
+
+      if (error || !data.user) {
+        return res.status(400).json({ error: 'El enlace es inválido o venció. Solicita uno nuevo.' });
+      }
+
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        password: req.body.password,
+      });
+
+      if (updateError) {
+        console.error('No se pudo actualizar la contraseña del usuario:', updateError.status || updateError.code || 'unknown');
+        return res.status(500).json({ error: 'No se pudo actualizar la contraseña. Intenta de nuevo.' });
+      }
+
+      return res.json({ mensaje: 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.' });
+    } catch (error) {
+      console.error('Error al procesar el cambio de contraseña:', error?.status || error?.code || 'unknown');
+      return res.status(500).json({ error: 'No se pudo actualizar la contraseña. Intenta de nuevo.' });
+    }
   }
 );
 

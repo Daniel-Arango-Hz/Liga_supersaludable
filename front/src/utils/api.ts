@@ -70,6 +70,36 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return res.json();
 }
 
+export async function requestPasswordReset(email: string): Promise<string> {
+  const res = await fetch(`${API_URL}/auth/recuperar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const result: { mensaje?: string; error?: string } = await res.json();
+
+  if (!res.ok) {
+    throw new Error(result.error || 'No se pudo procesar la solicitud. Intenta de nuevo más tarde.');
+  }
+
+  return result.mensaje || 'Si el correo existe, recibirás un enlace de recuperación.';
+}
+
+export async function resetPassword(tokenHash: string, password: string): Promise<string> {
+  const res = await fetch(`${API_URL}/auth/nueva-contrasena`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_hash: tokenHash, password }),
+  });
+  const result: { mensaje?: string; error?: string } = await res.json();
+
+  if (!res.ok) {
+    throw new Error(result.error || 'No se pudo actualizar la contraseña. Intenta de nuevo.');
+  }
+
+  return result.mensaje || 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.';
+}
+
 export function startGoogleAuth(page: GoogleAuthPage, tipo: AccountType = 'familia'): void {
   const params = new URLSearchParams({ page, tipo });
   window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
