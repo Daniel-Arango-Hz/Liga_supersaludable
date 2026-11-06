@@ -389,17 +389,22 @@ router.post(
 
       if (error) {
         const errorMessage = error.message.toLowerCase();
+        const safeMessage = error.message.replace(
+          /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+          '[email redacted]'
+        );
         if (
           error.status === 404
           || error.code === 'user_not_found'
           || errorMessage.includes('user not found')
         ) {
+          console.warn('Supabase devolvió 404 al generar el enlace de recuperación:', {
+            status: error.status || null,
+            code: error.code || null,
+            message: safeMessage,
+          });
           return res.json({ mensaje: genericMessage });
         }
-        const safeMessage = error.message.replace(
-          /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
-          '[email redacted]'
-        );
         console.error('Supabase no pudo generar el enlace de recuperación:', {
           status: error.status || null,
           code: error.code || null,
