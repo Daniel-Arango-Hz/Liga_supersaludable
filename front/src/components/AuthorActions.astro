@@ -149,49 +149,54 @@ let autorEmail = initialAutorEmail || '';
 <style>
   .autor-actions-row {
     display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    width: 100%;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
     flex-wrap: wrap;
   }
 
   .btn-seguir,
   .btn-contactar {
-    padding: 0.875rem 1.5rem;
+    min-height: 46px;
+    padding: 0.75rem 1.25rem;
     border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 800;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     font-family: inherit;
     flex: 1;
     min-width: 140px;
   }
 
   .btn-seguir {
-    background: linear-gradient(135deg, #ffd93d, #ffb534);
-    color: white;
+    background: linear-gradient(135deg, #31a99d, #2288a0);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(35, 143, 137, 0.18);
   }
 
   .btn-seguir:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(255, 217, 61, 0.3);
+    box-shadow: 0 12px 24px rgba(35, 143, 137, 0.24);
   }
 
   .btn-seguir.siguiendo {
-    background: linear-gradient(135deg, #ffc857, #ffb534);
-    box-shadow: 0 4px 12px rgba(255, 200, 87, 0.3);
+    background: #e7f6f1;
+    color: #287d78;
+    box-shadow: inset 0 0 0 1px #bee6dc;
   }
 
   .btn-contactar {
-    background: transparent;
-    border: 2.5px solid white;
-    color: white;
+    border: 1px solid #cfe4e2;
+    background: rgba(255, 255, 255, 0.75);
+    color: #367c77;
   }
 
   .btn-contactar:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #fff;
     transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(35, 98, 102, 0.1);
   }
 
   .btn-seguir:disabled,
@@ -203,6 +208,7 @@ let autorEmail = initialAutorEmail || '';
   @media (max-width: 680px) {
     .autor-actions-row {
       flex-direction: column;
+      max-width: 420px;
       gap: 0.75rem;
     }
 

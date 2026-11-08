@@ -42,6 +42,15 @@
     display: flex;
   }
 
+  .login-modal-overlay.session-expired .modal-close,
+  .login-modal-overlay.session-expired .modal-actions {
+    display: none;
+  }
+
+  .login-modal-overlay.session-expired .modal-content {
+    margin-bottom: 0;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -159,12 +168,19 @@
 </style>
 
 <script>
+  let expirationAlertTimeout: ReturnType<typeof setTimeout> | undefined;
+
   export function showLoginModal(message: string, title?: string) {
     const overlay = document.getElementById('loginModalOverlay');
     const messageEl = document.getElementById('modalMessage');
     const titleEl = document.getElementById('modalTitle');
     
     if (overlay && messageEl) {
+      if (expirationAlertTimeout) {
+        clearTimeout(expirationAlertTimeout);
+        expirationAlertTimeout = undefined;
+      }
+      overlay.classList.remove('session-expired');
       if (title) titleEl!.textContent = title;
       messageEl.textContent = message;
       overlay.classList.add('active');
@@ -175,6 +191,11 @@
     const overlay = document.getElementById('loginModalOverlay');
     if (overlay) {
       overlay.classList.remove('active');
+      overlay.classList.remove('session-expired');
+    }
+    if (expirationAlertTimeout) {
+      clearTimeout(expirationAlertTimeout);
+      expirationAlertTimeout = undefined;
     }
   }
 
@@ -193,19 +214,23 @@
         'Tu sesión ha caducado. Inicia sesión nuevamente para continuar.',
         'Sesión expirada',
       );
+      if (!overlay) return;
+
+      overlay.classList.add('session-expired');
+      expirationAlertTimeout = setTimeout(closeLoginModal, 4000);
     });
 
     closeBtn?.addEventListener('click', () => {
-      overlay?.classList.remove('active');
+      closeLoginModal();
     });
 
     closeButton?.addEventListener('click', () => {
-      overlay?.classList.remove('active');
+      closeLoginModal();
     });
 
     overlay?.addEventListener('click', (e) => {
       if (e.target === overlay) {
-        overlay.classList.remove('active');
+        closeLoginModal();
       }
     });
   }

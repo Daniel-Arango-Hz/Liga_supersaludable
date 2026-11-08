@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AuthorActions from '../../components/AuthorActions.astro';
-import BookCard from '../../components/BookCard.astro';
 import { obtenerAutor, obtenerLibros, obtenerAutores } from '../../utils/api';
 
 export async function getStaticPaths() {
@@ -81,14 +80,19 @@ try {
         <section class="autor-hero">
           <div class="container">
             <a href="/autores" class="breadcrumb">← Volver a Autores</a>
-            
+
             <div class="autor-header">
-              <div class="autor-avatar-large">👤</div>
+              <div class="autor-avatar-large" aria-hidden="true">
+                <span class="avatar-spark avatar-spark-one"></span>
+                <span class="avatar-spark avatar-spark-two"></span>
+                <span class="avatar-icon">✍️</span>
+              </div>
               <div class="autor-content">
+                <p class="autor-eyebrow">Personas que inspiran</p>
                 <h1 class="autor-nombre">{autor.nombre}</h1>
                 <p class="autor-especialidad">{autor.especialidad || 'Autor destacado'}</p>
                 <p class="autor-bio">{autor.biografia || 'Creador de contenido para familias'}</p>
-                
+
                 <div class="autor-stats">
                   <div class="stat">
                     <strong>{autor.total_libros || 0}</strong>
@@ -117,9 +121,15 @@ try {
         </section>
 
         {librosAutor.length > 0 && (
-          <section class="section">
+          <section class="autor-libros">
             <div class="container">
-              <h2 class="section-title">📚 Libros de {autor.nombre}</h2>
+              <header class="libros-heading">
+                <div class="libros-heading-icon" aria-hidden="true">📚</div>
+                <div>
+                  <p class="libros-eyebrow">Historias para descubrir</p>
+                  <h2 class="section-title">Libros de {autor.nombre}</h2>
+                </div>
+              </header>
               <div class="libros-grid">
                 {librosAutor.map((libro: any) => {
                   const isImageCover = typeof libro.portada_icono === 'string' && /^https?:\/\//i.test(libro.portada_icono);
@@ -144,6 +154,16 @@ try {
                   );
                 })}
               </div>
+            </div>
+          </section>
+        )}
+        {librosAutor.length === 0 && (
+          <section class="autor-libros autor-libros-empty">
+            <div class="container centered">
+              <div class="empty-icon" aria-hidden="true">📚</div>
+              <p class="libros-eyebrow">Próximamente</p>
+              <h2 class="section-title">Nuevas historias en camino</h2>
+              <p class="empty-description">Este autor todavía no tiene libros publicados.</p>
             </div>
           </section>
         )}
@@ -541,6 +561,410 @@ try {
 
     .libros-grid {
       grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  .breadcrumb {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    margin-bottom: 1.6rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #dcece8;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.72);
+    color: #3b7f86;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .breadcrumb:hover {
+    background: #fff;
+    transform: translateX(-2px);
+  }
+
+  .autor-hero {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(2rem, 5vw, 3.75rem) 0;
+    background:
+      radial-gradient(circle at 90% 15%, rgba(255, 215, 91, 0.23), transparent 22%),
+      linear-gradient(135deg, #effaf6 0%, #f5fbfa 55%, #edf7fb 100%);
+    color: #2e405e;
+  }
+
+  .autor-header {
+    display: grid;
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 3rem);
+    align-items: center;
+    max-width: 930px;
+    margin: 0 auto;
+  }
+
+  .autor-avatar-large {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 30px;
+    background: linear-gradient(145deg, #bdeee2, #c8e8f5);
+    box-shadow: 0 16px 32px rgba(49, 108, 111, 0.12);
+    font-size: inherit;
+  }
+
+  .avatar-icon {
+    display: grid;
+    place-items: center;
+    width: 88px;
+    height: 88px;
+    border: 5px solid rgba(255, 255, 255, 0.82);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.66);
+    box-shadow: 0 8px 18px rgba(31, 64, 68, 0.1);
+    font-size: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .avatar-spark {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    transform: rotate(45deg);
+  }
+
+  .avatar-spark-one {
+    top: 20%;
+    left: 18%;
+  }
+
+  .avatar-spark-two {
+    right: 17%;
+    bottom: 20%;
+    width: 9px;
+    height: 9px;
+  }
+
+  .autor-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .autor-eyebrow,
+  .libros-eyebrow {
+    margin: 0;
+    color: #3b7f86;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .autor-nombre {
+    color: #2e405e;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .autor-especialidad {
+    color: #287d78;
+    font-size: 1rem;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .autor-bio {
+    max-width: 650px;
+    color: #607889;
+    font-size: 0.98rem;
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  .autor-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    margin-top: 0.45rem;
+    padding: 1rem 0;
+    border-top: 1px solid #dcece8;
+    border-bottom: 1px solid #dcece8;
+  }
+
+  .stat {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    text-align: center;
+  }
+
+  .stat + .stat {
+    border-left: 1px solid #dcece8;
+  }
+
+  .stat strong {
+    display: block;
+    color: #2e405e;
+    font-size: clamp(1.15rem, 2.5vw, 1.55rem);
+    font-weight: 800;
+  }
+
+  .stat p {
+    color: #718397;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  .autor-libros {
+    padding: clamp(2.5rem, 6vw, 4rem) 0 5rem;
+  }
+
+  .libros-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .libros-heading-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 15px;
+    background: #fff0cf;
+    font-size: 1.4rem;
+  }
+
+  .section-title {
+    margin: 0.2rem 0 0;
+    color: #2e405e;
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+    text-align: left;
+  }
+
+  .libros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 250px));
+    justify-content: start;
+    gap: 1.25rem;
+    margin-top: 0;
+  }
+
+  .libro-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #e8edf1;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 12px 26px rgba(31, 64, 68, 0.07);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .libro-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 32px rgba(31, 64, 68, 0.13);
+  }
+
+  .libro-link {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .libro-cover-card {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    border-radius: 16px;
+    margin-bottom: 0;
+  }
+
+  .libro-cover-card img.libro-icon-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .libro-icon {
+    color: #fff;
+    font-size: 3rem;
+    opacity: 1;
+  }
+
+  .badge-pequeño {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #d49323;
+    font-size: 0.9rem;
+  }
+
+  .libro-info-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.8rem 0.25rem 0.3rem;
+  }
+
+  .libro-info-card h3,
+  .libro-link h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #2d405d;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.35;
+    margin: 0;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .edad-rango {
+    color: #8294a9;
+    font-size: 0.8rem;
+    margin: 0;
+  }
+
+  .rating {
+    margin-top: auto;
+    color: #d49323;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .centered {
+    padding: 1.5rem 1rem 0;
+    text-align: center;
+  }
+
+  .empty-icon {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 1rem;
+    border-radius: 22px;
+    background: #fff0cf;
+    font-size: 2rem;
+  }
+
+  .empty-description {
+    margin-top: 0.5rem;
+    color: #718397;
+  }
+
+  .autor-libros-empty {
+    min-height: 260px;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    margin-top: 1.25rem;
+    padding: 0.9rem 1.5rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #31a99d, #2288a0);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 800;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(35, 143, 137, 0.2);
+  }
+
+  @media (max-width: 680px) {
+    .autor-hero {
+      padding: 1.75rem 0 2.5rem;
+    }
+
+    .breadcrumb {
+      margin-bottom: 1.25rem;
+    }
+
+    .autor-header {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.25rem;
+      max-width: 480px;
+    }
+
+    .autor-avatar-large {
+      width: min(100%, 150px);
+      justify-self: center;
+      border-radius: 25px;
+    }
+
+    .autor-content {
+      align-items: center;
+      text-align: center;
+    }
+
+    .autor-bio {
+      max-width: 440px;
+    }
+
+    .autor-libros {
+      padding: 2.5rem 0 3rem;
+    }
+
+    .libros-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 210px));
+      justify-content: center;
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .libros-grid {
+      grid-template-columns: minmax(0, 230px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .breadcrumb,
+    .libro-card,
+    .btn-primary {
+      transition: none;
+    }
+
+    .libro-card:hover,
+    .btn-primary:hover {
+      transform: none;
     }
   }
 </style>

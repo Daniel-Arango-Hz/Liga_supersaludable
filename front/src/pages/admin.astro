@@ -6,89 +6,131 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
 <style>
   .admin-page {
     min-height: calc(100vh - 80px);
-    padding: 3rem 1.5rem 4rem;
-    background: var(--color-cream);
+    padding: clamp(1.25rem, 3vw, 2.5rem) clamp(0.75rem, 2vw, 1.5rem) 4rem;
+    background: #f3faf8;
   }
 
   .admin-panel {
-    max-width: 1200px;
+    width: 100%;
+    max-width: 1560px;
     margin: 0 auto;
     background: var(--color-white);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    overflow: hidden;
+    border: 1px solid #dcece8;
+    border-radius: 24px;
+    box-shadow: 0 16px 38px rgba(31, 64, 68, 0.08);
+    overflow: visible;
   }
 
   .admin-hero {
-    padding: 2rem 2.5rem;
-    background: linear-gradient(135deg, rgba(0,168,232,0.08), rgba(111,111,205,0.1));
-    border-bottom: 1px solid var(--color-border);
+    padding: clamp(1.4rem, 3vw, 2.25rem) clamp(1.1rem, 3vw, 2.5rem);
+    border-bottom: 1px solid #dcece8;
+    border-radius: 24px 24px 0 0;
+    background:
+      radial-gradient(circle at 92% 10%, rgba(255, 215, 91, 0.18), transparent 22%),
+      linear-gradient(135deg, #effaf6, #f5fbfa 55%, #edf7fb);
   }
 
   .admin-hero h1 {
     margin: 0;
-    font-size: clamp(2rem, 2.5vw, 2.5rem);
-    color: var(--color-navy);
+    color: #2e405e;
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    letter-spacing: -0.04em;
   }
 
   .admin-hero p {
-    margin: 1rem 0 0;
-    color: var(--color-text-muted);
-    line-height: 1.75;
     max-width: 760px;
+    margin: 0.65rem 0 0;
+    color: #607889;
+    line-height: 1.75;
   }
 
   .admin-content {
-    padding: 2rem 2.5rem 2.5rem;
+    min-width: 0;
+    padding: clamp(1rem, 2.7vw, 2rem);
   }
 
   .admin-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.75rem;
+    display: grid;
+    grid-template-columns: auto minmax(180px, 0.7fr) minmax(220px, 1.5fr) auto;
+    align-items: end;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
   }
 
   .admin-actions label {
+    align-self: center;
     font-weight: 700;
-    color: var(--color-text);
+    color: #344d68;
   }
 
   .admin-actions select,
+  .admin-actions input,
   .admin-actions button {
-    min-height: 3rem;
-    border-radius: var(--radius-sm);
-    border: 1.5px solid var(--color-border);
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 46px;
+    border-radius: 13px;
+    border: 1px solid #dce8e7;
     background: var(--color-white);
-    color: var(--color-text);
-    padding: 0 1rem;
-    font-size: 0.95rem;
+    color: #33465f;
+    padding: 0 0.9rem;
+    font: inherit;
+    font-size: 0.88rem;
+  }
+
+  .admin-actions select:focus,
+  .admin-actions input:focus {
+    border-color: #37bba9;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(55, 187, 169, 0.12);
+  }
+
+  .admin-search {
+    width: 100%;
+  }
+
+  .admin-actions select {
+    width: 100%;
   }
 
   .admin-actions button {
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple));
-    color: var(--color-white);
+    border: 0;
+    background: linear-gradient(135deg, #31a99d, #2288a0);
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
   }
 
-  .admin-actions button:hover {
-    opacity: 0.95;
+  .admin-actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(35, 143, 137, 0.18);
+  }
+
+  .admin-actions button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .admin-search-label {
+    display: grid;
+    gap: 0.35rem;
+    color: #344d68;
+    font-size: 0.78rem;
+    font-weight: 800;
   }
 
   .admin-status {
-    min-width: 260px;
-    padding: 0.9rem 1rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    display: inline-flex;
+    min-height: 42px;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    color: var(--color-navy);
-    background: rgba(59,130,246,0.09);
-    border: 1px solid rgba(59,130,246,0.16);
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #dcece8;
+    border-radius: 12px;
+    background: #f3faf8;
+    color: #367c77;
+    font-size: 0.84rem;
+    line-height: 1.4;
   }
 
   .admin-status.error {
@@ -103,43 +145,75 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     border-color: #bbf7d0;
   }
 
-  .admin-table {
+  :global(.admin-table-wrap) {
     width: 100%;
+    overflow: auto;
+    border: 1px solid #e4edec;
+    border-radius: 16px;
+    overscroll-behavior-x: contain;
+  }
+
+  :global(.admin-table) {
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
-    overflow: hidden;
-    border-radius: var(--radius-lg);
+    table-layout: auto;
   }
 
-  .admin-table th,
-  .admin-table td {
-    padding: 1rem 1rem;
+  :global(.admin-table th),
+  :global(.admin-table td) {
+    max-width: 360px;
+    min-width: 120px;
+    padding: 0.85rem 0.9rem;
     text-align: left;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid #edf2f2;
     vertical-align: top;
-    font-size: 0.95rem;
+    font-size: 0.84rem;
   }
 
-  .admin-table thead th {
-    background: var(--color-cream);
-    color: var(--color-navy);
-    font-weight: 700;
+  :global(.admin-table thead th) {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f1faf7;
+    color: #2e405e;
+    font-weight: 800;
+    white-space: nowrap;
   }
 
-  .admin-table tbody tr:hover {
-    background: rgba(59,130,246,0.06);
+  :global(.admin-table tbody tr:hover) {
+    background: #f8fcfb;
   }
 
-  .admin-table td pre {
+  :global(.admin-table td pre) {
     margin: 0;
     white-space: pre-wrap;
     word-break: break-word;
     font-family: inherit;
     font-size: inherit;
+    line-height: 1.5;
   }
 
-  .admin-empty,
-  .admin-error {
-    padding: 2rem;
+  :global(.admin-table td.actions-cell) {
+    position: sticky;
+    right: 0;
+    min-width: 192px;
+    background: #fff;
+    box-shadow: -8px 0 14px rgba(31, 64, 68, 0.045);
+  }
+
+  :global(.admin-table tbody tr:hover td.actions-cell) {
+    background: #f8fcfb;
+  }
+
+  :global(.row-actions) {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  :global(.admin-empty),
+  :global(.admin-error) {
+    padding: clamp(1.5rem, 4vw, 2.5rem);
     text-align: center;
     color: var(--color-text-muted);
     border: 1px dashed var(--color-border);
@@ -147,31 +221,93 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     background: var(--color-cream);
   }
 
-  .btn {
-    padding: 0.85rem 1rem;
-    border-radius: 0.9rem;
+  :global(.btn) {
+    min-height: 40px;
+    padding: 0.55rem 0.75rem;
+    border-radius: 11px;
     border: 1px solid transparent;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: transform 0.2s ease, background 0.2s ease;
   }
 
-  .btn:hover {
+  :global(.btn:hover) {
     transform: translateY(-1px);
   }
 
-  .btn.danger {
+  :global(.btn.danger) {
     background: #fee2e2;
     color: #b91c1c;
     border-color: #fca5a5;
   }
 
-  .btn.danger:hover {
+  :global(.btn.danger:hover) {
     background: #fecaca;
   }
 
-  .admin-card-btn {
-    min-width: 120px;
+  :global(.admin-card-btn) {
+    min-width: 76px;
+    background: #e8f6f2;
+    color: #287d78;
+    white-space: nowrap;
+  }
+
+  .admin-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    color: #607889;
+    font-size: 0.84rem;
+  }
+
+  .admin-pagination[hidden] {
+    display: none;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .pagination-controls button {
+    min-height: 40px;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #dce8e7;
+    border-radius: 11px;
+    background: #fff;
+    color: #367c77;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .pagination-controls button:hover:not(:disabled) {
+    background: #f1faf7;
+  }
+
+  .pagination-controls button:disabled {
+    color: #a1aeb8;
+    cursor: not-allowed;
+  }
+
+  .page-size {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+  }
+
+  .page-size select {
+    min-height: 38px;
+    padding: 0 0.5rem;
+    border: 1px solid #dce8e7;
+    border-radius: 10px;
+    background: #fff;
+    color: #33465f;
+    font: inherit;
   }
 
   .modal {
@@ -182,6 +318,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     justify-content: center;
     background: rgba(15,23,42,0.56);
     z-index: 30;
+    overflow-y: auto;
+    padding: 1rem;
   }
 
   .modal[hidden] {
@@ -190,11 +328,21 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
 
   .modal-card {
     position: relative;
-    width: min(95%, 920px);
+    width: min(100%, 980px);
+    max-height: min(90vh, 900px);
+    overflow: auto;
     background: var(--color-white);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    padding: 1.5rem;
+    padding: clamp(1.1rem, 3vw, 1.75rem);
+    padding-top: 3.75rem;
+  }
+
+  .modal-card h3 {
+    margin: 0 0 0.85rem;
+    color: #2e405e;
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
   }
 
   .modal-close {
@@ -223,10 +371,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
   }
 
   .form-textarea {
+    box-sizing: border-box;
     width: 100%;
-    min-height: 320px;
+    min-height: min(55vh, 520px);
+    max-height: 65vh;
+    resize: vertical;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     line-height: 1.6;
     color: var(--color-text);
     border: 1px solid var(--color-border);
@@ -237,14 +388,149 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
 
   @media (max-width: 900px) {
     .admin-actions {
-      flex-direction: column;
-      align-items: stretch;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     }
 
+    .admin-actions > label {
+      grid-column: 1 / -1;
+    }
+
+    .admin-actions select {
+      grid-column: 1;
+    }
+
+    .admin-search-label {
+      grid-column: 1 / -1;
+    }
+
+    .admin-actions #refreshBtn {
+      grid-column: 2;
+      grid-row: 2;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .admin-page {
+      padding: 0.75rem 0.5rem 2rem;
+    }
+
+    .admin-panel {
+      border-radius: 18px;
+    }
+
+    .admin-hero {
+      border-radius: 18px 18px 0 0;
+    }
+
+    .admin-actions {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-actions > label,
     .admin-actions select,
-    .admin-actions button,
-    .admin-status {
+    .admin-search-label,
+    .admin-actions #refreshBtn {
+      grid-column: 1;
+      grid-row: auto;
+    }
+
+    .admin-actions > label {
+      margin-bottom: -0.35rem;
+    }
+
+    :global(.admin-table-wrap) {
+      overflow: visible;
+      border: 0;
+    }
+
+    :global(.admin-table),
+    :global(.admin-table tbody) {
+      display: block;
       width: 100%;
+    }
+
+    :global(.admin-table thead) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+
+    :global(.admin-table tbody) {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    :global(.admin-table tbody tr) {
+      display: block;
+      overflow: hidden;
+      border: 1px solid #e4edec;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 6px 16px rgba(31, 64, 68, 0.045);
+    }
+
+    :global(.admin-table tbody tr:hover) {
+      background: #fff;
+    }
+
+    :global(.admin-table td),
+    :global(.admin-table td.actions-cell) {
+      position: static;
+      display: grid;
+      grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.5fr);
+      gap: 0.6rem;
+      width: auto;
+      max-width: none;
+      min-width: 0;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid #edf2f2;
+      background: transparent;
+      box-shadow: none;
+      overflow-wrap: anywhere;
+    }
+
+    :global(.admin-table td::before) {
+      content: attr(data-label);
+      color: #718397;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    :global(.admin-table td.actions-cell) {
+      display: block;
+    }
+
+    :global(.admin-table td.actions-cell::before) {
+      display: block;
+      margin-bottom: 0.55rem;
+    }
+
+    :global(.row-actions) {
+      flex-wrap: wrap;
+    }
+
+    .admin-pagination {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .pagination-controls {
+      justify-content: space-between;
+    }
+
+    .modal {
+      align-items: flex-end;
+      padding: 0.5rem;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-height: 92vh;
+      border-radius: 20px 20px 14px 14px;
     }
   }
 </style>
@@ -268,11 +554,31 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
             <option value="videos">Videos</option>
             <option value="autores">Autores</option>
           </select>
-          <button id="refreshBtn" class="btn admin-card-btn">Refrescar</button>
-          <span id="status" class="admin-status"></span>
+          <label class="admin-search-label" for="adminSearch">
+            Buscar en este recurso
+            <input id="adminSearch" class="admin-search" type="search" placeholder="Escribe para filtrar..." autocomplete="off" />
+          </label>
+          <button id="refreshBtn" class="btn admin-card-btn">Actualizar lista</button>
         </div>
 
+        <div id="status" class="admin-status" role="status" aria-live="polite"></div>
         <div id="listContainer"></div>
+        <nav id="adminPagination" class="admin-pagination" aria-label="Paginación de registros" hidden>
+          <label class="page-size" for="pageSize">
+            Mostrar
+            <select id="pageSize">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+            por página
+          </label>
+          <div class="pagination-controls">
+            <button type="button" id="previousPage" aria-label="Página anterior">← Anterior</button>
+            <span id="pageIndicator" aria-live="polite"></span>
+            <button type="button" id="nextPage" aria-label="Página siguiente">Siguiente →</button>
+          </div>
+        </nav>
       </div>
     </div>
 
@@ -301,12 +607,24 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     const adminBlocked = document.getElementById('adminBlocked');
     const refreshBtn = document.getElementById('refreshBtn');
     const listContainer = document.getElementById('listContainer');
+    const searchInput = document.getElementById('adminSearch');
+    const pageSizeSelect = document.getElementById('pageSize');
+    const pagination = document.getElementById('adminPagination');
+    const previousPageBtn = document.getElementById('previousPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    const pageIndicator = document.getElementById('pageIndicator');
     const editModal = document.getElementById('editModal');
     const editBody = document.getElementById('editBody');
     const editTitle = document.getElementById('editTitle');
     const cancelEdit = document.getElementById('cancelEdit');
     const saveEdit = document.getElementById('saveEdit');
     const closeModal = document.getElementById('closeModal');
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalItems = 0;
+    let currentItems = [];
+    let searchTimer;
+    let activeListRequest = 0;
 
     const RESOURCE_COLUMNS = {
       libros: ['titulo', 'autor_nombre', 'slug', 'categorias', 'publicado', 'destacado', 'nuevo', 'created_at'],
@@ -367,11 +685,11 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
       const configured = RESOURCE_COLUMNS[resource] || [];
       const keys = [...configured];
       Object.keys(item || {})
-        .filter((key) => !['id', 'autor_id', 'usuario_id', 'libro_id'].includes(key))
+        .filter((key) => !/(password|token|secret|credential|private_key)/i.test(key))
         .forEach((key) => {
           if (!keys.includes(key)) keys.push(key);
         });
-      return keys.slice(0, 8);
+      return keys;
     }
 
     function getColumnLabel(key) {
@@ -389,7 +707,9 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
       return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     async function validateAdmin() {
@@ -430,70 +750,112 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     }
 
     async function fetchList() {
+      const requestId = ++activeListRequest;
       const resource = resourceSelect.value;
-      setStatus('Cargando datos...');
+      const limit = Number(pageSizeSelect.value) || 50;
+      const query = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(limit),
+      });
+      const searchTerm = searchInput.value.trim();
+      if (searchTerm) query.set('q', searchTerm);
+
+      refreshBtn.disabled = true;
+      setStatus('Cargando registros...');
 
       try {
-        const res = await fetch(`${api}/admin/${resource}?page=1&limit=100`, {
+        const res = await fetch(`${api}/admin/${resource}?${query.toString()}`, {
           headers: buildHeaders(),
         });
+        if (requestId !== activeListRequest) return;
 
         if (res.status === 401) {
           window.dispatchEvent(new Event('auth:expired'));
           setStatus('Tu sesión ha caducado. Inicia sesión nuevamente.', true);
           listContainer.innerHTML = '';
+          pagination.hidden = true;
           return;
         }
 
         if (res.status === 403) {
           setStatus('Acceso denegado. Inicia sesión como admin.', true);
           listContainer.innerHTML = '';
+          pagination.hidden = true;
           return;
         }
 
         const payload = await res.json();
-        renderList(resource, payload.data || []);
-        setStatus(`Mostrando ${payload.data?.length || 0} elementos.`);
+        if (requestId !== activeListRequest) return;
+        if (!res.ok) {
+          throw new Error(payload.error || `No se pudieron cargar los datos (${res.status}).`);
+        }
+
+        totalItems = Number(payload.total) || 0;
+        totalPages = Math.max(1, Math.ceil(totalItems / limit));
+        if (currentPage > totalPages) {
+          currentPage = totalPages;
+          return fetchList();
+        }
+
+        currentItems = Array.isArray(payload.data) ? payload.data : [];
+        renderList(resource, currentItems);
+        const firstItem = totalItems === 0 ? 0 : (currentPage - 1) * limit + 1;
+        const lastItem = Math.min(currentPage * limit, totalItems);
+        setStatus(`Mostrando ${firstItem}–${lastItem} de ${totalItems} registros.`);
+        pagination.hidden = totalItems === 0;
+        pageIndicator.textContent = `Página ${currentPage} de ${totalPages}`;
+        previousPageBtn.disabled = currentPage <= 1;
+        nextPageBtn.disabled = currentPage >= totalPages;
       } catch (error) {
+        if (requestId !== activeListRequest) return;
         console.error(error);
-        setStatus('Error al obtener datos del servidor.', true);
-        listContainer.innerHTML = '<div class="admin-error">No se pudieron cargar los datos. Revisa la consola para más detalles.</div>';
+        const message = error instanceof Error ? error.message : 'Error al obtener datos del servidor.';
+        setStatus(message, true);
+        listContainer.innerHTML = `<div class="admin-error">${escapeHtml(message)}</div>`;
+        pagination.hidden = true;
+      } finally {
+        if (requestId === activeListRequest) refreshBtn.disabled = false;
       }
     }
 
     function renderList(resource, items) {
       if (!items || !items.length) {
-        listContainer.innerHTML = '<div class="admin-empty">No hay elementos para este recurso.</div>';
+        listContainer.innerHTML = `<div class="admin-empty">${searchInput.value.trim()
+          ? 'No hay registros que coincidan con la búsqueda.'
+          : 'No hay elementos para este recurso.'}</div>`;
         return;
       }
 
-      const cols = getDisplayColumns(resource, items[0]);
-      let html = '<table class="admin-table"><thead><tr>' + cols.map((col) => `<th>${escapeHtml(getColumnLabel(col))}</th>`).join('') + '<th>Acciones</th></tr></thead><tbody>';
+      const allKeys = Object.fromEntries(
+        [...new Set(items.flatMap((item) => Object.keys(item || {})))].map((key) => [key, null])
+      );
+      const cols = getDisplayColumns(resource, allKeys);
+      let html = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+        cols.map((col) => `<th scope="col">${escapeHtml(getColumnLabel(col))}</th>`).join('') +
+        '<th scope="col">Acciones</th></tr></thead><tbody>';
 
       for (const item of items) {
         html += '<tr>' +
-          cols.map((col) => `<td><pre>${escapeHtml(formatValue(item[col]))}</pre></td>`).join('') +
-          `<td><button class="btn admin-card-btn" data-rid="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Editar</button> ` +
-          `<button class="btn danger admin-card-btn" data-delete="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Eliminar</button></td></tr>`;
+          cols.map((col) => `<td data-label="${escapeHtml(getColumnLabel(col))}"><pre>${escapeHtml(formatValue(item[col]))}</pre></td>`).join('') +
+          `<td class="actions-cell" data-label="Acciones"><div class="row-actions">` +
+          `<button class="btn admin-card-btn" data-rid="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Ver / editar</button>` +
+          `<button class="btn danger admin-card-btn" data-delete="${escapeHtml(item.id)}" data-res="${escapeHtml(resource)}">Eliminar</button>` +
+          '</div></td></tr>';
       }
 
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       listContainer.innerHTML = html;
     }
 
     async function openEditor(resource, id) {
-      const res = await fetch(`${api}/admin/${resource}?page=1&limit=200`, {
-        headers: buildHeaders(),
-      });
-      const payload = await res.json();
-      const current = (payload.data || []).find((item) => String(item.id) === String(id));
+      const current = currentItems.find((item) => String(item.id) === String(id));
 
       if (!current) {
         alert('Elemento no encontrado.');
         return;
       }
 
-      editTitle.textContent = `Editar ${resource} — ${id}`;
+      editTitle.textContent = `Ver y editar ${resource} — ${id}`;
       editBody.value = JSON.stringify(current, null, 2);
       editModal.hidden = false;
       editModal.setAttribute('aria-hidden', 'false');
@@ -577,7 +939,31 @@ const API_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.API_URL || 'ht
     });
 
     refreshBtn.addEventListener('click', fetchList);
-    resourceSelect.addEventListener('change', fetchList);
+    resourceSelect.addEventListener('change', () => {
+      currentPage = 1;
+      fetchList();
+    });
+    pageSizeSelect.addEventListener('change', () => {
+      currentPage = 1;
+      fetchList();
+    });
+    previousPageBtn.addEventListener('click', () => {
+      if (currentPage <= 1) return;
+      currentPage -= 1;
+      fetchList();
+    });
+    nextPageBtn.addEventListener('click', () => {
+      if (currentPage >= totalPages) return;
+      currentPage += 1;
+      fetchList();
+    });
+    searchInput.addEventListener('input', () => {
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(() => {
+        currentPage = 1;
+        fetchList();
+      }, 300);
+    });
 
     validateAdmin().then((isAdmin) => {
       if (isAdmin) fetchList();

@@ -21,6 +21,14 @@ import Layout from '../layouts/Layout.astro';
       <section class="upload-content" aria-label="Formulario para publicar un libro">
         <div class="container">
           <div class="upload-form">
+            <div class="form-step-heading">
+              <span class="step-number">1</span>
+              <div>
+                <h2>Elige el archivo de tu cuento</h2>
+                <p>Sube el documento que leerán los niños.</p>
+              </div>
+              <span class="required-note">Obligatorio</span>
+            </div>
             <div
               class="drop-zone"
               id="dropZone"
@@ -30,19 +38,34 @@ import Layout from '../layouts/Layout.astro';
             >
               <span class="upload-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5v14M5 12h14" />
+                  <path d="M12 16V4m0 0L7 9m5-5 5 5M5 15v4h14v-4" />
                 </svg>
               </span>
-              <h2>Arrastra tu libro aquí</h2>
-              <p>o haz clic para buscarlo en tu dispositivo</p>
-              <small>PDF o Word</small>
+              <h3>Arrastra tu cuento aquí</h3>
+              <p>o <span>selecciona un archivo</span> desde tu dispositivo</p>
+              <small>PDF, DOC o DOCX · Si eliges Word, lo convertiremos a PDF</small>
               <input type="file" id="fileInput" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;" />
+            </div>
+
+            <div id="fileInfo" class="file-info" style="display: none;">
+              <p>📄 <strong id="fileName"></strong></p>
+              <p id="fileSize"></p>
+            </div>
+
+            <div class="form-step-heading details-heading">
+              <span class="step-number">2</span>
+              <div>
+                <h2>Detalles del cuento</h2>
+                <p>Ayuda a las familias a encontrar la historia adecuada.</p>
+              </div>
+              <span class="required-note">* Obligatorio</span>
             </div>
 
             <div class="form-row primary-fields">
               <div class="form-group">
                 <label for="titulo">Nombre del cuento *</label>
                 <input type="text" id="titulo" placeholder="Ej. La merienda arcoíris" required />
+                <small class="input-help">Usa el título con el que aparece en la portada.</small>
               </div>
 
               <div class="form-group">
@@ -50,60 +73,72 @@ import Layout from '../layouts/Layout.astro';
                 <select id="categoria" required disabled>
                   <option value="">Cargando categorías...</option>
                 </select>
+                <small class="input-help">Elige el tema principal de la historia.</small>
                 <small id="categoryStatus" class="input-help" aria-live="polite"></small>
               </div>
             </div>
 
             <div class="form-group">
               <label for="descripcion">Descripción breve *</label>
-              <textarea id="descripcion" placeholder="¿Qué aprenderán los niños con este cuento?" rows="4" required></textarea>
+              <textarea id="descripcion" placeholder="¿De qué trata y qué aprenderán los niños?" rows="4" required></textarea>
+              <small class="input-help">Una o dos frases son suficientes para presentar tu cuento.</small>
             </div>
 
             <div class="form-row secondary-fields">
               <div class="form-group">
                 <label for="autor">Autor *</label>
                 <input type="text" id="autor" placeholder="Tu nombre" required />
+                <small class="input-help">Como quieres que aparezca publicado.</small>
               </div>
 
               <div class="form-group">
                 <label for="edadRango">Edad recomendada *</label>
                 <input type="text" id="edadRango" placeholder="Ej. 5-10 años" required />
+                <small class="input-help">Indica el rango de edad sugerido.</small>
               </div>
 
               <div class="form-group">
                 <label for="anio">Año de publicación</label>
                 <input type="number" id="anio" placeholder="2026" value="2026" />
+                <small class="input-help">Puedes cambiar el año si es anterior.</small>
               </div>
             </div>
 
-            <div class="form-group cover-field">
-              <label for="coverInput">Miniatura del libro (opcional)</label>
-              <input type="file" id="coverInput" accept="image/jpeg,image/png,image/webp,image/gif" />
-              <small class="input-help">Formatos permitidos: JPG, PNG, WEBP o GIF.</small>
-            </div>
-
-            <div class="form-group audiobook-field">
-              <label for="audiobookInput">Audiolibro (opcional)</label>
-              <input type="file" id="audiobookInput" accept=".mp3,.mpeg,.mpg,audio/mpeg" />
-              <small class="input-help">Formatos permitidos: MP3 o MPEG (.mp3, .mpeg, .mpg).</small>
-            </div>
-
-            <div id="coverPreview" class="cover-preview" style="display: none;">
-              <img id="coverPreviewImage" alt="Vista previa de miniatura" />
+            <div class="form-step-heading extras-heading">
+              <span class="step-number">3</span>
               <div>
-                <p>🖼️ <strong id="coverName"></strong></p>
-                <p id="coverSize"></p>
+                <h2>Haz que tu cuento destaque</h2>
+                <p>Estos elementos son opcionales; puedes agregarlos ahora o después.</p>
               </div>
             </div>
 
-            <div id="audiobookInfo" class="file-info" style="display: none;">
-              <p>🎧 <strong id="audiobookName"></strong></p>
-              <p id="audiobookSize"></p>
-            </div>
+            <div class="optional-fields">
+              <div class="form-group asset-field cover-field">
+                <span class="asset-icon cover-icon" aria-hidden="true">🖼️</span>
+                <label for="coverInput">Portada del cuento <span>Opcional</span></label>
+                <p>Una imagen ayuda a reconocerlo en la biblioteca.</p>
+                <input type="file" id="coverInput" accept="image/jpeg,image/png,image/webp,image/gif" />
+                <small class="input-help">JPG, PNG, WEBP o GIF.</small>
+                <div id="coverPreview" class="cover-preview" style="display: none;">
+                  <img id="coverPreviewImage" alt="Vista previa de miniatura" />
+                  <div>
+                    <p>🖼️ <strong id="coverName"></strong></p>
+                    <p id="coverSize"></p>
+                  </div>
+                </div>
+              </div>
 
-            <div id="fileInfo" class="file-info" style="display: none;">
-              <p>📄 <strong id="fileName"></strong></p>
-              <p id="fileSize"></p>
+              <div class="form-group asset-field audiobook-field">
+                <span class="asset-icon audio-icon" aria-hidden="true">🎧</span>
+                <label for="audiobookInput">Audiolibro <span>Opcional</span></label>
+                <p>Comparte también una versión para escuchar.</p>
+                <input type="file" id="audiobookInput" accept=".mp3,.mpeg,.mpg,audio/mpeg" />
+                <small class="input-help">MP3 o MPEG (.mp3, .mpeg, .mpg).</small>
+                <div id="audiobookInfo" class="file-info" style="display: none;">
+                  <p>🎧 <strong id="audiobookName"></strong></p>
+                  <p id="audiobookSize"></p>
+                </div>
+              </div>
             </div>
 
             <div id="uploadProgress" class="upload-progress" style="display: none;">
@@ -880,54 +915,78 @@ import Layout from '../layouts/Layout.astro';
     .upload-container { width: 100%; max-width: 1120px; min-height: calc(100vh - 56px); margin: 0 auto; }
 
     .upload-hero { margin: 4px auto 30px; padding: 0 16px; text-align: center; }
-    .upload-book-icon { width: 48px; height: 48px; display: grid; place-items: center; margin: 0 auto 18px; border-radius: 15px; color: #13a996; background: #e1f7f2; }
+    .upload-book-icon { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 16px; border: 1px solid #d6f0e9; border-radius: 18px; color: #168f83; background: linear-gradient(145deg, #f1fbf7, #ddf5ed); box-shadow: 0 8px 18px rgba(49, 142, 131, 0.1); }
     .upload-book-icon svg { width: 25px; height: 25px; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .upload-eyebrow { margin: 0 0 14px; color: #94a3b8; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
-    .upload-titulo { margin: 0; color: #26354f; font-size: clamp(2rem, 4vw, 2.55rem); line-height: 1.15; font-weight: 500; letter-spacing: -0.045em; }
-    .upload-subtitle { max-width: 620px; margin: 16px auto 0; color: #7c8da5; font-size: 0.98rem; line-height: 1.55; }
+    .upload-eyebrow { margin: 0 0 10px; color: #3b7f86; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
+    .upload-titulo { margin: 0; color: #2e405e; font-size: clamp(2rem, 4vw, 2.65rem); line-height: 1.15; font-weight: 700; letter-spacing: -0.045em; }
+    .upload-subtitle { max-width: 620px; margin: 12px auto 0; color: #607889; font-size: 1rem; line-height: 1.6; }
 
     .upload-content { padding: 0 0 40px; }
-    .upload-content .container { width: min(100%, 780px); margin: 0 auto; }
-    .upload-form { padding: 28px; border: 1px solid #e5ebf3; border-radius: 20px; background: #fff; box-shadow: 0 12px 36px rgba(50, 75, 110, 0.045); }
+    .upload-content .container { width: min(100%, 860px); margin: 0 auto; }
+    .upload-form { padding: clamp(22px, 4vw, 38px); border: 1px solid #e2eeeb; border-radius: 26px; background: #fff; box-shadow: 0 18px 42px rgba(31, 64, 68, 0.08); }
 
-    .drop-zone { min-height: 184px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 1px dashed #49cbbb; border-radius: 16px; background: #f3fcf9; text-align: center; cursor: pointer; transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease; }
+    .form-step-heading { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
+    .form-step-heading > div { min-width: 0; }
+    .step-number { width: 34px; height: 34px; flex: 0 0 34px; display: grid; place-items: center; border-radius: 12px; background: #e6f7f1; color: #248b80; font-size: 0.92rem; font-weight: 800; }
+    .form-step-heading h2 { margin: 0; color: #2e405e; font-size: 1rem; font-weight: 800; line-height: 1.35; }
+    .form-step-heading p { margin: 3px 0 0; color: #8294a9; font-size: 0.8rem; line-height: 1.45; }
+    .required-note { margin-left: auto; color: #8a9aab; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+    .details-heading { margin-top: 30px; }
+    .extras-heading { margin: 20px 0 16px; }
+
+    .drop-zone { min-height: 196px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 1.5px dashed #6bcbbc; border-radius: 20px; background: linear-gradient(145deg, #f5fcf9, #effaf7); text-align: center; cursor: pointer; transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
     .drop-zone:hover, .drop-zone:focus-visible { border-color: #14a996; background: #eaf9f5; outline: none; }
-    .drop-zone:focus-visible { box-shadow: 0 0 0 3px rgba(20, 169, 150, 0.16); }
+    .drop-zone:focus-visible { box-shadow: 0 0 0 4px rgba(20, 169, 150, 0.14); }
     .drop-zone.dragover { border-color: #0d9e8b; background: #e5f8f3; transform: scale(1.005); }
-    .upload-icon { width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 10px; border-radius: 13px; color: #fff; background: #18b39f; }
+    .upload-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: 12px; border: 5px solid #d8f3ec; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #31b6a4, #218f90); box-shadow: 0 6px 12px rgba(31, 145, 132, 0.16); }
     .upload-icon svg { width: 21px; height: 21px; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
-    .drop-zone h2 { margin: 0; color: #2d4059; font-size: 0.98rem; font-weight: 700; }
-    .drop-zone p { margin: 8px 0 0; color: #8a9bb1; font-size: 0.82rem; }
-    .drop-zone small { margin-top: 10px; color: #149c8d; font-size: 0.72rem; }
+    .drop-zone h3 { margin: 0; color: #2d4059; font-size: 1rem; font-weight: 800; }
+    .drop-zone p { margin: 7px 0 0; color: #718397; font-size: 0.84rem; }
+    .drop-zone p span { color: #198f83; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+    .drop-zone small { margin-top: 12px; padding: 6px 10px; border-radius: 999px; background: #e3f6f0; color: #35877e; font-size: 0.7rem; font-weight: 700; }
 
-    .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-    .primary-fields { margin-top: 23px; }
+    .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .primary-fields { margin-top: 20px; }
     .secondary-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .form-group { min-width: 0; margin-bottom: 16px; }
-    .form-group label { display: block; margin-bottom: 7px; color: #415773; font-size: 0.8rem; font-weight: 700; }
-    .form-group input:not([type="file"]), .form-group textarea, .form-group select { box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #e1e8f1; border-radius: 10px; outline: none; background: #fbfcfe; color: #33465f; font: inherit; font-size: 0.84rem; transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; }
-    .form-group textarea { min-height: 96px; resize: vertical; }
-    .form-group input::placeholder, .form-group textarea::placeholder { color: #98a4b5; }
-    .form-group input:not([type="file"]):focus, .form-group textarea:focus, .form-group select:focus { border-color: #37bba9; background: #fff; box-shadow: 0 0 0 3px rgba(55, 187, 169, 0.12); }
+    .form-group { min-width: 0; margin-bottom: 18px; }
+    .form-group label { display: block; margin-bottom: 8px; color: #344d68; font-size: 0.83rem; font-weight: 800; }
+    .form-group input:not([type="file"]), .form-group textarea, .form-group select { box-sizing: border-box; width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #dce8e7; border-radius: 13px; outline: none; background: #fbfdfc; color: #33465f; font: inherit; font-size: 0.9rem; transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; }
+    .form-group textarea { min-height: 112px; resize: vertical; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: #9aa8b5; }
+    .form-group input:not([type="file"]):focus, .form-group textarea:focus, .form-group select:focus { border-color: #37bba9; background: #fff; box-shadow: 0 0 0 4px rgba(55, 187, 169, 0.12); }
+    .form-group input:not([type="file"]):focus-visible, .form-group textarea:focus-visible, .form-group select:focus-visible { outline: none; }
     .form-group select:disabled { color: #8d9aad; cursor: wait; }
-    .input-help { display: block; margin-top: 6px; color: #8392a7; font-size: 0.75rem; line-height: 1.4; }
-    .cover-field input[type="file"] { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #e1e8f1; border-radius: 10px; background: #fbfcfe; color: #61738b; font: inherit; font-size: 0.8rem; }
+    .input-help { display: block; margin-top: 6px; color: #8294a9; font-size: 0.74rem; line-height: 1.45; }
 
-    .file-info { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #ccece5; border-radius: 10px; background: #f0faf7; font-size: 0.84rem; }
-    .cover-preview { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; padding: 12px; border: 1px solid #e1e8f1; border-radius: 10px; background: #fbfcfe; }
+    .optional-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .asset-field { position: relative; margin-bottom: 16px; padding: 18px; border: 1px solid #e2eeeb; border-radius: 18px; background: linear-gradient(145deg, #fbfefd, #f5faf8); }
+    .asset-icon { width: 40px; height: 40px; display: grid; place-items: center; margin-bottom: 12px; border-radius: 13px; font-size: 1.25rem; }
+    .cover-icon { background: #fff0cf; }
+    .audio-icon { background: #e9e5ff; }
+    .asset-field label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .asset-field label span { padding: 4px 8px; border-radius: 999px; background: #edf2f2; color: #718397; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+    .asset-field > p { min-height: 2.7em; margin: 0 0 12px; color: #718397; font-size: 0.78rem; line-height: 1.45; }
+    .asset-field input[type="file"] { box-sizing: border-box; width: 100%; min-height: 44px; padding: 6px; border: 1px solid #dce8e7; border-radius: 12px; background: #fff; color: #61738b; font: inherit; font-size: 0.74rem; }
+    .asset-field input[type="file"]::file-selector-button { min-height: 30px; margin-right: 9px; padding: 0 10px; border: 0; border-radius: 8px; background: #e8f6f2; color: #287d78; font: inherit; font-size: 0.73rem; font-weight: 800; cursor: pointer; }
+
+    .file-info { margin: 12px 0 0; padding: 12px 14px; border: 1px solid #ccece5; border-radius: 12px; background: #f0faf7; font-size: 0.84rem; }
+    #fileInfo { margin: 14px 0 0; }
+    .cover-preview { display: flex; gap: 14px; align-items: center; margin: 12px 0 0; padding: 12px; border: 1px solid #e1e8f1; border-radius: 12px; background: #fff; }
 
     .cover-preview img { width: 60px; height: 80px; object-fit: cover; border: 1px solid #dce5ef; border-radius: 7px; background: #fff; }
     .cover-preview p, .file-info p { margin: 3px 0; color: #50647e; font-size: 0.82rem; overflow-wrap: anywhere; }
+    .cover-preview p strong, .file-info p strong { color: #2e405e; }
     .upload-progress { margin-bottom: 14px; color: #687b94; font-size: 0.82rem; }
     .progress-bar { height: 7px; margin-bottom: 8px; overflow: hidden; border-radius: 999px; background: #e8eef4; }
     .progress-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #18b39f, #55ccba); transition: width 0.3s; }
-    .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 10px; }
-    .cancel-button { padding: 10px 12px; color: #8493a8; font-size: 0.84rem; font-weight: 700; text-decoration: none; }
+    .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #edf2f2; }
+    .cancel-button { padding: 10px 12px; color: #718397; font-size: 0.86rem; font-weight: 800; text-decoration: none; }
     .cancel-button:hover { color: #425671; }
-    .btn-submit { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; padding: 0 19px; border: 0; border-radius: 12px; background: #ff806e; color: #fff; font: inherit; font-size: 0.88rem; font-weight: 700; cursor: pointer; box-shadow: 0 8px 18px rgba(255, 128, 110, 0.2); transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
+    .btn-submit { min-height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; padding: 0 24px; border: 0; border-radius: 999px; background: linear-gradient(135deg, #31a99d, #2288a0); color: #fff; font: inherit; font-size: 0.9rem; font-weight: 800; cursor: pointer; box-shadow: 0 10px 22px rgba(35, 143, 137, 0.2); transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
     .btn-submit svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .btn-submit:hover:not(:disabled) { transform: translateY(-1px); background: #f37261; box-shadow: 0 10px 20px rgba(255, 128, 110, 0.28); }
+    .btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(35, 143, 137, 0.28); }
     .btn-submit:disabled { opacity: 0.48; cursor: not-allowed; box-shadow: none; }
+    .btn-submit:focus-visible, .cancel-button:focus-visible { outline: 3px solid rgba(36, 127, 120, 0.35); outline-offset: 3px; }
     .upload-status { margin-top: 14px; }
 
     :global(.status-error) {
@@ -956,6 +1015,7 @@ import Layout from '../layouts/Layout.astro';
     @media (max-width: 768px) {
       .upload-content .container { width: min(100%, 680px); }
       .secondary-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .optional-fields { gap: 10px; }
     }
 
     @media (max-width: 680px) {
@@ -1028,6 +1088,8 @@ import Layout from '../layouts/Layout.astro';
       .upload-content .container { width: 100%; }
       .upload-form { padding: 20px; border-radius: 16px; }
       .secondary-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .optional-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      .asset-field > p { min-height: 0; }
       .topbar-actions { gap: 8px; }
       .account-greeting { font-size: 0.82rem; }
       .account-name { max-width: 90px; }
@@ -1042,12 +1104,16 @@ import Layout from '../layouts/Layout.astro';
       .upload-subtitle { margin-top: 11px; font-size: 0.88rem; }
       .upload-content { padding-bottom: 26px; }
       .upload-form { padding: 16px; }
-      .drop-zone { min-height: 164px; padding: 18px 12px; }
+      .form-step-heading { align-items: flex-start; gap: 10px; }
+      .step-number { width: 30px; height: 30px; flex-basis: 30px; border-radius: 10px; }
+      .required-note { padding-top: 7px; font-size: 0.65rem; }
+      .drop-zone { min-height: 170px; padding: 18px 12px; }
       .form-row, .secondary-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
       .primary-fields { margin-top: 19px; }
       .form-group { margin-bottom: 14px; }
+      .asset-field { padding: 16px; }
       .form-actions { gap: 8px; }
-      .btn-submit { min-height: 44px; padding-inline: 15px; }
+      .btn-submit { min-height: 46px; padding-inline: 16px; }
     }
 
     @media (prefers-reduced-motion: reduce) {

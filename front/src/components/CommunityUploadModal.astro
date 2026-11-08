@@ -26,13 +26,16 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
        </label>
 
       <label class="upload-field" id="fieldTitulo" hidden>
-        <span>Título del video</span>
+        <span id="tituloLabel">Nombre del video</span>
         <input id="tituloInput" type="text" maxlength="180" placeholder="Ej: Devocional en casa" />
       </label>
 
       <label class="upload-field" id="fieldCategoria" hidden>
         <span>Categoría</span>
-        <input id="categoriaInput" type="text" maxlength="80" placeholder="Ej: Devoción" />
+        <select id="categoriaInput" required disabled>
+          <option value="">Cargando categorías...</option>
+        </select>
+        <small id="categoryStatus" role="status" aria-live="polite"></small>
       </label>
 
 
@@ -76,12 +79,16 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
     const fieldArchivo = document.getElementById('fieldArchivo');
 
     const nombreAutorInput = document.getElementById('nombreAutorInput');
+    const tituloLabel = document.getElementById('tituloLabel');
     const tituloInput = document.getElementById('tituloInput');
     const categoriaInput = document.getElementById('categoriaInput');
     const comentarioInput = document.getElementById('comentarioInput');
     const archivoInput = document.getElementById('archivoInput');
     const archivoLabel = document.getElementById('archivoLabel');
     const archivoHelp = document.getElementById('archivoHelp');
+    const categoryStatus = document.getElementById('categoryStatus');
+    let categoriesLoaded = false;
+    let categoriesRequest;
 
     const allowedVideoTypes = [
       'video/mp4',
@@ -166,6 +173,51 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       }));
     }
 
+    async function loadCategories() {
+      if (categoriesLoaded) return;
+      if (categoriesRequest) return categoriesRequest;
+
+      categoriaInput.disabled = true;
+      categoriaInput.replaceChildren(new Option('Cargando categorías...', ''));
+      categoryStatus.textContent = 'Cargando categorías...';
+
+      categoriesRequest = (async () => {
+        try {
+          const response = await fetch(`${apiUrl}/libros/categorias`);
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result?.error || 'No fue posible cargar las categorías.');
+          }
+          if (!Array.isArray(result?.data)) {
+            throw new Error('La respuesta de categorías no tiene un formato válido.');
+          }
+
+          const options = result.data
+            .filter((category) => typeof category?.nombre === 'string' && category.nombre.trim())
+            .map((category) => new Option(category.nombre.trim(), category.nombre.trim()));
+
+          if (!options.length) {
+            throw new Error('No hay categorías disponibles.');
+          }
+
+          categoriaInput.replaceChildren(new Option('Selecciona una categoría', ''), ...options);
+          categoriaInput.disabled = false;
+          categoryStatus.textContent = '';
+          categoriesLoaded = true;
+        } catch (error) {
+          categoriaInput.replaceChildren(new Option('No se pudieron cargar las categorías', ''));
+          categoryStatus.textContent = error instanceof Error
+            ? error.message
+            : 'No fue posible cargar las categorías.';
+        } finally {
+          categoriesRequest = null;
+        }
+      })();
+
+      return categoriesRequest;
+    }
+
     function openModal(mode) {
       if (!localStorage.getItem('token')) {
         requestLogin('Debes iniciar sesión para publicar contenido en la galería.');
@@ -184,7 +236,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       form.reset();
 
       setFieldVisibility(fieldAutor, true);
-      setFieldVisibility(fieldTitulo, currentMode === 'video');
+      setFieldVisibility(fieldTitulo, currentMode === 'video' || currentMode === 'foto');
       setFieldVisibility(fieldCategoria, currentMode === 'video');
       setFieldVisibility(fieldArchivo, currentMode !== 'comentario');
       setFieldVisibility(fieldComentario, currentMode !== 'video');
@@ -198,12 +250,17 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       if (currentMode === 'video') {
         title.textContent = 'Subir video';
         subtitle.textContent = 'Comparte un video para publicarlo en la galería.';
+        tituloLabel.textContent = 'Nombre del video';
+        tituloInput.placeholder = 'Ej: Devocional en casa';
         archivoLabel.textContent = 'Archivo de video';
         archivoHelp.textContent = 'Formatos permitidos: MP4, WEBM, OGG, MOV, M4V (máx. 80MB).';
         archivoInput.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v,.mov,.m4v';
+        loadCategories();
       } else if (currentMode === 'foto') {
         title.textContent = 'Subir foto';
         subtitle.textContent = 'Comparte una imagen familiar. El comentario es opcional.';
+        tituloLabel.textContent = 'Nombre de la imagen';
+        tituloInput.placeholder = 'Ej: Día de juegos en familia';
         archivoLabel.textContent = 'Imagen';
         archivoHelp.textContent = 'Formatos permitidos: JPG, PNG, WEBP, GIF (máx. 8MB).';
         archivoInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
@@ -220,7 +277,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       modal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('modal-open');
       window.setTimeout(() => {
-        if (currentMode === 'video') {
+        if (currentMode === 'video' || currentMode === 'foto') {
           tituloInput.focus();
         } else {
           comentarioInput.focus();
@@ -330,6 +387,9 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
         if (mode === 'video') {
           const titulo = String(tituloInput.value || '').trim();
           if (!titulo) throw new Error('El título del video es obligatorio.');
+          if (categoriaInput.disabled) throw new Error('No se pudieron cargar las categorías. Cierra y vuelve a abrir el formulario.');
+          const categoria = String(categoriaInput.value || '').trim();
+          if (!categoria) throw new Error('Selecciona una categoría para el video.');
 
           const file = archivoInput.files?.[0];
           if (!file) throw new Error('Selecciona un video.');
@@ -340,7 +400,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
           endpoint = `${apiUrl}/videos/propuesta`;
           payload = {
             titulo,
-            categoria: String(categoriaInput.value || '').trim() || 'Comunidad',
+            categoria,
             duracion,
             fileName: file.name,
             fileBase64,
@@ -507,6 +567,10 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
     gap: 0.45rem;
   }
 
+  .upload-field[hidden] {
+    display: none;
+  }
+
   .upload-field > span {
     font-size: 0.88rem;
     font-weight: 800;
@@ -514,7 +578,8 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
   }
 
   .upload-field input,
-  .upload-field textarea {
+  .upload-field textarea,
+  .upload-field select {
     width: 100%;
     border: 1px solid #dce8e7;
     border-radius: 14px;
@@ -527,10 +592,26 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
   }
 
   .upload-field input:focus,
-  .upload-field textarea:focus {
+  .upload-field textarea:focus,
+  .upload-field select:focus {
     outline: none;
     border-color: #69aaa7;
     box-shadow: 0 0 0 4px rgba(59,127,134,0.12);
+  }
+
+  .upload-field select {
+    appearance: none;
+    padding-right: 2.8rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23607889' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    cursor: pointer;
+  }
+
+  .upload-field select:disabled {
+    background-color: #f3faf8;
+    color: #718797;
+    cursor: wait;
   }
 
   .upload-field input[readonly] {

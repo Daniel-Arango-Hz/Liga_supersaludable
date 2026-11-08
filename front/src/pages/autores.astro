@@ -13,37 +13,57 @@ try {
 
 <Layout title="Autores – FamiliaLee" description="Conoce a los autores que crean contenido para bendecir tu hogar.">
   <main>
-    <section class="page-hero">
+    <section class="authors-section">
       <div class="container">
-        <h1 class="page-title">👨‍🎨 Autores</h1>
-        <p class="page-desc">Conoce a quienes crean contenido para bendecir tu hogar.</p>
+        <header class="section-header authors-header">
+          <div class="authors-heading">
+            <svg class="authors-star" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M16 2.5 19.7 12l9.8 4-9.8 4L16 29.5 12.3 20l-9.8-4 9.8-4L16 2.5Z" fill="currentColor" />
+              <path d="m24.5 2 .9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9.9-2.3Z" fill="currentColor" />
+            </svg>
+            <div>
+              <p class="eyebrow">Personas que inspiran</p>
+              <h1 class="page-title">Conoce a nuestros autores</h1>
+              <p class="page-desc">Descubre a quienes crean historias y recursos para acompañar a las familias.</p>
+            </div>
+          </div>
+          {autores.length > 0 && <span class="authors-count">{autores.length} {autores.length === 1 ? 'autor' : 'autores'}</span>}
+        </header>
       </div>
     </section>
 
     {autores.length > 0 ? (
-      <section class="section">
+      <section class="authors-list" aria-label="Autores destacados">
         <div class="container">
           <div class="autores-grid">
-            {autores.map((autor: any) => (
-              <article class="autor-card">
-                <a href={`/autor/${autor.slug}`} class="autor-link">
-                  <div class="autor-avatar">👤</div>
-                  <h2 class="autor-nombre">{autor.nombre}</h2>
-                  <p class="autor-especialidad">{autor.especialidad || 'Autor destacado'}</p>
-                  <p class="autor-bio">{autor.biografia || 'Creador de contenido para familias'}</p>
-                  <div class="autor-stats">
-                    <div class="stat">
-                      <strong>📚 {autor.total_libros || 0}</strong>
-                      <span>Libros</span>
+            {autores.map((autor: any, index: number) => (
+              <article class={`autor-card author-tone-${index % 4}`}>
+                <a href={`/autor/${autor.slug}`} class="autor-link" aria-label={`Conoce a ${autor.nombre}`}>
+                  <div class="autor-art">
+                    <span class="art-spark spark-one" aria-hidden="true"></span>
+                    <span class="art-spark spark-two" aria-hidden="true"></span>
+                    <span class="autor-avatar" aria-hidden="true">✍️</span>
+                    <span class="autor-tag">Autor destacado</span>
+                  </div>
+                  <div class="autor-content">
+                    <p class="autor-especialidad">{autor.especialidad || 'Autor destacado'}</p>
+                    <h2 class="autor-nombre">{autor.nombre}</h2>
+                    <p class="autor-bio">{autor.biografia || 'Creador de contenido para familias'}</p>
+                    <div class="autor-stats">
+                      <div class="stat">
+                        <strong>{autor.total_libros || 0}</strong>
+                        <span>Libros</span>
+                      </div>
+                      <div class="stat">
+                        <strong>{(autor.total_descargas || 0).toLocaleString('es')}</strong>
+                        <span>Descargas</span>
+                      </div>
+                      <div class="stat">
+                        <strong>{(autor.total_seguidores || 0).toLocaleString('es')}</strong>
+                        <span>Seguidores</span>
+                      </div>
                     </div>
-                    <div class="stat">
-                      <strong>⬇️ {(autor.total_descargas || 0).toLocaleString('es')}</strong>
-                      <span>Descargas</span>
-                    </div>
-                    <div class="stat">
-                      <strong>⭐ {autor.total_seguidores || 0}</strong>
-                      <span>Seguidores</span>
-                    </div>
+                    <span class="autor-more">Ver perfil <span aria-hidden="true">→</span></span>
                   </div>
                 </a>
               </article>
@@ -54,8 +74,9 @@ try {
     ) : (
       <section class="section">
         <div class="container centered">
-          <p style="font-size: 3rem; margin-bottom: 1rem;">👨‍🎨</p>
-          <h2>Sin autores disponibles</h2>
+          <div class="empty-icon" aria-hidden="true">✍️</div>
+          <p class="eyebrow">Muy pronto</p>
+          <h2>Estamos preparando nuevas historias</h2>
           <p>Por ahora no hay autores registrados. ¡Vuelve pronto!</p>
         </div>
       </section>
@@ -64,131 +85,351 @@ try {
 </Layout>
 
 <style>
-  .page-hero {
-    background: linear-gradient(135deg, var(--color-primary-blue), var(--color-primary-purple), var(--color-primary-pink));
-    color: var(--color-white);
-    padding: 3rem 0;
+  .authors-section {
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 1.75rem;
+  }
+
+  .authors-header {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+
+  .authors-heading {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .authors-star {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    color: #f2ae3b;
+    filter: drop-shadow(0 4px 5px rgba(213, 142, 37, 0.2));
+  }
+
+  .eyebrow {
+    color: #3b7f86;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
   }
 
   .page-title {
-    font-family: var(--font-serif);
-    font-size: clamp(2rem, 4vw, 2.75rem);
+    color: #2e405e;
+    font-size: clamp(1.8rem, 3.2vw, 2.7rem);
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+    margin: 0;
   }
 
   .page-desc {
-    color: rgba(255, 255, 255, 0.9);
+    color: #607889;
     font-size: 1rem;
-    max-width: 500px;
+    line-height: 1.55;
+    margin-top: 0.55rem;
+    max-width: 600px;
+  }
+
+  .authors-count {
+    flex: 0 0 auto;
+    padding: 0.65rem 1rem;
+    border: 1px solid #dcece8;
+    border-radius: 999px;
+    background: #f1faf7;
+    color: #367c77;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .authors-list {
+    padding: 0.75rem 0 5rem;
   }
 
   .autores-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 360px));
     gap: 1.5rem;
+    justify-content: center;
+    align-items: stretch;
   }
 
   .autor-card {
-    background: var(--color-white);
-    border-radius: var(--radius-lg);
-    border: 2px solid var(--color-primary-blue);
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #e8edf1;
+    border-radius: 24px;
     overflow: hidden;
-    transition: all 0.3s;
+    box-shadow: 0 12px 26px rgba(31, 64, 68, 0.07);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .autor-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--color-primary-pink);
+    transform: translateY(-5px);
+    box-shadow: 0 18px 32px rgba(31, 64, 68, 0.13);
   }
 
   .autor-link {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 1.5rem;
+    height: 100%;
     text-decoration: none;
     color: inherit;
-    text-align: center;
   }
+
+  .autor-link:focus-visible {
+    outline: 3px solid #247f78;
+    outline-offset: -3px;
+  }
+
+  .autor-art {
+    height: 144px;
+    flex: 0 0 144px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+
+  .author-tone-0 .autor-art { background: #bdeee2; }
+  .author-tone-1 .autor-art { background: #c8e8f5; }
+  .author-tone-2 .autor-art { background: #ffe4a8; }
+  .author-tone-3 .autor-art { background: #f9cbc5; }
 
   .autor-avatar {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+    display: grid;
+    place-items: center;
+    width: 86px;
+    height: 86px;
+    border: 5px solid rgba(255, 255, 255, 0.82);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.64);
+    box-shadow: 0 8px 18px rgba(31, 64, 68, 0.1);
+    font-size: 2.7rem;
+    line-height: 1;
   }
 
-  .autor-nombre {
-    font-family: var(--font-serif);
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--color-primary-blue);
-    margin: 0 0 0.5rem 0;
+  .autor-tag {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.86);
+    color: #42687b;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .art-spark {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    background: rgba(255, 255, 255, 0.9);
+    transform: rotate(45deg);
+  }
+
+  .spark-one {
+    top: 28px;
+    left: 22%;
+  }
+
+  .spark-two {
+    right: 24%;
+    bottom: 25px;
+    width: 8px;
+    height: 8px;
+  }
+
+  .autor-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem 1.35rem 1.2rem;
   }
 
   .autor-especialidad {
-    font-size: 0.95rem;
-    color: var(--color-primary-purple);
-    font-weight: 600;
-    margin: 0 0 0.5rem 0;
+    color: #3b7f86;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.4;
+    margin: 0 0 0.4rem;
+    text-transform: uppercase;
+  }
+
+  .autor-nombre {
+    color: #2d405d;
+    font-size: 1.22rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    margin: 0;
   }
 
   .autor-bio {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    margin: 0 0 1rem 0;
-    line-height: 1.5;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    color: #718397;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    min-height: 4.1em;
+    margin: 0.65rem 0 1.15rem;
   }
 
   .autor-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
+    padding: 0.85rem 0;
+    border-top: 1px solid #edf1f3;
+    border-bottom: 1px solid #edf1f3;
   }
 
   .stat {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.22rem;
+    padding: 0 0.45rem;
+    text-align: center;
+  }
+
+  .stat + .stat {
+    border-left: 1px solid #edf1f3;
   }
 
   .stat strong {
-    color: var(--color-primary-blue);
-    font-weight: 600;
+    overflow: hidden;
+    color: #2d405d;
+    font-size: 1rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stat span {
+    color: #8294a9;
+    font-size: 0.68rem;
+    line-height: 1.3;
+  }
+
+  .autor-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    color: #3b7f86;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  .autor-more span {
+    font-size: 1.1rem;
+    transition: transform 0.2s ease;
+  }
+
+  .autor-card:hover .autor-more span {
+    transform: translateX(3px);
   }
 
   .centered {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 4rem 2rem 5rem;
+    color: #607889;
   }
 
   .centered h2 {
-    font-size: 1.75rem;
-    color: var(--color-primary-blue);
-    margin-bottom: 0.75rem;
+    color: #2e405e;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.6rem;
   }
 
-  @media (max-width: 768px) {
+  .empty-icon {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 76px;
+    margin: 0 auto 1rem;
+    border-radius: 24px;
+    background: #e8f7f2;
+    font-size: 2.4rem;
+  }
+
+  @media (max-width: 600px) {
+    .authors-section {
+      padding-top: 2.25rem;
+    }
+
+    .authors-header {
+      align-items: flex-start;
+    }
+
+    .authors-heading {
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+
+    .authors-star {
+      width: 34px;
+      height: 34px;
+      flex-basis: 34px;
+      margin-top: 0.2rem;
+    }
+
+    .authors-count {
+      display: none;
+    }
+
     .autores-grid {
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       gap: 1rem;
     }
+
+    .autor-art {
+      height: 128px;
+      flex-basis: 128px;
+    }
+
+    .autor-content {
+      padding: 1.1rem 1.15rem;
+    }
+
+    .autor-bio {
+      min-height: 0;
+    }
+
+    .authors-list {
+      padding-bottom: 3rem;
+    }
   }
 
-  @media (max-width: 480px) {
+  @media (prefers-reduced-motion: reduce) {
+    .autor-card,
+    .autor-more span {
+      transition: none;
+    }
+
+    .autor-card:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 360px) {
     .autores-grid {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    }
-
-    .autor-nombre {
-      font-size: 1rem;
-    }
-
-    .autor-link {
-      padding: 1rem;
+      gap: 0.85rem;
     }
   }
 </style>

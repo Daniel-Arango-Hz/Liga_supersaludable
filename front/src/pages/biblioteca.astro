@@ -97,18 +97,6 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
             Publicar libro
           </a>
         </div>
-        <div class="hero-illustration" aria-hidden="true">
-          <svg viewBox="0 0 260 220" fill="none">
-            <circle class="illustration-orbit" cx="132" cy="116" r="86" />
-            <path class="illustration-page-left" d="M47 92c26-11 51-7 77 8v77c-26-15-51-19-77-8V92Z" />
-            <path class="illustration-page-right" d="M201 92c-26-11-51-7-77 8v77c26-15 51-19 77-8V92Z" />
-            <path class="illustration-spine" d="M124 100v77" />
-            <path class="illustration-line" d="M62 110c17-5 34-2 49 5M62 127c17-5 34-2 49 5M62 144c17-5 34-2 49 5M186 110c-17-5-34-2-49 5M186 127c-17-5-34-2-49 5M186 144c-17-5-34-2-49 5" />
-            <path class="illustration-star" d="m177 29 7 14 15 2-11 11 3 15-14-7-13 7 2-15-11-11 15-2 7-14Z" />
-            <circle class="illustration-spark" cx="67" cy="54" r="5" />
-            <circle class="illustration-spark" cx="204" cy="76" r="4" />
-          </svg>
-        </div>
       </section>
 
       <section class="catalog-section">
@@ -462,20 +450,19 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
 
   .page-hero {
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
+    display: flex;
     align-items: center;
-    gap: clamp(1rem, 3vw, 2.5rem);
+    min-height: 267px;
     margin-top: 14px;
     padding: clamp(24px, 3.5vw, 38px) clamp(24px, 3.5vw, 42px);
     border-radius: 24px;
     color: #2c465c;
-    background: linear-gradient(135deg, #d8f4ee 0%, #e1f2f7 100%);
+    background: #d8f4ee url('/img/biblioteca-hero.png') center / cover no-repeat;
   }
 
   .hero-content {
     width: 100%;
-    max-width: 760px;
+    max-width: min(620px, 56%);
   }
 
   .hero-kicker { margin: 0 0 8px; color: #26877f; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em; }
@@ -495,26 +482,10 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     max-width: 600px;
   }
 
-  .hero-illustration {
-    display: grid;
-    width: 100%;
-    place-items: center;
-    color: #168f83;
-  }
-
-  .hero-illustration svg { display: block; width: min(100%, 250px); overflow: visible; }
-  .illustration-orbit { fill: rgba(255, 255, 255, 0.3); stroke: rgba(22, 143, 131, 0.12); stroke-width: 2; }
-  .illustration-page-left { fill: #fffaf0; stroke: #e49a66; stroke-width: 4; stroke-linejoin: round; }
-  .illustration-page-right { fill: #fff; stroke: #e49a66; stroke-width: 4; stroke-linejoin: round; }
-  .illustration-spine { stroke: #e49a66; stroke-width: 4; stroke-linecap: round; }
-  .illustration-line { stroke: #82c7bb; stroke-width: 3; stroke-linecap: round; }
-  .illustration-star { fill: #ffc957; stroke: #e59b3a; stroke-width: 3; stroke-linejoin: round; }
-  .illustration-spark { fill: #f28a61; }
-
   .publish-book-button {
     width: fit-content;
     min-height: 44px;
-    margin: 18px auto 0;
+    margin: 18px 0 0;
     padding: 10px 16px;
     display: inline-flex;
     align-items: center;
@@ -732,29 +703,28 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     }
 
     .app-content { padding: 14px 18px 28px; }
-    .page-hero { grid-template-columns: minmax(0, 1fr) minmax(120px, 180px); gap: 0.75rem; padding: 24px 20px; }
-    .hero-illustration svg { width: min(100%, 170px); }
+    .page-hero { padding: 24px 20px; }
     .topbar-actions { gap: 8px; }
     .account-greeting { font-size: 0.82rem; }
     .account-name { max-width: 90px; }
     .account-trigger { gap: 7px; padding-inline: 8px; }
   }
 
-  @media (max-width: 480px) {
+  @media (max-width: 680px) {
     .page-hero {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.5rem;
-      padding: 22px 18px 24px;
+      min-height: 0;
+      align-items: center;
+      padding: calc(clamp(175px, 38vw, 230px) + 18px) clamp(14px, 4vw, 24px) 30px;
       text-align: center;
+      background-size: auto clamp(175px, 38vw, 230px);
+      background-position: top right;
     }
 
-    .hero-illustration { grid-row: 1; height: 104px; }
-    .hero-illustration svg { width: 126px; max-width: 100%; }
-    .hero-content { grid-row: 2; }
+    .hero-content { max-width: none; }
     .hero-kicker { font-size: 0.66rem; }
-    .page-title { font-size: clamp(1.4rem, 7vw, 1.75rem); }
-    .page-desc { margin-inline: auto; font-size: 0.87rem; }
-    .publish-book-button { position: relative; z-index: 1; margin-top: 16px; }
+    .page-title { font-size: clamp(1.35rem, 6.6vw, 2.25rem); }
+    .page-desc { margin-inline: auto; font-size: clamp(0.82rem, 2.8vw, 1.15rem); }
+    .publish-book-button { position: relative; z-index: 1; margin: 16px auto 0; }
 
     .sidebar-section {
       padding: 1rem;
@@ -774,14 +744,6 @@ function buildBibliotecaUrl(next: { orden?: string; categoria?: string; edad?: s
     .books-grid {
       gap: 0.75rem;
     }
-  }
-
-  @media (max-width: 360px) {
-    .page-hero { padding-inline: 14px; }
-    .hero-illustration { height: 92px; }
-    .hero-illustration svg { width: 112px; }
-    .page-title { font-size: 1.35rem; }
-    .page-desc { font-size: 0.82rem; }
   }
 
   .empty-state {
