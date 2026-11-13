@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { randomUUID } from 'node:crypto';
 import { body, query, param } from 'express-validator';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
@@ -92,18 +94,41 @@ router.get('/', optionalAuth, async (req, res) => {
 
 // ─── GET /libros/:slug/pdf (endpoint para descargar PDF) ─────────────────────────────────────────────
 router.get('/:slug/pdf', async (req, res) => {
-  const { data: libro } = await supabase
+  const { data: libro, error } = await supabase
     .from('libros')
     .select('titulo, contenido_url')
     .eq('slug', req.params.slug)
     .single();
 
+  if (error) return res.status(500).json({ error: error.message });
   if (!libro) return res.status(404).json({ error: 'Libro no encontrado' });
   if (!libro.contenido_url) {
     return res.status(404).json({ error: 'El libro no tiene archivo asociado' });
   }
 
-  res.redirect(libro.contenido_url);
+  try {
+    const fileResponse = await fetch(libro.contenido_url);
+    if (!fileResponse.ok || !fileResponse.body) {
+      console.error('No se pudo obtener el archivo del libro desde Storage:', fileResponse.status);
+      return res.status(502).json({ error: 'No se pudo preparar la descarga del libro.' });
+    }
+
+    res
+      .status(200)
+      .type('application/pdf')
+      .attachment(`${libro.titulo || 'libro'}.pdf`);
+    const contentLength = fileResponse.headers.get('content-length');
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+
+    await pipeline(Readable.fromWeb(fileResponse.body), res);
+  } catch (downloadError) {
+    console.error('Error al descargar el archivo del libro:', downloadError);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'No se pudo descargar el archivo del libro.' });
+    } else {
+      res.destroy(downloadError);
+    }
+  }
 });
 
 router.get('/:slug/audiolibro', async (req, res) => {

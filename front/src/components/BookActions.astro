@@ -149,8 +149,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
 
           const data = await response.json();
 
-          // Descargar el PDF usando la URL retornada por el servidor
-          const pdfUrl = data.pdfUrl || `/api/libros/${libroSlug}/pdf`;
+          // La respuesta de la API tiene Content-Disposition: attachment y se descarga directamente.
+          const pdfUrl = `${apiUrl}/libros/${encodeURIComponent(libroSlug)}/pdf?download=${encodeURIComponent(`${libroTitulo}.pdf`)}`;
           const link = document.createElement('a');
           link.href = pdfUrl;
           link.download = `${libroTitulo}.pdf`;
@@ -329,8 +329,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   }
 
   .btn-save-lg.guardado {
-    background: var(--color-primary-pink, #ff006e);
-    color: white;
+    background: #159d91;
+    border-color: #117f74;
+    color: #fff;
+  }
+
+  .btn-save-lg.guardado:hover {
+    background: #117f74;
+    border-color: #0e6f66;
+    color: #fff;
   }
 
   .btn-share-lg {

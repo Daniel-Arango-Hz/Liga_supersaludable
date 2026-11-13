@@ -46,8 +46,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
               <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
             </svg>
           </button>
-          {slug !== 'mensaje-libre' && <button class="reader-btn" id="btn-audiobook" type="button" hidden>🎧 Crear audiolibro</button>}
-          <a id="btn-download" href="#" class="reader-btn reader-btn-dl" title="Ir al libro">
+          {slug !== 'mensaje-libre' && <button class="reader-btn reader-btn-audiobook" id="btn-audiobook" type="button" aria-pressed="false" hidden>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 13v-2a7 7 0 0 1 14 0v2" />
+              <rect x="3" y="12" width="4" height="7" rx="2" />
+              <rect x="17" y="12" width="4" height="7" rx="2" />
+              <path d="M19 19a4 4 0 0 1-4 3h-2" />
+            </svg>
+            <span>Crear audiolibro</span>
+          </button>}
+          <a id="btn-download" href="#" class="reader-btn reader-btn-dl" title="Descargar libro" aria-label="Descargar libro">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -183,9 +191,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   async function renderPdfBook() {
     document.getElementById('reader-titulo').textContent = libro.titulo || 'Libro';
     document.getElementById('reader-autor').textContent = libro.autor_nombre || 'Autor';
-    document.getElementById('btn-download').href = libro.contenido_url;
-    document.getElementById('btn-download').target = '_blank';
-    document.getElementById('btn-download').rel = 'noopener noreferrer';
+    const downloadButton = document.getElementById('btn-download');
+    downloadButton.href = `${API_URL}/libros/${encodeURIComponent(slug)}/pdf`;
+    downloadButton.download = `${libro.titulo || 'libro'}.pdf`;
 
     const isPdf = /\.pdf(\?|$)/i.test(libro.contenido_url);
     const isWord = /\.(doc|docx)(\?|$)/i.test(libro.contenido_url);
@@ -1080,7 +1088,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     const hasStoredAudiobook = Boolean(libro?.audiolibro_disponible);
     if (button) {
       button.hidden = !enabled || (!canCreateAudiobook && !hasStoredAudiobook);
-      button.textContent = hasStoredAudiobook ? '🎧 Escuchar audiolibro' : '🎧 Crear audiolibro';
+      if (hasStoredAudiobook) {
+        updateAudiobookPlaybackButton();
+      } else {
+        button.classList.remove('is-playing');
+        button.setAttribute('aria-pressed', 'false');
+        button.setAttribute('aria-label', 'Crear audiolibro');
+        button.title = 'Crear audiolibro';
+        const label = button.querySelector('span');
+        if (label) label.textContent = 'Crear audiolibro';
+      }
     }
     if (hasStoredAudiobook) {
       showStoredAudiobook();
@@ -1102,8 +1119,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     const description = panel.querySelector('.audiobook-heading p');
     if (heading) heading.textContent = 'Audiolibro disponible';
     if (description) description.textContent = 'Este libro ya tiene un audiolibro guardado.';
-    if (button) button.textContent = '🎧 Escuchar audiolibro';
-
     panel.querySelector('label[for="audiobook-voice"]').hidden = true;
     document.getElementById('audiobook-voice').hidden = true;
     document.getElementById('audiobook-preview').hidden = true;
@@ -1115,9 +1130,30 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     audioPlayer.src = audioUrl;
     audioPlayer.hidden = false;
     audioPlayer.load();
+    updateAudiobookPlaybackButton();
     saveButton.hidden = true;
     saveButton.disabled = true;
     setAudiobookStatus('Audiolibro guardado. Ya puedes escucharlo.');
+  }
+
+  function updateAudiobookPlaybackButton() {
+    const button = document.getElementById('btn-audiobook');
+    const audioPlayer = document.getElementById('audiobook-audio');
+    if (!button || !libro?.audiolibro_disponible) return;
+
+    const isPlaying = Boolean(audioPlayer && !audioPlayer.paused);
+    button.classList.toggle('is-playing', isPlaying);
+    button.setAttribute('aria-pressed', String(isPlaying));
+    button.setAttribute('aria-label', isPlaying ? 'Pausar audiolibro' : 'Reproducir audiolibro');
+    button.title = isPlaying ? 'Pausar audiolibro' : 'Reproducir audiolibro';
+    const icon = button.querySelector('svg');
+    const label = button.querySelector('span');
+    if (icon) {
+      icon.innerHTML = isPlaying
+        ? '<path d="M8 5h3v14H8zM15 5h3v14h-3z" fill="currentColor" stroke="none" />'
+        : '<path d="m8 5 11 7-11 7z" fill="currentColor" stroke="none" />';
+    }
+    if (label) label.textContent = isPlaying ? 'Pausar audiolibro' : 'Escuchar audiolibro';
   }
 
   function setAudiobookStatus(message) {
@@ -1613,13 +1649,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         const audioPlayer = document.getElementById('audiobook-audio');
         if (!audioPlayer) return;
-        audioPlayer.hidden = false;
-        audioPlayer.play().catch((error) => {
-          console.error('No se pudo iniciar la reproducción del audiolibro:', error);
-          setAudiobookStatus(audioPlayer.error
-            ? 'No se pudo cargar el MP3 guardado desde el servidor. Revisa el error de reproducción en la consola.'
-            : 'No se pudo iniciar la reproducción automáticamente. Pulsa reproducir en el control de audio.');
-        });
+        if (audioPlayer.paused) {
+          audioPlayer.hidden = false;
+          audioPlayer.play().catch((error) => {
+            console.error('No se pudo iniciar la reproducción del audiolibro:', error);
+            setAudiobookStatus(audioPlayer.error
+              ? 'No se pudo cargar el MP3 guardado desde el servidor. Revisa el error de reproducción en la consola.'
+              : 'No se pudo iniciar la reproducción automáticamente. Pulsa reproducir en el control de audio.');
+          });
+        } else {
+          audioPlayer.pause();
+        }
         return;
       }
 
@@ -1632,6 +1672,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         }
       }
     });
+    document.getElementById('audiobook-audio')?.addEventListener('play', updateAudiobookPlaybackButton);
+    document.getElementById('audiobook-audio')?.addEventListener('pause', updateAudiobookPlaybackButton);
+    document.getElementById('audiobook-audio')?.addEventListener('ended', updateAudiobookPlaybackButton);
     document.getElementById('audiobook-audio')?.addEventListener('error', () => {
       const audioPlayer = document.getElementById('audiobook-audio');
       console.error('Error cargando el MP3 del audiolibro:', audioPlayer.error);
@@ -2740,6 +2783,61 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     background: rgba(3, 174, 193, 0.12);
   }
 
+  #reader-container .reader-bar-actions .reader-btn-audiobook {
+    display: inline-flex;
+    width: auto;
+    min-width: 0;
+    min-height: 38px;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid #087d72;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(135deg, #159d91, #087d72);
+    box-shadow: 0 4px 12px rgba(8, 125, 114, 0.2);
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook:hover {
+    transform: translateY(-1px);
+    color: #fff;
+    background: linear-gradient(135deg, #117f74, #075f58);
+    box-shadow: 0 6px 16px rgba(8, 125, 114, 0.3);
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook.is-playing {
+    border-color: #b94a36;
+    background: linear-gradient(135deg, #e46b4f, #bd4638);
+    box-shadow: 0 4px 12px rgba(189, 70, 56, 0.2);
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook.is-playing:hover {
+    background: linear-gradient(135deg, #ce5942, #a9362e);
+    box-shadow: 0 6px 16px rgba(189, 70, 56, 0.3);
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook:focus-visible {
+    outline: 3px solid rgba(8, 125, 114, 0.3);
+    outline-offset: 2px;
+  }
+
+  #reader-container .reader-bar-actions .reader-btn-audiobook[hidden] {
+    display: none;
+  }
+
   #reader-container .reader-progress {
     position: absolute;
     z-index: 3;
@@ -3310,6 +3408,27 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     #reader-container.presentation-reader-mode .reader-page-nav-btn {
       min-width: 38px;
       min-height: 38px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    #reader-container .reader-bar-actions .reader-btn-audiobook {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    #reader-container .reader-bar-actions .reader-btn-audiobook span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
     }
   }
 </style>

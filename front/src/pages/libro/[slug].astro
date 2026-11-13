@@ -877,7 +877,20 @@ const edadLabel = libro?.edad_rango
   }
 
   .book-detail-page .btn-save-lg.guardado {
-    background: #effbf8;
+    color: #fff;
+    border-color: #117f74;
+    background: #159d91;
+  }
+
+  .book-detail-page .btn-save-lg.guardado:hover {
+    color: #fff;
+    border-color: #0e6f66;
+    background: #117f74;
+  }
+
+  .book-detail-page .btn-save-lg:disabled {
+    opacity: 1;
+    cursor: wait;
   }
 
   .book-detail-page .book-rating-container {
