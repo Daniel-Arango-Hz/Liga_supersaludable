@@ -6,7 +6,7 @@ interface Props {
 const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' } = Astro.props;
 ---
 
-<div id="communityUploadModal" class="upload-modal" hidden aria-hidden="true">
+<div id="communityUploadModal" class="upload-modal" data-api-url={apiUrl} hidden aria-hidden="true">
   <div class="upload-modal-backdrop" data-close-upload-modal></div>
   <div class="upload-modal-card" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
     <button type="button" class="upload-modal-close" data-close-upload-modal aria-label="Cerrar">×</button>
@@ -60,11 +60,14 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
   </div>
 </div>
 
-<script define:vars={{ apiUrl }}>
+<script>
+  import { Upload } from 'tus-js-client';
+
   (() => {
     const modal = document.getElementById('communityUploadModal');
     if (!modal) return;
 
+    const apiUrl = modal.dataset.apiUrl;
     const form = document.getElementById('communityUploadForm');
     const modeInput = document.getElementById('uploadMode');
     const subtitle = document.getElementById('uploadModalSubtitle');
@@ -107,6 +110,18 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
 
     function getFileExtension(file) {
       return file.name.split('.').pop()?.toLowerCase() || '';
+    }
+
+    function getVideoMimeType(file) {
+      if (allowedVideoTypes.includes(file.type)) return file.type;
+      const extension = getFileExtension(file);
+      return {
+        mp4: 'video/mp4',
+        webm: 'video/webm',
+        ogg: 'video/ogg',
+        mov: 'video/quicktime',
+        m4v: 'video/x-m4v',
+      }[extension] || file.type;
     }
 
     function validateUploadFile(file, mode) {
@@ -337,6 +352,63 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       });
     }
 
+    async function uploadVideo(file, token, mimeType) {
+      const response = await fetch(`${apiUrl}/videos/propuesta/upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileName: file.name, mimeType }),
+      });
+      const uploadInfo = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(uploadInfo?.error || 'No se pudo preparar la subida del video.');
+      }
+      if (!uploadInfo.token || !uploadInfo.tus_endpoint || !uploadInfo.ruta || !uploadInfo.api_key || !uploadInfo.bucket_name) {
+        throw new Error('El servidor no devolvió los datos necesarios para subir el video.');
+      }
+
+      await new Promise((resolve, reject) => {
+        const upload = new Upload(file, {
+          endpoint: uploadInfo.tus_endpoint,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            apikey: uploadInfo.api_key,
+            'x-signature': uploadInfo.token,
+          },
+          metadata: {
+            bucketName: uploadInfo.bucket_name,
+            objectName: uploadInfo.ruta,
+            contentType: mimeType,
+            cacheControl: '3600',
+          },
+          chunkSize: 6 * 1024 * 1024,
+          uploadDataDuringCreation: true,
+          removeFingerprintOnSuccess: true,
+          onError(error) {
+            const statusCode = error.originalResponse?.getStatus();
+            if (statusCode === 413) {
+              reject(new Error('El almacenamiento rechazó el video por su tamaño. Revisa el límite configurado para el bucket.'));
+              return;
+            }
+            reject(new Error(`No se pudo subir el video: ${error.message}`));
+          },
+          onProgress(bytesUploaded, bytesTotal) {
+            const percentage = bytesTotal > 0 ? Math.round((bytesUploaded / bytesTotal) * 100) : 0;
+            setStatus(`Subiendo video... ${percentage}%`);
+          },
+          onSuccess() {
+            resolve();
+          },
+        });
+
+        upload.start();
+      });
+
+      return uploadInfo.ruta;
+    }
+
     document.addEventListener('click', (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -395,16 +467,20 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
           if (!file) throw new Error('Selecciona un video.');
           validateUploadFile(file, 'video');
 
-          const fileBase64 = await fileToBase64(file);
+          const mimeType = getVideoMimeType(file);
+          if (!allowedVideoTypes.includes(mimeType)) {
+            throw new Error('No se pudo determinar un formato de video compatible.');
+          }
           const duracion = await getVideoDuration(file);
+          setStatus('Preparando la subida del video...');
+          const ruta = await uploadVideo(file, token, mimeType);
           endpoint = `${apiUrl}/videos/propuesta`;
           payload = {
             titulo,
             categoria,
             duracion,
-            fileName: file.name,
-            fileBase64,
-            mimeType: file.type,
+            ruta,
+            mimeType,
           };
         } else if (mode === 'foto') {
           const file = archivoInput.files?.[0];

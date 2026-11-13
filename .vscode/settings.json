@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python3 -c 'from pathlib import Path; p=Path\\(\"/Users/useit/Library/Application Support/Code/agentSessionData/db0db3be-dadf-47a4-bd55-ccd5c9559432/attachments/d33a34ad-17de-45c9-bf57-075a19e13805/Pasted text #1\\.txt\"\\); lines=p\\.read_text\\(errors=\"replace\"\\)\\.splitlines\\(\\); print\\(\"lines:\", len\\(lines\\)\\); print\\(\"lengths:\", \\[len\\(x\\) for x in lines\\]\\); print\\(\"tail:\"\\); print\\(\"\\\\\\\\n\"\\.join\\(x\\[:1800\\] for x in lines\\[-12:\\]\\)\\)'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

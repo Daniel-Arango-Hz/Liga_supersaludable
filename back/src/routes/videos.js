@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { body } from 'express-validator';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
@@ -51,6 +52,15 @@ function getVideoExtension(fileName, mimeType) {
 function isMissingRelationError(error, relationName) {
   const message = String(error?.message || '');
   return message.includes(`public.${relationName}`) || message.includes(relationName);
+}
+
+function getTusEndpoint() {
+  const projectUrl = new URL(process.env.SUPABASE_URL);
+  const hostname = projectUrl.hostname.endsWith('.supabase.co')
+    ? projectUrl.hostname.replace(/\.supabase\.co$/, '.storage.supabase.co')
+    : projectUrl.hostname;
+
+  return `${projectUrl.protocol}//${hostname}/storage/v1/upload/resumable/sign`;
 }
 
 async function resolveAutorId(usuarioId) {
@@ -309,56 +319,111 @@ router.get('/:slug', async (req, res) => {
 
 // ─── POST /videos/propuesta (usuario autenticado) ────────────────────────────
 router.post(
+  '/propuesta/upload-url',
+  requireAuth,
+  [
+    body('fileName').trim().notEmpty().withMessage('Nombre de archivo requerido'),
+    body('mimeType').trim().notEmpty().withMessage('Tipo MIME requerido'),
+  ],
+  validate,
+  async (req, res) => {
+    const { fileName, mimeType } = req.body;
+    if (!ALLOWED_VIDEO_MIME_TYPES.has(mimeType)) {
+      return res.status(400).json({
+        error: 'Tipo de video no soportado. Usa MP4, WEBM, OGG, MOV o M4V.',
+      });
+    }
+
+    const extension = getVideoExtension(fileName, mimeType);
+    const storagePath = `videos/${req.user.id}/${randomUUID()}.${extension}`;
+    const { data: signedUpload, error } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUploadUrl(storagePath);
+
+    if (error || !signedUpload) {
+      console.error('No se pudo preparar la subida del video:', error);
+      return res.status(502).json({ error: 'No se pudo preparar la subida del video.' });
+    }
+
+    res.json({
+      ruta: signedUpload.path,
+      token: signedUpload.token,
+      bucket_name: STORAGE_BUCKET,
+      tus_endpoint: getTusEndpoint(),
+      api_key: process.env.SUPABASE_ANON_KEY,
+    });
+  }
+);
+
+router.post(
   '/propuesta',
   requireAuth,
   [
     body('titulo').trim().notEmpty().withMessage('Título requerido'),
     body('duracion').optional().trim(),
     body('categoria').optional().trim(),
-    body('fileName').trim().notEmpty().withMessage('Nombre de archivo requerido'),
-    body('fileBase64').trim().notEmpty().withMessage('Archivo requerido'),
+    body('ruta').optional().trim().notEmpty(),
+    body('fileName').optional().trim().notEmpty(),
+    body('fileBase64').optional().trim().notEmpty(),
     body('mimeType').trim().notEmpty().withMessage('Tipo MIME requerido'),
   ],
   validate,
   async (req, res) => {
     try {
-      const { titulo, duracion, categoria, fileName, fileBase64, mimeType } = req.body;
+      const { titulo, duracion, categoria, ruta, fileName, fileBase64, mimeType } = req.body;
 
       if (!ALLOWED_VIDEO_MIME_TYPES.has(mimeType)) {
         return res.status(400).json({
           error: 'Tipo de video no soportado. Usa MP4, WEBM, OGG, MOV o M4V.',
         });
       }
-
-      const base64Payload = extractBase64Payload(fileBase64);
-      const fileBuffer = Buffer.from(base64Payload, 'base64');
-      if (!fileBuffer || fileBuffer.length === 0) {
-        return res.status(400).json({ error: 'Archivo de video inválido.' });
+      if (!ruta && !(fileName && fileBase64)) {
+        return res.status(400).json({ error: 'Debes subir un video antes de publicarlo.' });
       }
 
-      if (fileBuffer.length > 80 * 1024 * 1024) {
-        return res.status(400).json({ error: 'El video excede el límite de 80MB.' });
+      const storage = supabaseAdmin.storage.from(STORAGE_BUCKET);
+      let storagePath = ruta;
+      if (ruta) {
+        const expectedFolder = `videos/${req.user.id}/`;
+        const uploadedName = ruta.startsWith(expectedFolder) ? ruta.slice(expectedFolder.length) : '';
+        if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\.(?:mp4|webm|ogg|mov|m4v)$/i.test(uploadedName)) {
+          return res.status(400).json({ error: 'La ruta del video no es válida para este usuario.' });
+        }
+
+        const { data: uploadedFile, error: infoError } = await storage.info(ruta);
+        if (infoError || !uploadedFile || uploadedFile.size <= 0) {
+          return res.status(400).json({ error: 'No se encontró el video subido.' });
+        }
+        if (uploadedFile.size > 80 * 1024 * 1024) {
+          return res.status(400).json({ error: 'El video excede el límite de 80MB.' });
+        }
+        const uploadedMimeType = uploadedFile.metadata?.mimetype;
+        if (uploadedMimeType && uploadedMimeType !== mimeType) {
+          return res.status(400).json({ error: 'El tipo del video subido no coincide con el archivo declarado.' });
+        }
+      } else {
+        const fileBuffer = Buffer.from(extractBase64Payload(fileBase64), 'base64');
+        if (!fileBuffer.length) {
+          return res.status(400).json({ error: 'Archivo de video inválido.' });
+        }
+        if (fileBuffer.length > 80 * 1024 * 1024) {
+          return res.status(400).json({ error: 'El video excede el límite de 80MB.' });
+        }
+
+        const extension = getVideoExtension(fileName, mimeType);
+        storagePath = `videos/${req.user.id}/${randomUUID()}.${extension}`;
+        const { error: uploadError } = await storage.upload(storagePath, fileBuffer, {
+          contentType: mimeType,
+          upsert: false,
+        });
+        if (uploadError) {
+          return res.status(500).json({ error: 'No se pudo subir el video.', details: uploadError.message });
+        }
       }
 
       const baseSlug = slugify(titulo) || `video-${Date.now()}`;
       const slug = await ensureUniqueVideoSlug(baseSlug);
-      const extension = getVideoExtension(fileName, mimeType);
-      const storagePath = `videos/${req.user.id}/${Date.now()}-${slug}.${extension}`;
-
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .upload(storagePath, fileBuffer, {
-          contentType: mimeType,
-          upsert: false,
-        });
-
-      if (uploadError) {
-        return res.status(500).json({ error: 'No se pudo subir el video.', details: uploadError.message });
-      }
-
-      const { data: urlData } = supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(storagePath);
+      const { data: urlData } = storage.getPublicUrl(storagePath);
 
       const videoUrl = urlData?.publicUrl;
       if (!videoUrl) {
@@ -384,6 +449,10 @@ router.post(
         .single();
 
       if (error) {
+        const { error: cleanupError } = await storage.remove([storagePath]);
+        if (cleanupError) {
+          console.error('No se pudo limpiar el video después de fallar su publicación:', cleanupError);
+        }
         return res.status(400).json({ error: error.message });
       }
 
@@ -392,6 +461,7 @@ router.post(
         mensaje: 'Tu video ya está visible en la galería.',
       });
     } catch (error) {
+      console.error('Error al crear la propuesta de video:', error);
       res.status(500).json({ error: 'Error al crear la propuesta de video.' });
     }
   }
