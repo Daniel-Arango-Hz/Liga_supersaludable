@@ -117,12 +117,24 @@ const edadLabel = libro?.edad_rango
               <span>Página 1 de {totalPaginas}</span>
             </div>
             <div class="preview-page">
-              <span class="preview-sparkle" aria-hidden="true">★</span>
-              <span class="preview-book-mark" aria-hidden="true">📖</span>
-              <h3>Una nueva aventura comienza...</h3>
-              <p>Abre este libro y descubre su historia, página a página.</p>
+              <span class="preview-decoration preview-decoration-sparkle" aria-hidden="true">✦</span>
+              <span class="preview-decoration preview-decoration-star" aria-hidden="true">✧</span>
+              <span class="preview-decoration preview-decoration-compass" aria-hidden="true">🧭</span>
+              <span class="preview-decoration preview-decoration-search" aria-hidden="true">🔎</span>
+              <div class="preview-art" aria-hidden="true">
+                {isImageCover ? (
+                  <img src={libro.portada_icono} alt="" loading="lazy" />
+                ) : (
+                  <span>{libro.portada_icono || '📖'}</span>
+                )}
+              </div>
+              <div class="preview-copy">
+                <h3>Una nueva aventura comienza...</h3>
+                <p>Abre este libro y descubre su historia, página a página.</p>
+              </div>
               <a class="preview-read-link" href={`/libro/${slug}/leer`}>
-                Comenzar lectura <span aria-hidden="true">›</span>
+                <span>Comenzar la aventura</span>
+                <span class="preview-read-arrow" aria-hidden="true">›</span>
               </a>
             </div>
           </div>
@@ -1028,66 +1040,166 @@ const edadLabel = libro?.edad_rango
 
   .book-detail-page .preview-page {
     position: relative;
-    display: flex;
+    display: grid;
     min-height: 230px;
-    flex-direction: column;
+    grid-template-columns: minmax(190px, 30%) minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: center;
-    padding: 2rem;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    padding: 1.25rem clamp(1.25rem, 3vw, 2rem);
     overflow: hidden;
     border: 1px solid #f1e8c9;
-    border-radius: 16px;
-    background: #fffdf3;
-    box-shadow: 0 8px 22px rgba(50, 64, 79, 0.035);
-    text-align: center;
+    border-radius: 20px;
+    background:
+      radial-gradient(ellipse at 38% 38%, rgba(245, 204, 144, 0.2), transparent 28%),
+      linear-gradient(110deg, #fffdf4 0%, #fffdf5 58%, #fbfcf4 100%);
+    box-shadow: 0 12px 30px rgba(90, 75, 43, 0.08);
   }
 
-  .book-detail-page .preview-sparkle {
+  .book-detail-page .preview-art {
+    position: relative;
+    display: grid;
+    min-height: 190px;
+    place-items: center;
+    isolation: isolate;
+  }
+
+  .book-detail-page .preview-art::before,
+  .book-detail-page .preview-art::after {
     position: absolute;
-    top: 18px;
-    left: 27%;
-    color: #f2bd3d;
-    font-size: 1.25rem;
+    z-index: -1;
+    width: min(70%, 180px);
+    height: 72%;
+    border: 1px solid rgba(136, 86, 51, 0.32);
+    border-radius: 12px;
+    background: linear-gradient(145deg, #d89c65, #9d5e43);
+    box-shadow: 0 8px 16px rgba(93, 56, 38, 0.15);
+    content: '';
   }
 
-  .book-detail-page .preview-book-mark {
-    margin-bottom: 0.9rem;
-    font-size: 1.8rem;
-    line-height: 1;
+  .book-detail-page .preview-art::before {
+    transform: translate(10px, 2px) rotate(7deg);
+  }
+
+  .book-detail-page .preview-art::after {
+    background: linear-gradient(145deg, #eacb87, #bf8058);
+    transform: translate(-7px, 0) rotate(-5deg);
+  }
+
+  .book-detail-page .preview-art img {
+    width: min(68%, 174px);
+    height: 172px;
+    border: 3px solid #fff9e8;
+    border-radius: 9px;
+    object-fit: cover;
+    box-shadow: 0 8px 20px rgba(63, 45, 28, 0.24);
+    transform: rotate(-2deg);
+  }
+
+  .book-detail-page .preview-art > span {
+    display: grid;
+    width: 124px;
+    height: 146px;
+    place-items: center;
+    border: 4px solid #fff9e8;
+    border-radius: 12px 8px 8px 12px;
+    background: linear-gradient(145deg, #f8d691, #dc9871 60%, #8ec8b7);
+    box-shadow: 0 10px 24px rgba(63, 45, 28, 0.24);
+    font-size: 4.4rem;
+    transform: rotate(-4deg);
+  }
+
+  .book-detail-page .preview-decoration {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .book-detail-page .preview-decoration-sparkle {
+    top: 15%;
+    left: 33%;
+    color: #d7a640;
+    font-size: 2rem;
+    text-shadow: 16px 18px 0 #91b9d1, -14px 28px 0 #f0c767;
+  }
+
+  .book-detail-page .preview-decoration-star {
+    top: 22%;
+    left: 58%;
+    color: #dbb25b;
+    font-size: 1.6rem;
+  }
+
+  .book-detail-page .preview-decoration-compass {
+    top: 12%;
+    right: 3%;
+    font-size: 2rem;
+    filter: drop-shadow(0 3px 2px rgba(66, 49, 27, 0.2));
+  }
+
+  .book-detail-page .preview-decoration-search {
+    right: 2%;
+    bottom: 17%;
+    font-size: 1.7rem;
+    transform: rotate(-18deg);
+  }
+
+  .book-detail-page .preview-copy {
+    position: relative;
+    z-index: 1;
   }
 
   .book-detail-page .preview-page h3 {
-    margin: 0 0 0.55rem;
-    color: #455a70;
-    font-size: 1.2rem;
-    font-weight: 500;
-    letter-spacing: -0.025em;
+    margin: 0 0 0.45rem;
+    color: #263545;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
   }
 
   .book-detail-page .preview-page p {
-    max-width: 470px;
-    color: #8392a5;
-    font-size: 0.75rem;
-    line-height: 1.65;
+    max-width: 480px;
+    margin: 0;
+    color: #202c37;
+    font-size: 0.88rem;
+    line-height: 1.55;
   }
 
   .book-detail-page .preview-read-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    margin-top: 1.15rem;
-    color: #119c8f;
-    font-size: 0.72rem;
-    font-weight: 600;
+    justify-content: center;
+    gap: 0.8rem;
+    min-height: 50px;
+    padding: 0.7rem 1rem 0.7rem 1.2rem;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(110deg, #ff876e, #f29a82 48%, #6ec7bd);
+    box-shadow: 0 5px 12px rgba(83, 91, 67, 0.2);
+    font-size: 0.8rem;
+    font-weight: 750;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   }
 
   .book-detail-page .preview-read-link:hover {
-    color: #087d72;
+    color: #fff;
+    filter: saturate(1.12);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(83, 91, 67, 0.25);
   }
 
-  .book-detail-page .preview-read-link span {
-    font-size: 1.1rem;
-    line-height: 0.8;
+  .book-detail-page .preview-read-arrow {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    font-size: 1.55rem;
+    line-height: 0.7;
   }
 
   @media (max-width: 1024px) {
@@ -1153,12 +1265,83 @@ const edadLabel = libro?.edad_rango
     }
 
     .book-detail-page .preview-page {
-      min-height: 220px;
-      padding: 2rem 1.25rem;
+      min-height: 210px;
+      grid-template-columns: minmax(120px, 30%) minmax(0, 1fr);
+      gap: 1rem;
+      padding: 1rem;
     }
 
-    .book-detail-page .preview-sparkle {
-      left: 12%;
+    .book-detail-page .preview-art {
+      min-height: 165px;
+    }
+
+    .book-detail-page .preview-art img {
+      width: min(75%, 140px);
+      height: 148px;
+    }
+
+    .book-detail-page .preview-read-link {
+      grid-column: 2;
+      justify-self: start;
+      min-height: 44px;
+      padding: 0.55rem 0.75rem 0.55rem 0.95rem;
+      font-size: 0.68rem;
+    }
+
+    .book-detail-page .preview-decoration-compass {
+      right: 2%;
+      font-size: 1.5rem;
+    }
+
+    .book-detail-page .preview-decoration-search {
+      right: 1%;
+      bottom: 8%;
+      font-size: 1.25rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .book-detail-page .preview-page {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.5rem;
+      padding: 1rem 1.25rem 1.2rem;
+      text-align: center;
+    }
+
+    .book-detail-page .preview-art {
+      min-height: 140px;
+    }
+
+    .book-detail-page .preview-art img {
+      height: 128px;
+    }
+
+    .book-detail-page .preview-copy {
+      padding: 0 0.5rem;
+    }
+
+    .book-detail-page .preview-page h3 {
+      font-size: 1.2rem;
+    }
+
+    .book-detail-page .preview-page p {
+      font-size: 0.8rem;
+    }
+
+    .book-detail-page .preview-read-link {
+      grid-column: auto;
+      justify-self: center;
+      margin-top: 0.3rem;
+    }
+
+    .book-detail-page .preview-decoration-sparkle {
+      top: 10%;
+      left: 15%;
+    }
+
+    .book-detail-page .preview-decoration-star {
+      top: 12%;
+      left: 70%;
     }
   }
 
