@@ -104,6 +104,35 @@ async function ensureUniqueVideoSlug(baseSlug) {
   }
 }
 
+async function userOwnsVideo(video, userId) {
+  if (video.autor_id) {
+    const { data: author, error } = await supabaseAdmin
+      .from('autores')
+      .select('usuario_id')
+      .eq('id', video.autor_id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (author?.usuario_id === userId) return true;
+  }
+
+  const match = String(video.url || '').match(/\/videos\/([0-9a-f-]{36})\//i);
+  return Boolean(match && match[1] === userId);
+}
+
+async function canManageVideo(video, userId) {
+  if (await userOwnsVideo(video, userId)) return true;
+
+  const { data: profile, error } = await supabase
+    .from('usuarios')
+    .select('tipo')
+    .eq('id', userId)
+    .single();
+
+  if (error) throw error;
+  return profile?.tipo === 'admin';
+}
+
 // ─── GET /videos ──────────────────────────────────────────────────────────────
 router.get('/', optionalAuth, async (req, res) => {
   const { categoria, page = 1, limit = 9 } = req.query;
@@ -185,6 +214,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
   const autorIds = [...new Set((videos || []).map((v) => v.autor_id).filter(Boolean))];
   const autoresMap = {};
+  const autorUsuarioMap = {};
 
   const urlUserIds = [...new Set(
     (videos || [])
@@ -200,7 +230,7 @@ router.get('/', optionalAuth, async (req, res) => {
   const urlUserMap = {};
 
   if (autorIds.length > 0) {
-    const { data: autores } = await supabase
+    const { data: autores } = await supabaseAdmin
       .from('autores')
       .select('id, usuario_id')
       .in('id', autorIds);
@@ -218,6 +248,7 @@ router.get('/', optionalAuth, async (req, res) => {
     for (const autor of autores || []) {
       const u = usuariosMap[autor.usuario_id];
       autoresMap[autor.id] = u ? `${u.nombre || ''} ${u.apellido || ''}`.trim() : 'Anónimo';
+      autorUsuarioMap[autor.id] = autor.usuario_id;
     }
 
     for (const uid of urlUserIds) {
@@ -248,6 +279,10 @@ router.get('/', optionalAuth, async (req, res) => {
       autor_nombre,
       likes: Number(v.total_likes || 0),
       user_liked: likedSet.has(v.id),
+      can_edit: Boolean(req.user && (
+        (v.autor_id && autorUsuarioMap[v.autor_id] === req.user.id)
+        || (!v.autor_id && String(v.url || '').match(/\/videos\/([0-9a-f-]{36})\//i)?.[1] === req.user.id)
+      )),
     };
   });
 
@@ -474,16 +509,84 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json(data);
 });
 
-// ─── PATCH /videos/:id (admin) ────────────────────────────────────────────────
-router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const { data, error } = await supabaseAdmin
-    .from('videos').update(req.body).eq('id', req.params.id).select().single();
-  if (error) return res.status(400).json({ error: error.message });
-  res.json(data);
-});
+// ─── PATCH /videos/:id (creador o admin) ──────────────────────────────────────
+router.patch(
+  '/:id',
+  requireAuth,
+  [
+    body('titulo').optional().trim().notEmpty().withMessage('El título no puede estar vacío'),
+    body('categoria').optional().trim().notEmpty().withMessage('La categoría no puede estar vacía'),
+  ],
+  validate,
+  async (req, res) => {
+    const { data: video, error: videoError } = await supabaseAdmin
+      .from('videos')
+      .select('id, autor_id, url')
+      .eq('id', req.params.id)
+      .maybeSingle();
 
-// ─── DELETE /videos/:id (admin) ───────────────────────────────────────────────
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+    if (videoError) return res.status(500).json({ error: videoError.message });
+    if (!video) return res.status(404).json({ error: 'Video no encontrado.' });
+
+    let isOwner;
+    try {
+      isOwner = await userOwnsVideo(video, req.user.id);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    let updates;
+    if (isOwner) {
+      updates = {};
+      if (typeof req.body.titulo === 'string') updates.titulo = req.body.titulo.trim();
+      if (typeof req.body.categoria === 'string') updates.categoria = req.body.categoria.trim();
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'Indica al menos un campo para actualizar.' });
+      }
+    } else {
+      const { data: profile, error: profileError } = await supabase
+        .from('usuarios')
+        .select('tipo')
+        .eq('id', req.user.id)
+        .single();
+
+      if (profileError) return res.status(500).json({ error: profileError.message });
+      if (profile?.tipo !== 'admin') {
+        return res.status(403).json({ error: 'Solo quien creó este video puede editarlo.' });
+      }
+      updates = req.body;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('videos')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data);
+  }
+);
+
+// ─── DELETE /videos/:id (creador o admin) ─────────────────────────────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { data: video, error: videoError } = await supabaseAdmin
+    .from('videos')
+    .select('id, autor_id, url')
+    .eq('id', req.params.id)
+    .maybeSingle();
+
+  if (videoError) return res.status(500).json({ error: videoError.message });
+  if (!video) return res.status(404).json({ error: 'Video no encontrado.' });
+
+  try {
+    if (!(await canManageVideo(video, req.user.id))) {
+      return res.status(403).json({ error: 'Solo quien creó este video puede eliminarlo.' });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
   const { error } = await supabaseAdmin.from('videos').delete().eq('id', req.params.id);
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();

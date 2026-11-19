@@ -92,6 +92,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
     const categoryStatus = document.getElementById('categoryStatus');
     let categoriesLoaded = false;
     let categoriesRequest;
+    let editingItem = null;
 
     const allowedVideoTypes = [
       'video/mp4',
@@ -233,7 +234,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       return categoriesRequest;
     }
 
-    function openModal(mode) {
+    function openModal(mode, item = null) {
       if (!localStorage.getItem('token')) {
         requestLogin('Debes iniciar sesión para publicar contenido en la galería.');
         return;
@@ -246,43 +247,50 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       }
 
       const currentMode = mode || 'comentario';
+      editingItem = item;
       modeInput.value = currentMode;
       setStatus('');
       form.reset();
 
       setFieldVisibility(fieldAutor, true);
-      setFieldVisibility(fieldTitulo, currentMode === 'video' || currentMode === 'foto');
+      setFieldVisibility(fieldTitulo, currentMode === 'video' || (currentMode === 'foto' && !item));
       setFieldVisibility(fieldCategoria, currentMode === 'video');
-      setFieldVisibility(fieldArchivo, currentMode !== 'comentario');
+      setFieldVisibility(fieldArchivo, currentMode !== 'comentario' && !item);
       setFieldVisibility(fieldComentario, currentMode !== 'video');
       nombreAutorInput.value = author;
 
-      comentarioInput.required = currentMode === 'comentario';
+      comentarioInput.required = currentMode === 'comentario' && !item;
       tituloInput.required = currentMode === 'video';
-      archivoInput.required = currentMode !== 'comentario';
+      archivoInput.required = currentMode !== 'comentario' && !item;
       nombreAutorInput.required = true;
+      submitBtn.textContent = item ? 'Guardar cambios' : 'Enviar';
 
       if (currentMode === 'video') {
-        title.textContent = 'Subir video';
-        subtitle.textContent = 'Comparte un video para publicarlo en la galería.';
+        title.textContent = item ? 'Editar video' : 'Subir video';
+        subtitle.textContent = item ? 'Actualiza el título o la categoría de tu video.' : 'Comparte un video para publicarlo en la galería.';
         tituloLabel.textContent = 'Nombre del video';
         tituloInput.placeholder = 'Ej: Devocional en casa';
         archivoLabel.textContent = 'Archivo de video';
         archivoHelp.textContent = 'Formatos permitidos: MP4, WEBM, OGG, MOV, M4V (máx. 80MB).';
         archivoInput.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v,.mov,.m4v';
-        loadCategories();
+        tituloInput.value = item?.title || '';
+        loadCategories().then(() => {
+          if (item?.category) categoriaInput.value = item.category;
+        });
       } else if (currentMode === 'foto') {
-        title.textContent = 'Subir foto';
-        subtitle.textContent = 'Comparte una imagen familiar. El comentario es opcional.';
+        title.textContent = item ? 'Editar imagen' : 'Subir foto';
+        subtitle.textContent = item ? 'Actualiza el texto que acompaña a tu imagen.' : 'Comparte una imagen familiar. El comentario es opcional.';
         tituloLabel.textContent = 'Nombre de la imagen';
         tituloInput.placeholder = 'Ej: Día de juegos en familia';
         archivoLabel.textContent = 'Imagen';
         archivoHelp.textContent = 'Formatos permitidos: JPG, PNG, WEBP, GIF (máx. 8MB).';
         archivoInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
         comentarioInput.required = false;
+        comentarioInput.value = item?.text || '';
       } else {
-        title.textContent = 'Compartir comentario';
-        subtitle.textContent = 'Escribe un testimonio para la comunidad.';
+        title.textContent = item ? 'Editar comentario' : 'Compartir comentario';
+        subtitle.textContent = item ? 'Actualiza tu comentario para la comunidad.' : 'Escribe un testimonio para la comunidad.';
+        comentarioInput.value = item?.text || '';
       }
 
       archivoInput.value = '';
@@ -320,6 +328,8 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('modal-open');
+      editingItem = null;
+      submitBtn.textContent = 'Enviar';
       setStatus('');
     }
 
@@ -427,6 +437,12 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       }
     });
 
+    window.addEventListener('community:edit', (event) => {
+      const item = event.detail;
+      if (!item?.id || !['video', 'foto', 'comentario'].includes(item.type)) return;
+      openModal(item.type, item);
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !modal.hidden) closeModal();
     });
@@ -442,11 +458,11 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       }
 
       const nombreAutor = getAuthenticatedAuthor();
-      if (!nombreAutor) {
+      if (!editingItem && !nombreAutor) {
         requestLogin('No pudimos identificar tu cuenta. Inicia sesión nuevamente para publicar.');
         return;
       }
-      nombreAutorInput.value = nombreAutor;
+      if (nombreAutor) nombreAutorInput.value = nombreAutor;
       const comentario = String(comentarioInput.value || '').trim();
 
       submitBtn.disabled = true;
@@ -455,8 +471,24 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       try {
         let endpoint = '';
         let payload = {};
+        let method = 'POST';
 
-        if (mode === 'video') {
+        if (editingItem) {
+          method = 'PATCH';
+          if (mode === 'video') {
+            const titulo = String(tituloInput.value || '').trim();
+            if (!titulo) throw new Error('El título del video es obligatorio.');
+            if (categoriaInput.disabled) throw new Error('No se pudieron cargar las categorías. Cierra y vuelve a abrir el formulario.');
+            const categoria = String(categoriaInput.value || '').trim();
+            if (!categoria) throw new Error('Selecciona una categoría para el video.');
+            endpoint = `${apiUrl}/videos/${encodeURIComponent(editingItem.id)}`;
+            payload = { titulo, categoria };
+          } else {
+            if (mode === 'comentario' && !comentario) throw new Error('El comentario es obligatorio.');
+            endpoint = `${apiUrl}/galeria/${encodeURIComponent(editingItem.id)}`;
+            payload = { texto: comentario };
+          }
+        } else if (mode === 'video') {
           const titulo = String(tituloInput.value || '').trim();
           if (!titulo) throw new Error('El título del video es obligatorio.');
           if (categoriaInput.disabled) throw new Error('No se pudieron cargar las categorías. Cierra y vuelve a abrir el formulario.');
@@ -509,7 +541,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
         }
 
         const response = await fetch(endpoint, {
-          method: 'POST',
+          method,
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

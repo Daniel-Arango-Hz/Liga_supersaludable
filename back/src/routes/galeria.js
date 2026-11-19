@@ -66,6 +66,7 @@ router.get('/', optionalAuth, async (req, res) => {
   const enriched = (data || []).map((t) => ({
     ...t,
     user_liked: likedSet.has(t.id),
+    can_edit: Boolean(req.user && t.usuario_id === req.user.id),
   }));
 
   res.json({ data: enriched, total: count, page: Number(page), totalPaginas: Math.ceil(count / Number(limit)) });
@@ -147,6 +148,37 @@ router.post(
   }
 );
 
+// ─── PATCH /galeria/:id (creador edita su publicación) ────────────────────────
+router.patch(
+  '/:id',
+  requireAuth,
+  [body('texto').exists().isString().withMessage('El texto debe ser válido')],
+  validate,
+  async (req, res) => {
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('testimonios')
+      .select('usuario_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (existingError) return res.status(500).json({ error: existingError.message });
+    if (!existing) return res.status(404).json({ error: 'Publicación no encontrada.' });
+    if (existing.usuario_id !== req.user.id) {
+      return res.status(403).json({ error: 'Solo quien creó esta publicación puede editarla.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('testimonios')
+      .update({ texto: req.body.texto.trim() || null })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    res.json(data);
+  }
+);
+
 // ─── POST /galeria/:id/like ───────────────────────────────────────────────────
 router.post('/:id/like', requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -201,8 +233,29 @@ router.patch('/:id/publicar', requireAuth, requireAdmin, async (req, res) => {
   res.json(data);
 });
 
-// ─── DELETE /galeria/:id (admin) ──────────────────────────────────────────────
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+// ─── DELETE /galeria/:id (creador o admin) ────────────────────────────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('testimonios')
+    .select('usuario_id')
+    .eq('id', req.params.id)
+    .maybeSingle();
+
+  if (existingError) return res.status(500).json({ error: existingError.message });
+  if (!existing) return res.status(404).json({ error: 'Publicación no encontrada.' });
+
+  if (existing.usuario_id !== req.user.id) {
+    const { data: profile, error: profileError } = await supabase
+      .from('usuarios')
+      .select('tipo')
+      .eq('id', req.user.id)
+      .single();
+
+    if (profileError || profile?.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Solo quien creó esta publicación puede eliminarla.' });
+    }
+  }
+
   const { error } = await supabaseAdmin.from('testimonios').delete().eq('id', req.params.id);
   if (error) return res.status(400).json({ error: error.message });
   res.status(204).send();

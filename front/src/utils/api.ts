@@ -214,6 +214,11 @@ export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
+export async function getFreshAuthToken(): Promise<string | null> {
+  await refreshIfNeeded();
+  return getToken();
+}
+
 let refreshInProgress: Promise<boolean> | undefined;
 let refreshTimer: number | undefined;
 
