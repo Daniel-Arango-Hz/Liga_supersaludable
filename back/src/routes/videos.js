@@ -516,12 +516,15 @@ router.patch(
   [
     body('titulo').optional().trim().notEmpty().withMessage('El título no puede estar vacío'),
     body('categoria').optional().trim().notEmpty().withMessage('La categoría no puede estar vacía'),
+    body('ruta').optional().trim().notEmpty().withMessage('La ruta del video no puede estar vacía'),
+    body('mimeType').optional().trim().notEmpty().withMessage('El tipo MIME no puede estar vacío'),
+    body('duracion').optional({ nullable: true }).trim(),
   ],
   validate,
   async (req, res) => {
     const { data: video, error: videoError } = await supabaseAdmin
       .from('videos')
-      .select('id, autor_id, url')
+      .select('id, autor_id, url, duracion')
       .eq('id', req.params.id)
       .maybeSingle();
 
@@ -540,6 +543,43 @@ router.patch(
       updates = {};
       if (typeof req.body.titulo === 'string') updates.titulo = req.body.titulo.trim();
       if (typeof req.body.categoria === 'string') updates.categoria = req.body.categoria.trim();
+      if (req.body.ruta || req.body.mimeType || req.body.duracion !== undefined) {
+        if (!(req.body.ruta && req.body.mimeType)) {
+          return res.status(400).json({ error: 'Para reemplazar el video debes enviar la ruta y el tipo de archivo.' });
+        }
+        if (!ALLOWED_VIDEO_MIME_TYPES.has(req.body.mimeType)) {
+          return res.status(400).json({ error: 'Tipo de video no soportado. Usa MP4, WEBM, OGG, MOV o M4V.' });
+        }
+
+        const expectedFolder = `videos/${req.user.id}/`;
+        const uploadedName = req.body.ruta.startsWith(expectedFolder)
+          ? req.body.ruta.slice(expectedFolder.length)
+          : '';
+        if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\.(?:mp4|webm|ogg|mov|m4v)$/i.test(uploadedName)) {
+          return res.status(400).json({ error: 'La ruta del video no es válida para este usuario.' });
+        }
+
+        const storage = supabaseAdmin.storage.from(STORAGE_BUCKET);
+        const { data: uploadedVideo, error: uploadedVideoError } = await storage.info(req.body.ruta);
+        if (uploadedVideoError || !uploadedVideo || uploadedVideo.size <= 0) {
+          return res.status(400).json({ error: 'No se encontró el video nuevo.' });
+        }
+        if (uploadedVideo.size > 80 * 1024 * 1024) {
+          return res.status(400).json({ error: 'El video excede el límite de 80MB.' });
+        }
+        const uploadedMimeType = uploadedVideo.metadata?.mimetype;
+        if (uploadedMimeType && uploadedMimeType !== req.body.mimeType) {
+          return res.status(400).json({ error: 'El tipo del video subido no coincide con el archivo declarado.' });
+        }
+
+        const { data: urlData } = storage.getPublicUrl(req.body.ruta);
+        if (!urlData?.publicUrl) {
+          return res.status(500).json({ error: 'No se pudo generar la URL pública del nuevo video.' });
+        }
+        updates.url = urlData.publicUrl;
+        updates.duracion = req.body.duracion || null;
+        updates.newStoragePath = req.body.ruta;
+      }
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'Indica al menos un campo para actualizar.' });
       }
@@ -554,16 +594,41 @@ router.patch(
       if (profile?.tipo !== 'admin') {
         return res.status(403).json({ error: 'Solo quien creó este video puede editarlo.' });
       }
-      updates = req.body;
+      updates = { ...req.body };
     }
 
+    const newStoragePath = updates.newStoragePath;
+    delete updates.newStoragePath;
     const { data, error } = await supabaseAdmin
       .from('videos')
       .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      if (newStoragePath) {
+        const { error: cleanupError } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([newStoragePath]);
+        if (cleanupError) console.error('No se pudo limpiar el nuevo video después de fallar la edición:', cleanupError);
+      }
+      return res.status(400).json({ error: error.message });
+    }
+
+    if (newStoragePath && video.url) {
+      try {
+        const oldUrl = new URL(video.url);
+        const bucketMarker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+        const bucketIndex = oldUrl.pathname.indexOf(bucketMarker);
+        if (bucketIndex >= 0) {
+          const oldPath = decodeURIComponent(oldUrl.pathname.slice(bucketIndex + bucketMarker.length));
+          if (/^videos\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:mp4|webm|ogg|mov|m4v)$/i.test(oldPath)) {
+            const { error: cleanupError } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([oldPath]);
+            if (cleanupError) console.error('No se pudo eliminar el video reemplazado:', cleanupError);
+          }
+        }
+      } catch (cleanupError) {
+        console.error('No se pudo procesar la URL del video reemplazado para limpiar Storage.', cleanupError);
+      }
+    }
     res.json(data);
   }
 );

@@ -677,6 +677,7 @@ function formatFecha(raw: string) {
   .video-info { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
   .gallery-owner-actions { position: absolute; z-index: 2; top: 0.75rem; right: 0.75rem; display: flex; gap: 0.5rem; }
   .gallery-owner-actions[hidden] { display: none; }
+  .galeria-card[data-gallery-type="comentario"] .gallery-owner-actions { position: static; justify-content: flex-end; padding-top: 0.25rem; }
   .gallery-owner-btn { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid rgba(220,232,231,0.9); border-radius: 50%; background: rgba(243,250,248,0.96); color: #347d7c; box-shadow: 0 3px 10px rgba(32,48,75,0.18); cursor: pointer; backdrop-filter: blur(4px); }
   .gallery-owner-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .gallery-owner-btn:hover { background: #e5f3f0; }
@@ -757,5 +758,5 @@ function formatFecha(raw: string) {
   .video-card-link:hover .video-play { opacity: 1; }
   .empty-state, .error-box { padding: 2rem; border-radius: 24px; border: 0; background: #fff; color: #607889; text-align: center; box-shadow: 0 12px 26px rgba(31,64,68,0.07); }
   @media (max-width: 900px) { .videos-grid, .galeria-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 680px) { #galeriaPage { padding: 1.5rem 0 3rem; } .videos-grid, .galeria-grid { grid-template-columns: 1fr; gap: 1rem; } .galeria-upload-actions { display: grid; grid-template-columns: 1fr; } .galeria-upload-btn { width: 100%; } }
+  @media (max-width: 680px) { #galeriaPage { padding: 1.5rem 0 3rem; } .videos-grid, .galeria-grid { grid-template-columns: 1fr; gap: 1rem; } .galeria-upload-actions { display: grid; grid-template-columns: 1fr; } .galeria-upload-btn { width: 100%; } .galeria-card[data-gallery-type="comentario"] .galeria-meta { align-items: flex-start; gap: 0.55rem; } .galeria-card[data-gallery-type="comentario"] .galeria-author { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; } .galeria-card[data-gallery-type="comentario"] .galeria-text { overflow-wrap: anywhere; } }
 </style>

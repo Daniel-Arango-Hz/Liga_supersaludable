@@ -267,7 +267,7 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
       setFieldVisibility(fieldAutor, true);
       setFieldVisibility(fieldTitulo, currentMode === 'video' || (currentMode === 'foto' && !item));
       setFieldVisibility(fieldCategoria, currentMode === 'video');
-      setFieldVisibility(fieldArchivo, currentMode === 'foto' || (currentMode === 'video' && !item));
+      setFieldVisibility(fieldArchivo, currentMode === 'foto' || currentMode === 'video');
       setFieldVisibility(fieldComentario, currentMode !== 'video');
       nombreAutorInput.value = author;
 
@@ -283,7 +283,9 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
         tituloLabel.textContent = 'Nombre del video';
         tituloInput.placeholder = 'Ej: Devocional en casa';
         archivoLabel.textContent = 'Archivo de video';
-        archivoHelp.textContent = 'Formatos permitidos: MP4, WEBM, OGG, MOV, M4V (máx. 80MB).';
+        archivoHelp.textContent = item
+          ? 'Selecciona otro video solo si deseas reemplazar el actual. Formatos MP4, WEBM, OGG, MOV o M4V (máx. 80MB).'
+          : 'Formatos permitidos: MP4, WEBM, OGG, MOV, M4V (máx. 80MB).';
         archivoInput.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,video/x-m4v,.mov,.m4v';
         tituloInput.value = item?.title || '';
         loadCategories().then(() => {
@@ -497,6 +499,20 @@ const { apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api' }
             if (!categoria) throw new Error('Selecciona una categoría para el video.');
             endpoint = `${apiUrl}/videos/${encodeURIComponent(editingItem.id)}`;
             payload = { titulo, categoria };
+            const file = archivoInput.files?.[0];
+            if (file) {
+              validateUploadFile(file, 'video');
+              const mimeType = getVideoMimeType(file);
+              if (!allowedVideoTypes.includes(mimeType)) {
+                throw new Error('No se pudo determinar un formato de video compatible.');
+              }
+              const duracion = await getVideoDuration(file);
+              setStatus('Preparando la subida del video...');
+              const ruta = await uploadVideo(file, token, mimeType);
+              payload.ruta = ruta;
+              payload.mimeType = mimeType;
+              payload.duracion = duracion;
+            }
           } else {
             if (mode === 'comentario' && !comentario) throw new Error('El comentario es obligatorio.');
             endpoint = `${apiUrl}/galeria/${encodeURIComponent(editingItem.id)}`;
