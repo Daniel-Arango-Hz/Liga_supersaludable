@@ -291,6 +291,20 @@ function formatFecha(raw: string) {
       </div>
     </div>
 
+    <div id="deleteConfirmModal" class="delete-confirm-overlay" hidden aria-hidden="true">
+      <div class="delete-confirm-backdrop" data-cancel-delete></div>
+      <section class="delete-confirm-card" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle" aria-describedby="deleteConfirmMessage">
+        <span class="delete-confirm-icon" aria-hidden="true">!</span>
+        <h2 id="deleteConfirmTitle">¿Eliminar publicación?</h2>
+        <p id="deleteConfirmMessage">Esta acción no se puede deshacer.</p>
+        <p class="delete-confirm-error" id="deleteConfirmError" role="alert" hidden></p>
+        <div class="delete-confirm-actions">
+          <button type="button" class="delete-confirm-cancel" data-cancel-delete>Cancelar</button>
+          <button type="button" class="delete-confirm-submit" id="confirmDeleteButton">Sí, eliminar</button>
+        </div>
+      </section>
+    </div>
+
     <CommunityUploadModal apiUrl={API_URL} />
 
     <script>
@@ -306,6 +320,10 @@ function formatFecha(raw: string) {
         const titleEl = document.getElementById('vplayerTitulo');
         const authorEl = document.getElementById('vplayerAutor');
         const apiUrl = document.getElementById('galeriaPage')?.dataset.api || '/api';
+        const deleteModal = document.getElementById('deleteConfirmModal');
+        const deleteSubmit = document.getElementById('confirmDeleteButton');
+        const deleteError = document.getElementById('deleteConfirmError');
+        let pendingDelete = null;
 
         function openPlayer(url, titulo, autor, slug) {
           if (!modal || !videoEl) return;
@@ -346,6 +364,63 @@ function formatFecha(raw: string) {
         function setOwnerActions(card, canEdit) {
           const actions = card.querySelector('[data-gallery-actions]');
           if (actions) actions.hidden = !canEdit;
+        }
+
+        function closeDeleteConfirm() {
+          if (!deleteModal) return;
+          deleteModal.hidden = true;
+          deleteModal.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('modal-open');
+          pendingDelete = null;
+        }
+
+        function openDeleteConfirm(type, id) {
+          if (!deleteModal) return;
+          pendingDelete = { type, id };
+          if (deleteError) {
+            deleteError.hidden = true;
+            deleteError.textContent = '';
+          }
+          deleteModal.hidden = false;
+          deleteModal.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('modal-open');
+          deleteModal.querySelector('.delete-confirm-cancel')?.focus();
+        }
+
+        async function deletePendingPublication() {
+          if (!pendingDelete || !deleteSubmit) return;
+          const target = pendingDelete;
+          const token = window.localStorage.getItem('token');
+          if (!token) {
+            closeDeleteConfirm();
+            window.dispatchEvent(new CustomEvent('auth:required', {
+              detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para eliminar tu publicación.' },
+            }));
+            return;
+          }
+
+          deleteSubmit.disabled = true;
+          deleteSubmit.textContent = 'Eliminando...';
+          if (deleteError) deleteError.hidden = true;
+          try {
+            const response = await fetch(`${apiUrl}/${target.type === 'video' ? 'videos' : 'galeria'}/${encodeURIComponent(target.id)}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!response.ok) {
+              const data = await response.json().catch(() => ({}));
+              throw new Error(data?.error || 'No se pudo eliminar la publicación.');
+            }
+            window.location.reload();
+          } catch (error) {
+            if (deleteError) {
+              deleteError.textContent = error instanceof Error ? error.message : 'No se pudo eliminar la publicación.';
+              deleteError.hidden = false;
+            }
+          } finally {
+            deleteSubmit.disabled = false;
+            deleteSubmit.textContent = 'Sí, eliminar';
+          }
         }
 
         async function toggleLike(button, endpoint) {
@@ -470,28 +545,16 @@ function formatFecha(raw: string) {
               return;
             }
 
-            if (action === 'delete' && window.confirm('¿Seguro que quieres eliminar esta publicación?')) {
-              const token = window.localStorage.getItem('token');
-              if (!token) {
-                window.dispatchEvent(new CustomEvent('auth:required', {
-                  detail: { title: 'Inicio de sesión requerido', message: 'Inicia sesión para eliminar tu publicación.' },
-                }));
-                return;
-              }
+            if (action === 'delete') openDeleteConfirm(type, id);
+            return;
+          }
 
-              fetch(`${apiUrl}/${type === 'video' ? 'videos' : 'galeria'}/${encodeURIComponent(id)}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-              })
-                .then(async (res) => {
-                  if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data?.error || 'No se pudo eliminar la publicación.');
-                  }
-                  window.location.reload();
-                })
-                .catch((error) => window.alert(error instanceof Error ? error.message : 'No se pudo eliminar la publicación.'));
-            }
+          if (event.target instanceof Element && event.target.closest('[data-cancel-delete]')) {
+            closeDeleteConfirm();
+            return;
+          }
+          if (event.target === deleteSubmit) {
+            void deletePendingPublication();
             return;
           }
 
@@ -524,6 +587,10 @@ function formatFecha(raw: string) {
         });
 
         document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && deleteModal && !deleteModal.hidden) {
+            closeDeleteConfirm();
+            return;
+          }
           if (event.key === 'Escape' && modal?.style.display !== 'none') {
             closePlayer();
             return;
@@ -621,6 +688,20 @@ function formatFecha(raw: string) {
   .gallery-owner-btn:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 2px; }
   .gallery-owner-btn-delete { background: #fff5f2; color: #b43e3e; border-color: #f4d2c9; }
   .gallery-owner-btn-delete:hover { background: #ffebe5; }
+  .delete-confirm-overlay[hidden] { display: none; }
+  .delete-confirm-overlay { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 1rem; }
+  .delete-confirm-backdrop { position: absolute; inset: 0; background: rgba(24,39,61,0.58); backdrop-filter: blur(5px); }
+  .delete-confirm-card { position: relative; width: min(440px, calc(100vw - 2rem)); padding: 1.8rem; border: 1px solid #f4d2c9; border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(32,48,75,0.25); text-align: center; }
+  .delete-confirm-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 1rem; border-radius: 50%; background: #fff0eb; color: #b43e3e; font-size: 1.55rem; font-weight: 900; }
+  .delete-confirm-card h2 { margin: 0; color: #2d405d; font-family: var(--font-serif); font-size: 1.35rem; }
+  .delete-confirm-card > p { margin: 0.65rem 0 1.4rem; color: #607889; line-height: 1.5; }
+  .delete-confirm-error { margin: 0 0 1rem !important; color: #b43e3e !important; font-size: 0.88rem; }
+  .delete-confirm-actions { display: flex; justify-content: center; gap: 0.7rem; }
+  .delete-confirm-actions button { min-height: 42px; padding: 0.65rem 1rem; border: 1px solid #dce8e7; border-radius: 999px; font: inherit; font-size: 0.88rem; font-weight: 800; }
+  .delete-confirm-cancel { background: #f3faf8; color: #347d7c; }
+  .delete-confirm-submit { border-color: #b43e3e !important; background: #b43e3e; color: #fff; }
+  .delete-confirm-actions button:disabled { opacity: 0.65; cursor: wait; }
+  .delete-confirm-actions button:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 3px; }
   .video-cat-badge { width: fit-content; padding: 0.28rem 0.65rem; border-radius: 999px; background: #fff2df; color: #bd7130; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
   .video-titulo { font-family: var(--font-serif); font-size: 1.08rem; font-weight: 700; color: #2d405d; line-height: 1.3; margin: 0; }
   .video-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.84rem; color: #607889; }

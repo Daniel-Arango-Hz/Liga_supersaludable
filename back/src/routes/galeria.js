@@ -157,7 +157,7 @@ router.patch(
   async (req, res) => {
     const { data: existing, error: existingError } = await supabaseAdmin
       .from('testimonios')
-      .select('usuario_id')
+      .select('usuario_id, imagen_url, tipo')
       .eq('id', req.params.id)
       .maybeSingle();
 
@@ -167,14 +167,85 @@ router.patch(
       return res.status(403).json({ error: 'Solo quien creó esta publicación puede editarla.' });
     }
 
+    const { texto, fileName, fileBase64, mimeType } = req.body;
+    const hasImageUpload = Boolean(fileName || fileBase64 || mimeType);
+    if (hasImageUpload && existing.tipo !== 'foto') {
+      return res.status(400).json({ error: 'Solo puedes reemplazar imágenes en publicaciones de tipo foto.' });
+    }
+
+    let newImagePath = null;
+    let imagenUrl = existing.imagen_url;
+
+    if (hasImageUpload) {
+      if (!(fileName && fileBase64 && mimeType)) {
+        return res.status(400).json({ error: 'Para reemplazar la imagen debes enviar el archivo completo.' });
+      }
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        return res.status(400).json({ error: 'Tipo de imagen no soportado. Usa JPG, PNG, WEBP o GIF.' });
+      }
+
+      const imageBuffer = Buffer.from(extractBase64Payload(fileBase64), 'base64');
+      if (!imageBuffer.length) {
+        return res.status(400).json({ error: 'Archivo de imagen inválido.' });
+      }
+      if (imageBuffer.length > 8 * 1024 * 1024) {
+        return res.status(400).json({ error: 'La imagen excede el límite de 8MB.' });
+      }
+
+      const extension = getImageExtension(fileName, mimeType);
+      newImagePath = `galeria/${req.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .upload(newImagePath, imageBuffer, { contentType: mimeType, upsert: false });
+
+      if (uploadError) {
+        return res.status(500).json({ error: 'No se pudo reemplazar la imagen.', details: uploadError.message });
+      }
+
+      const { data: urlData } = supabaseAdmin.storage.from(STORAGE_BUCKET).getPublicUrl(newImagePath);
+      imagenUrl = urlData?.publicUrl || null;
+      if (!imagenUrl) {
+        const { error: cleanupError } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([newImagePath]);
+        if (cleanupError) console.error('No se pudo limpiar la imagen después de fallar la generación de URL:', cleanupError);
+        return res.status(500).json({ error: 'No se pudo generar la URL pública de la imagen.' });
+      }
+    }
+
+    const updates = { texto: texto.trim() || null };
+    if (hasImageUpload) updates.imagen_url = imagenUrl;
+
     const { data, error } = await supabaseAdmin
       .from('testimonios')
-      .update({ texto: req.body.texto.trim() || null })
+      .update(updates)
       .eq('id', req.params.id)
       .select()
       .single();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      if (newImagePath) {
+        const { error: cleanupError } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([newImagePath]);
+        if (cleanupError) console.error('No se pudo limpiar la imagen después de fallar la edición:', cleanupError);
+      }
+      return res.status(400).json({ error: error.message });
+    }
+
+    if (newImagePath && existing.imagen_url) {
+      try {
+        const oldUrl = new URL(existing.imagen_url);
+        const bucketMarker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+        const bucketIndex = oldUrl.pathname.indexOf(bucketMarker);
+        if (bucketIndex >= 0) {
+          const oldPath = decodeURIComponent(oldUrl.pathname.slice(bucketIndex + bucketMarker.length));
+          if (oldPath.startsWith(`galeria/${req.user.id}/`)) {
+            const { error: cleanupError } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([oldPath]);
+            if (cleanupError) console.error('No se pudo eliminar la imagen reemplazada:', cleanupError);
+          }
+        }
+      } catch (cleanupError) {
+        console.error('No se pudo procesar la URL de la imagen reemplazada para limpiar Storage.', cleanupError);
+      }
+    }
+
     res.json(data);
   }
 );
