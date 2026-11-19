@@ -206,11 +206,9 @@ function formatFecha(raw: string) {
                     <div class="gallery-owner-actions" data-gallery-actions hidden>
                       <button type="button" class="gallery-owner-btn" data-gallery-action="edit" aria-label="Editar video">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 5 4 4M4 20l4-.8L19 8a2.8 2.8 0 0 0-4-4L4 15l-1 5Z" /></svg>
-                        Editar
                       </button>
                       <button type="button" class="gallery-owner-btn gallery-owner-btn-delete" data-gallery-action="delete" aria-label="Eliminar video">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" /></svg>
-                        Eliminar
                       </button>
                     </div>
                   </div>
@@ -256,11 +254,9 @@ function formatFecha(raw: string) {
                   <div class="gallery-owner-actions" data-gallery-actions hidden>
                     <button type="button" class="gallery-owner-btn" data-gallery-action="edit" aria-label="Editar publicación">
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 5 4 4M4 20l4-.8L19 8a2.8 2.8 0 0 0-4-4L4 15l-1 5Z" /></svg>
-                      Editar
                     </button>
                     <button type="button" class="gallery-owner-btn gallery-owner-btn-delete" data-gallery-action="delete" aria-label="Eliminar publicación">
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" /></svg>
-                      Eliminar
                     </button>
                   </div>
                 </div>
@@ -668,7 +664,7 @@ function formatFecha(raw: string) {
   .galeria-upload-btn:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 3px; }
   .galeria-upload-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .videos-grid, .galeria-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
-  .video-card, .galeria-card { min-width: 0; background: #fff; border-radius: 24px; overflow: hidden; border: 0; box-shadow: 0 12px 26px rgba(31,64,68,0.07); transition: box-shadow 0.2s ease, transform 0.2s ease; }
+  .video-card, .galeria-card { position: relative; min-width: 0; background: #fff; border-radius: 24px; overflow: hidden; border: 0; box-shadow: 0 12px 26px rgba(31,64,68,0.07); transition: box-shadow 0.2s ease, transform 0.2s ease; }
   .video-card:hover, .galeria-card:hover { box-shadow: 0 18px 32px rgba(31,64,68,0.13); transform: translateY(-5px); }
   .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
   .video-card:focus-visible { outline: 3px solid #247f78; outline-offset: 3px; }
@@ -679,11 +675,10 @@ function formatFecha(raw: string) {
   .video-card:hover .video-play { opacity: 1; }
   .video-card:hover .video-play { transform: scale(1); }
   .video-info { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
-  .gallery-owner-actions { display: flex; justify-content: flex-end; gap: 0.55rem; }
+  .gallery-owner-actions { position: absolute; z-index: 2; top: 0.75rem; right: 0.75rem; display: flex; gap: 0.5rem; }
   .gallery-owner-actions[hidden] { display: none; }
-  .gallery-owner-btn { min-height: 36px; padding: 0.45rem 0.85rem; border: 1px solid #dce8e7; border-radius: 999px; background: #f3faf8; color: #347d7c; font: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; }
-  .gallery-owner-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
-  .gallery-owner-btn svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .gallery-owner-btn { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid rgba(220,232,231,0.9); border-radius: 50%; background: rgba(243,250,248,0.96); color: #347d7c; box-shadow: 0 3px 10px rgba(32,48,75,0.18); cursor: pointer; backdrop-filter: blur(4px); }
+  .gallery-owner-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .gallery-owner-btn:hover { background: #e5f3f0; }
   .gallery-owner-btn:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 2px; }
   .gallery-owner-btn-delete { background: #fff5f2; color: #b43e3e; border-color: #f4d2c9; }
