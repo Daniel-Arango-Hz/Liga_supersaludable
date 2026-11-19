@@ -147,11 +147,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     pendingPage: null,
     scale: 1.25,
     presentation: false,
+    singlePage: false,
     mode: 'text',
     imageUrls: [],
     imageCache: new Map(),
     fingerprint: null,
   };
+  let presentationViewportQuery = null;
+  let presentationViewportHandler = null;
 
   async function loadBook() {
     try {
@@ -337,6 +340,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       const firstPageViewport = firstPage.getViewport({ scale: 1 });
       pdfState.presentation = isFreeMessage || firstPageViewport.width / firstPageViewport.height >= 1.25;
       if (pdfState.presentation) {
+        presentationViewportQuery = window.matchMedia('(max-width: 700px), (max-width: 900px) and (orientation: portrait)');
+        pdfState.singlePage = presentationViewportQuery.matches;
+        presentationViewportHandler = () => {
+          const singlePage = presentationViewportQuery.matches;
+          if (pdfState.singlePage === singlePage) return;
+          pdfState.singlePage = singlePage;
+          queuePdfPage(pdfState.page);
+        };
+        presentationViewportQuery.addEventListener('change', presentationViewportHandler);
+      }
+      if (pdfState.presentation) {
         contentArea.querySelector('.pdf-reader-shell')?.classList.add('pdf-presentation-reader');
         document.getElementById('reader-container')?.classList.add('presentation-reader-mode');
         const textView = document.getElementById('pdf-text-view');
@@ -374,11 +388,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       });
 
       document.getElementById('reader-prev')?.addEventListener('click', () => {
-        const pageStep = pdfState.presentation ? 2 : 1;
+        const pageStep = pdfState.presentation && !pdfState.singlePage ? 2 : 1;
         if (pdfState.page > 1) queuePdfPage(pdfState.page - pageStep);
       });
       document.getElementById('reader-next')?.addEventListener('click', () => {
-        const pageStep = pdfState.presentation ? 2 : 1;
+        const pageStep = pdfState.presentation && !pdfState.singlePage ? 2 : 1;
         if (pdfState.page + pageStep <= pdfState.total) queuePdfPage(pdfState.page + pageStep);
       });
     } catch (error) {
@@ -586,7 +600,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   function queuePdfPage(pageNumber) {
     if (!pdfState.doc) return;
     const boundedPage = Math.min(Math.max(1, pageNumber), pdfState.total);
-    const safePage = pdfState.presentation
+    const safePage = pdfState.presentation && !pdfState.singlePage
       ? Math.floor((boundedPage - 1) / 2) * 2 + 1
       : boundedPage;
 
@@ -613,14 +627,16 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     const status = document.getElementById('pdf-page-status');
     if (status) {
       status.hidden = false;
-      status.textContent = pdfState.presentation
+      status.textContent = pdfState.presentation && !pdfState.singlePage
         ? `Preparando páginas ${pageNumber}–${Math.min(pageNumber + 1, pdfState.total)} de ${pdfState.total}…`
         : `Preparando página ${pageNumber} de ${pdfState.total}…`;
     }
 
     try {
       if (pdfState.presentation) {
-        const pageNumbers = [pageNumber, pageNumber + 1].filter((number) => number <= pdfState.total);
+        const pageNumbers = pdfState.singlePage
+          ? [pageNumber]
+          : [pageNumber, pageNumber + 1].filter((number) => number <= pdfState.total);
         const renderedImageUrls = await Promise.all(pageNumbers.map(renderPdfPageImage));
         const previousImageUrls = pdfState.imageUrls;
         await Promise.all(renderedImageUrls.map(waitForPdfImage));
@@ -629,7 +645,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         const blankPage = document.getElementById('pdf-page-blank');
         const visibleLastPage = pageNumbers.at(-1);
 
-        if (previousImageUrls.length && pageNumber !== previousPage) {
+        if (!pdfState.singlePage && previousImageUrls.length && pageNumber !== previousPage) {
           await animatePdfPageTurn(
             pageNumber > previousPage ? 'forward' : 'backward',
             pageNumber > previousPage ? previousImageUrls[1] : previousImageUrls[0],
@@ -652,7 +668,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         pdfState.page = pageNumber;
 
         const pageLabel = document.getElementById('pdf-page-label');
-        if (pageLabel) pageLabel.textContent = `Páginas ${pageNumber}–${visibleLastPage} de ${pdfState.total}`;
+        if (pageLabel) {
+          pageLabel.textContent = pdfState.singlePage
+            ? `Página ${pageNumber} de ${pdfState.total}`
+            : `Páginas ${pageNumber}–${visibleLastPage} de ${pdfState.total}`;
+        }
         document.querySelectorAll('[data-pdf-page]').forEach((button) => {
           const buttonPage = Number(button.dataset.pdfPage);
           button.classList.toggle('active', buttonPage >= pageNumber && buttonPage <= visibleLastPage);
@@ -691,7 +711,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       const imageAlt = `Página original ${pageNumber} de ${libro.titulo || 'el cuento'}`;
       const nextPageNumber = pageNumber + 1;
       let renderedImageUrls = [imageUrl];
-      if (pdfState.presentation && nextPageNumber <= pdfState.total) {
+      if (pdfState.presentation && !pdfState.singlePage && nextPageNumber <= pdfState.total) {
         let secondImageUrl;
         try {
           secondImageUrl = await renderPdfPageImage(nextPageNumber);
@@ -709,7 +729,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
         blankPage.hidden = !pdfState.presentation;
       }
 
-      if (pdfState.presentation && previousImageUrls.length && pageNumber !== previousPage) {
+      if (pdfState.presentation && !pdfState.singlePage && previousImageUrls.length && pageNumber !== previousPage) {
         await animatePdfPageTurn(
           pageNumber > previousPage ? 'forward' : 'backward',
           pageNumber > previousPage ? previousImageUrls[1] : previousImageUrls[0],
@@ -768,9 +788,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
       }
 
       const pageLabel = document.getElementById('pdf-page-label');
-      const visibleLastPage = pdfState.presentation ? Math.min(pageNumber + 1, pdfState.total) : pageNumber;
+      const visibleLastPage = pdfState.presentation && !pdfState.singlePage
+        ? Math.min(pageNumber + 1, pdfState.total)
+        : pageNumber;
       if (pageLabel) {
-        pageLabel.textContent = pdfState.presentation
+        pageLabel.textContent = pdfState.presentation && !pdfState.singlePage
           ? `Páginas ${pageNumber}–${visibleLastPage} de ${pdfState.total}`
           : `Página ${pageNumber} de ${pdfState.total}`;
       }
@@ -842,10 +864,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   }
 
   async function warmNextPdfSpread(firstVisiblePage) {
-    const nextFirstPage = firstVisiblePage + 2;
+    const pageStep = pdfState.singlePage ? 1 : 2;
+    const nextFirstPage = firstVisiblePage + pageStep;
     if (nextFirstPage > pdfState.total) return;
 
-    const pages = [nextFirstPage, nextFirstPage + 1].filter((number) => number <= pdfState.total);
+    const pages = pdfState.singlePage
+      ? [nextFirstPage]
+      : [nextFirstPage, nextFirstPage + 1].filter((number) => number <= pdfState.total);
     try {
       await Promise.all(pages.map(renderPdfPageImage));
       trimPdfImageCache(firstVisiblePage);
@@ -936,13 +961,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
   }
 
   function updatePdfUi() {
-    const visibleLastPage = pdfState.presentation ? Math.min(pdfState.page + 1, pdfState.total) : pdfState.page;
-    const pageRange = pdfState.presentation
+    const visibleLastPage = pdfState.presentation && !pdfState.singlePage
+      ? Math.min(pdfState.page + 1, pdfState.total)
+      : pdfState.page;
+    const pageRange = pdfState.presentation && !pdfState.singlePage
       ? `${pdfState.page}–${visibleLastPage}`
       : String(pdfState.page);
     const indicator = document.getElementById('pdf-page-indicator');
     if (indicator) {
-      indicator.textContent = pdfState.presentation
+      indicator.textContent = pdfState.presentation && !pdfState.singlePage
         ? `Páginas ${pageRange} de ${pdfState.total}`
         : `Página ${pdfState.page} de ${pdfState.total}`;
     }
@@ -951,7 +978,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     if (pageCount) pageCount.textContent = `${pageRange} / ${pdfState.total}`;
     const navigationLabel = document.querySelector('.reader-page-nav p');
     if (navigationLabel) {
-      navigationLabel.textContent = pdfState.presentation
+      navigationLabel.textContent = pdfState.presentation && !pdfState.singlePage
         ? `Páginas ${pageRange} de ${pdfState.total}`
         : 'Sigue leyendo para descubrirlo';
     }
@@ -2689,7 +2716,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     position: relative;
     width: 100%;
     height: 100dvh;
-    min-height: 500px;
+    min-height: min(500px, 100dvh);
     padding: 0;
     overflow: hidden;
     border: 5px solid #05bed2;
@@ -3086,9 +3113,9 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     visibility: hidden;
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 700px), (max-width: 900px) and (orientation: portrait) {
     #reader-container {
-      min-height: 420px;
+      min-height: min(420px, 100dvh);
       border-width: 3px;
     }
 
@@ -3382,6 +3409,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000/api';
     min-height: 48px;
     background: rgba(255, 255, 255, 0.86);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (max-width: 700px), (max-width: 900px) and (orientation: portrait) {
+    #reader-container.presentation-reader-mode .pdf-open-book {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #reader-container.presentation-reader-mode .pdf-book-sheet-left {
+      box-shadow: none;
+    }
+
+    #reader-container.presentation-reader-mode .pdf-book-sheet-right {
+      display: none;
+    }
   }
 
   @media (max-width: 700px) {
