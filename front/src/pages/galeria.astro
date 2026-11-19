@@ -188,11 +188,23 @@ function formatFecha(raw: string) {
                       </div>
                     </div>
                     <div class="video-info">
-                      <span class="video-cat-badge">{video.categoria}</span>
                       <h2 class="video-titulo">{video.titulo}</h2>
                       <div class="video-meta">
-                        <span>{video.autor}</span>
+                        <span class="galeria-author">{video.autor}</span>
                         <div class="video-meta-right">
+                          <button
+                            type="button"
+                            class="galeria-like-btn video-like-btn"
+                            data-id={video.slug}
+                            data-liked={video.user_liked ? 'true' : 'false'}
+                            aria-pressed={video.user_liked ? 'true' : 'false'}
+                            aria-label={video.user_liked ? `Quitar me gusta al video de ${video.autor}` : `Dar me gusta al video de ${video.autor}`}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={video.user_liked ? 'currentColor' : 'none'} stroke="currentColor" aria-hidden="true">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                            <span class="galeria-likes-count video-likes-count">{video.likes.toLocaleString('es')}</span>
+                          </button>
                           <div class="video-vistas">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -234,12 +246,12 @@ function formatFecha(raw: string) {
                 ) : null}
                 <div class="galeria-body">
                   <div class="galeria-meta">
-                    <span class="galeria-label">{item.tipo}</span>
                     <span class="galeria-author">{item.familia}</span>
                     <button
                       type="button"
                       class="galeria-like-btn"
                       data-id={item.id}
+                      data-item-type="galeria"
                       data-liked={item.user_liked ? 'true' : 'false'}
                       aria-pressed={item.user_liked ? 'true' : 'false'}
                       aria-label={item.user_liked ? `Quitar me gusta a ${item.tipo} de ${item.familia}` : `Dar me gusta a ${item.tipo} de ${item.familia}`}
@@ -554,14 +566,21 @@ function formatFecha(raw: string) {
             return;
           }
 
-          const likeButton = event.target instanceof Element ? event.target.closest('.galeria-like-btn') : null;
+          const likeButton = event.target instanceof Element
+            ? event.target.closest('.galeria-like-btn, .video-like-btn')
+            : null;
           if (likeButton) {
             event.stopPropagation();
             const id = likeButton.getAttribute('data-id');
             if (id) {
-              toggleLike(likeButton, `${apiUrl}/galeria/${encodeURIComponent(id)}/like`).then(() => {
+              const isVideoLike = likeButton.classList.contains('video-like-btn');
+              const endpoint = isVideoLike
+                ? `${apiUrl}/videos/${encodeURIComponent(id)}/like`
+                : `${apiUrl}/galeria/${encodeURIComponent(id)}/like`;
+              toggleLike(likeButton, endpoint).then(() => {
                 // después de toggle, sincronizar con servidor para asegurar conteos y estado
-                try { refreshGaleriaLikes(); } catch (e) { /* noop */ }
+                if (isVideoLike) refreshVideos();
+                else refreshGaleriaLikes();
               });
             }
             return;
