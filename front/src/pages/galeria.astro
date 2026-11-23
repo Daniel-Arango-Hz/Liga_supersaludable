@@ -179,6 +179,15 @@ function formatFecha(raw: string) {
                 >
                   <div class="video-card-link">
                     <div class="video-thumb" style={`background: ${video.gradiente}`} aria-hidden="true">
+                      <video
+                        class="video-preview"
+                        data-preview-url={video.url}
+                        muted
+                        playsinline
+                        preload="none"
+                        tabindex="-1"
+                        aria-hidden="true"
+                      ></video>
                       <span class="video-emoji">{video.emoji}</span>
                       <span class="video-duration">{video.duracion}</span>
                       <div class="video-play">
@@ -210,7 +219,9 @@ function formatFecha(raw: string) {
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                               <circle cx="12" cy="12" r="3"/>
                             </svg>
-                            <span class="video-vistas-count">{video.vistas.toLocaleString('es')} vistas</span>
+                            <span class="video-vistas-count">
+                              {video.vistas.toLocaleString('es')} {video.vistas === 1 ? 'vista' : 'vistas'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -332,6 +343,36 @@ function formatFecha(raw: string) {
         const deleteSubmit = document.getElementById('confirmDeleteButton');
         const deleteError = document.getElementById('deleteConfirmError');
         let pendingDelete = null;
+
+        function loadVideoPreview(card) {
+          const preview = card.querySelector('.video-preview');
+          const url = preview?.dataset.previewUrl;
+          if (!preview || !url || preview.src) return;
+
+          preview.addEventListener('loadedmetadata', () => {
+            if (Number.isFinite(preview.duration) && preview.duration > 1) {
+              preview.currentTime = Math.min(1, preview.duration / 10);
+            }
+          }, { once: true });
+          preview.addEventListener('loadeddata', () => card.classList.add('has-preview'), { once: true });
+          preview.src = url;
+          preview.load();
+        }
+
+        const previewObserver = 'IntersectionObserver' in window
+          ? new IntersectionObserver((entries) => {
+              entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                loadVideoPreview(entry.target);
+                previewObserver.unobserve(entry.target);
+              });
+            }, { rootMargin: '160px' })
+          : null;
+
+        document.querySelectorAll('.video-card').forEach((card) => {
+          if (previewObserver) previewObserver.observe(card);
+          else loadVideoPreview(card);
+        });
 
         function openPlayer(url, titulo, autor, slug) {
           if (!modal || !videoEl) return;
@@ -645,7 +686,10 @@ function formatFecha(raw: string) {
                 const vistasCount = card.querySelector('.video-vistas-count');
                 const likesCount = card.querySelector('.video-likes-count');
                 const likeButton = card.querySelector('.video-like-btn');
-                if (vistasCount) vistasCount.textContent = `${Number(video.vistas || 0).toLocaleString('es')} vistas`;
+                if (vistasCount) {
+                  const vistas = Number(video.vistas || 0);
+                  vistasCount.textContent = `${vistas.toLocaleString('es')} ${vistas === 1 ? 'vista' : 'vistas'}`;
+                }
                 if (likesCount) likesCount.textContent = `${Number(video.total_likes || video.likes || 0).toLocaleString('es')}`;
               if (likeButton) {
                 const liked = Boolean(video.user_liked);
@@ -687,7 +731,11 @@ function formatFecha(raw: string) {
   .video-card:hover, .galeria-card:hover { box-shadow: 0 18px 32px rgba(31,64,68,0.13); transform: translateY(-5px); }
   .video-card-link { display: flex; flex-direction: column; width: 100%; background: none; border: none; cursor: pointer; text-align: left; padding: 0; }
   .video-card:focus-visible { outline: 3px solid #247f78; outline-offset: 3px; }
-  .video-thumb { position: relative; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+  .video-thumb { position: relative; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .video-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+  .video-card.has-preview .video-preview { opacity: 1; }
+  .video-card.has-preview .video-emoji { opacity: 0; transform: scale(0.9); }
+  .video-card.has-preview .video-play { position: relative; z-index: 1; }
   .video-emoji { font-size: 2.5rem; opacity: 0.72; pointer-events: none; filter: drop-shadow(0 3px 6px rgba(32,48,75,0.12)); }
   .video-duration { position: absolute; bottom: 0.7rem; right: 0.7rem; background: rgba(32,48,75,0.78); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.28rem 0.6rem; border-radius: 999px; }
   .video-play { width: 50px; height: 50px; background: rgba(255,255,255,0.94); color: #3b7f86; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.9); box-shadow: 0 8px 20px rgba(32,48,75,0.2); transition: opacity 0.2s, transform 0.2s; }
@@ -719,8 +767,8 @@ function formatFecha(raw: string) {
   .delete-confirm-actions button:focus-visible { outline: 3px solid rgba(21,101,192,0.35); outline-offset: 3px; }
   .video-cat-badge { width: fit-content; padding: 0.28rem 0.65rem; border-radius: 999px; background: #fff2df; color: #bd7130; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
   .video-titulo { font-family: var(--font-serif); font-size: 1.08rem; font-weight: 700; color: #2d405d; line-height: 1.3; margin: 0; }
-  .video-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.84rem; color: #607889; }
-  .video-vistas { display: flex; align-items: center; gap: 0.35rem; }
+  .video-meta { display: flex; flex-direction: column; align-items: stretch; gap: 0.65rem; font-size: 0.84rem; color: #607889; }
+  .video-vistas { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 38px; padding: 0.35rem 0.7rem; border: 1px solid #e2ebf3; border-radius: 999px; white-space: nowrap; }
   .galeria-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
   .galeria-body { padding: 1rem 1.1rem 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; }
   .galeria-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.65rem; flex-wrap: wrap; }
@@ -732,7 +780,9 @@ function formatFecha(raw: string) {
   .galeria-like-btn:active { transform: scale(0.96); }
   .galeria-like-btn svg { width: 15px; height: 15px; }
   .galeria-likes-count { line-height: 1; }
-  .video-meta-right { display: inline-flex; align-items: center; gap: 1rem; }
+  .video-meta-right { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
+  .video-meta-right .galeria-like-btn { min-height: 38px; padding-inline: 0.75rem; }
+  .video-meta-right .galeria-likes-count { white-space: nowrap; }
   .video-likes { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; color: var(--color-text-muted); }
   .video-likes svg { width: 14px; height: 14px; }
   .vplayer-overlay {
